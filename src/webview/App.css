@@ -300,11 +300,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
+    padding: 12px;
     background: var(--vscode-sideBar-background);
     border-bottom: 1px solid var(--vscode-panel-border);
     border-radius: 6px 6px 0 0;
-    min-height: 32px;
+    height: 50px;
+    box-sizing: border-box;
+    gap: 8px;
 }
 
 .frame-title {
@@ -334,10 +336,138 @@
     font-weight: 500;
 }
 
+.frame-dimensions {
+    font-size: 9px;
+    color: var(--vscode-descriptionForeground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: var(--vscode-editor-font-family);
+}
+
+/* Frame Viewport Controls */
+.frame-viewport-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 4px;
+    padding: 1px;
+}
+
+.frame-viewport-btn {
+    background: transparent;
+    border: none;
+    padding: 2px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    transition: background-color 0.2s ease;
+    color: var(--vscode-foreground);
+    line-height: 1;
+}
+
+.frame-viewport-btn:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.frame-viewport-btn.active {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+/* Frame Viewport Indicator */
+.frame-viewport-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.global-indicator {
+    font-size: 8px;
+    opacity: 0.7;
+}
+
+.viewport-icon {
+    font-size: 10px;
+}
+
+.frame-status {
+    font-size: 8px;
+    line-height: 1;
+}
+
+.frame-status.loading {
+    color: var(--vscode-progressBar-background);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.frame-status.error {
+    color: var(--vscode-errorForeground);
+}
+
+.frame-status.loaded {
+    color: var(--vscode-charts-green);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Viewport Controls */
+.viewport-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--vscode-panel-border);
+    margin: 0 8px;
+}
+
+.viewport-toggle.active {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.viewport-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 6px;
+    padding: 2px;
+}
+
+.viewport-btn {
+    background: transparent;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s ease;
+    color: var(--vscode-foreground);
+}
+
+.viewport-btn:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.viewport-btn.active {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
 .frame-content {
-    height: calc(100% - 32px);
-    padding: 12px;
+    position: relative;
+    height: calc(100% - 50px);
+    padding: 0;
     overflow: hidden;
+    background: white;
 }
 
 .frame-placeholder {
@@ -353,9 +483,100 @@
     border-radius: 4px;
 }
 
-.frame-placeholder p {
-    margin: 4px 0;
+.placeholder-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    opacity: 0.6;
+}
+
+.placeholder-name {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--vscode-foreground);
+}
+
+.placeholder-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 8px;
+}
+
+.placeholder-meta span {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.placeholder-hint {
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* Frame Loading & Error Overlays */
+.frame-loading-overlay,
+.frame-error-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(2px);
+    z-index: 10;
+}
+
+.frame-loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--vscode-foreground);
+}
+
+.frame-loading-spinner span {
     font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.spinner-small {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--vscode-input-border);
+    border-top: 2px solid var(--vscode-button-background);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.frame-error-overlay {
+    background: rgba(248, 248, 248, 0.95);
+}
+
+.frame-error-content {
+    text-align: center;
+    color: var(--vscode-errorForeground);
+}
+
+.frame-error-content span {
+    font-size: 24px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.frame-error-content p {
+    margin: 0 0 4px 0;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.frame-error-content small {
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground);
 }
 
 /* Loading States */

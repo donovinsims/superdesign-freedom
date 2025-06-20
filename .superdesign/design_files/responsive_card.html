@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Card Design</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+            max-width: 100%;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .card-subtitle {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .card-content {
+            padding: 24px;
+        }
+        
+        .features {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        
+        .cta-button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .cta-button:hover {
+            background: #5a67d8;
+        }
+        
+        /* Mobile styles */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .card-header {
+                padding: 16px;
+            }
+            
+            .card-title {
+                font-size: 1.25rem;
+            }
+            
+            .card-content {
+                padding: 16px;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+            }
+            
+            .feature {
+                padding: 12px;
+            }
+            
+            .feature-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
+        }
+        
+        /* Tablet styles */
+        @media (min-width: 481px) and (max-width: 768px) {
+            .features {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        /* Desktop styles */
+        @media (min-width: 769px) {
+            .card {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+            
+            .features {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="card-header">
+            <h1 class="card-title">Premium Service</h1>
+            <p class="card-subtitle">Everything you need to succeed</p>
+        </div>
+        
+        <div class="card-content">
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <div>
+                        <h3>Fast Performance</h3>
+                        <p>Lightning quick response times</p>
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">🔒</div>
+                    <div>
+                        <h3>Secure</h3>
+                        <p>Bank-level security protection</p>
+                    </div>
+                </div>
+                
+                <div class="feature">
+                    <div class="feature-icon">📱</div>
+                    <div>
+                        <h3>Mobile Ready</h3>
+                        <p>Works on all devices</p>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="cta-button">
+                Get Started Today
+            </button>
+        </div>
+    </div>
+</body>
+</html> 

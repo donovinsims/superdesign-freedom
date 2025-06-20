@@ -76,10 +76,31 @@ export interface FrameDimensions {
     height: number;
 }
 
+export type ViewportMode = 'desktop' | 'mobile' | 'tablet';
+
+export interface ViewportConfig {
+    desktop: FrameDimensions;
+    mobile: FrameDimensions;
+    tablet: FrameDimensions;
+}
+
+export interface FrameViewportState {
+    [fileName: string]: ViewportMode;
+}
+
 export interface CanvasConfig {
     frameSize: FrameDimensions;
     gridSpacing: number;
     framesPerRow: number;
     minZoom: number;
     maxZoom: number;
+    // Responsive settings
+    responsive: {
+        enableScaling: boolean;
+        minFrameSize: FrameDimensions;
+        maxFrameSize: FrameDimensions;
+        scaleWithZoom: boolean;
+    };
+    // Viewport configurations
+    viewports: ViewportConfig;
 } 

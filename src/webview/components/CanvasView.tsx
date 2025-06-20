@@ -7,7 +7,9 @@ import {
     CanvasState, 
     WebviewMessage, 
     ExtensionToWebviewMessage,
-    CanvasConfig
+    CanvasConfig,
+    ViewportMode,
+    FrameViewportState
 } from '../types/canvas.types';
 
 interface CanvasViewProps {
@@ -15,11 +17,22 @@ interface CanvasViewProps {
 }
 
 const CANVAS_CONFIG: CanvasConfig = {
-    frameSize: { width: 300, height: 400 },
-    gridSpacing: 100,
+    frameSize: { width: 400, height: 500 }, // Default frame size for grid spacing calculations
+    gridSpacing: 150,
     framesPerRow: 3,
     minZoom: 0.1,
-    maxZoom: 5
+    maxZoom: 5,
+    responsive: {
+        enableScaling: true,
+        minFrameSize: { width: 200, height: 250 },
+        maxFrameSize: { width: 500, height: 650 },
+        scaleWithZoom: false
+    },
+    viewports: {
+        desktop: { width: 1200, height: 800 },
+        tablet: { width: 768, height: 1024 },
+        mobile: { width: 375, height: 667 }
+    }
 };
 
 const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
@@ -29,7 +42,57 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
     const [error, setError] = useState<string | null>(null);
     const [currentZoom, setCurrentZoom] = useState(1);
     const [currentConfig, setCurrentConfig] = useState<CanvasConfig>(CANVAS_CONFIG);
+    const [globalViewportMode, setGlobalViewportMode] = useState<ViewportMode>('desktop');
+    const [frameViewports, setFrameViewports] = useState<FrameViewportState>({});
+    const [useGlobalViewport, setUseGlobalViewport] = useState(false);
     const transformRef = useRef<ReactZoomPanPinchRef>(null);
+
+    // Performance optimization: Switch render modes based on zoom level
+    const getOptimalRenderMode = (zoom: number): 'placeholder' | 'iframe' => {
+        // Use placeholder for very zoomed out views for better performance
+        return zoom < 0.5 ? 'placeholder' : 'iframe';
+    };
+
+    // Viewport management functions
+    const getFrameViewport = (fileName: string): ViewportMode => {
+        if (useGlobalViewport) {
+            return globalViewportMode;
+        }
+        return frameViewports[fileName] || 'desktop';
+    };
+
+    const handleFrameViewportChange = (fileName: string, viewport: ViewportMode) => {
+        setFrameViewports(prev => ({
+            ...prev,
+            [fileName]: viewport
+        }));
+    };
+
+    const handleGlobalViewportChange = (viewport: ViewportMode) => {
+        setGlobalViewportMode(viewport);
+        if (useGlobalViewport) {
+            // Update all frames to the new global viewport
+            const newFrameViewports: FrameViewportState = {};
+            designFiles.forEach(file => {
+                newFrameViewports[file.name] = viewport;
+            });
+            setFrameViewports(newFrameViewports);
+        }
+    };
+
+    const toggleGlobalViewport = () => {
+        const newUseGlobal = !useGlobalViewport;
+        setUseGlobalViewport(newUseGlobal);
+        
+        if (newUseGlobal) {
+            // Set all frames to current global viewport
+            const newFrameViewports: FrameViewportState = {};
+            designFiles.forEach(file => {
+                newFrameViewports[file.name] = globalViewportMode;
+            });
+            setFrameViewports(newFrameViewports);
+        }
+    };
 
     // Responsive config update
     useEffect(() => {
@@ -187,13 +250,51 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                 <button className="control-btn" onClick={handleFitToView} title="Fit to View">
                     📐
                 </button>
+                
+                <div className="viewport-divider"></div>
+                
+                {/* Global Viewport Controls */}
+                <button 
+                    className={`control-btn viewport-toggle ${useGlobalViewport ? 'active' : ''}`}
+                    onClick={toggleGlobalViewport}
+                    title="Toggle Global Viewport Mode"
+                >
+                    🌐
+                </button>
+                
+                <div className="viewport-controls">
+                    <button 
+                        className={`viewport-btn ${globalViewportMode === 'mobile' ? 'active' : ''}`}
+                        onClick={() => handleGlobalViewportChange('mobile')}
+                        title="Mobile View (375×667)"
+                    >
+                        📱
+                    </button>
+                    <button 
+                        className={`viewport-btn ${globalViewportMode === 'tablet' ? 'active' : ''}`}
+                        onClick={() => handleGlobalViewportChange('tablet')}
+                        title="Tablet View (768×1024)"
+                    >
+                        📋
+                    </button>
+                    <button 
+                        className={`viewport-btn ${globalViewportMode === 'desktop' ? 'active' : ''}`}
+                        onClick={() => handleGlobalViewportChange('desktop')}
+                        title="Desktop View (1200×800)"
+                    >
+                        🖥️
+                    </button>
+                </div>
+                
                 <div className="zoom-indicator">
                     {Math.round(currentZoom * 100)}%
                 </div>
                 <div className="canvas-info">
                     {(() => {
                         const metrics = getGridMetrics(designFiles.length, currentConfig);
-                        return `${metrics.totalFrames} files (${metrics.rows}×${metrics.cols}) | ${selectedFrames.length} selected`;
+                        const renderMode = getOptimalRenderMode(currentZoom);
+                        const renderIcon = renderMode === 'iframe' ? '🖼️' : '📄';
+                        return `${metrics.totalFrames} files (${metrics.rows}×${metrics.cols}) | ${selectedFrames.length} selected | ${renderIcon}`;
                     })()}
                 </div>
             </div>
@@ -222,17 +323,33 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                 >
                     <div className="canvas-grid">
                         {designFiles.map((file, index) => {
-                            const position = calculateGridPosition(index, currentConfig);
+                            const frameViewport = getFrameViewport(file.name);
+                            const viewportDimensions = currentConfig.viewports[frameViewport];
+                            
+                            // Use actual viewport dimensions (add frame border/header space)
+                            const actualWidth = viewportDimensions.width;
+                            const actualHeight = viewportDimensions.height + 50; // Add space for header
+                            
+                            // Calculate position based on actual frame sizes
+                            const col = index % currentConfig.framesPerRow;
+                            const row = Math.floor(index / currentConfig.framesPerRow);
+                            
+                            const x = col * (Math.max(actualWidth, currentConfig.frameSize.width) + currentConfig.gridSpacing);
+                            const y = row * (Math.max(actualHeight, currentConfig.frameSize.height) + currentConfig.gridSpacing);
                             
                             return (
                                 <DesignFrame
                                     key={file.name}
                                     file={file}
-                                    position={position}
-                                    dimensions={currentConfig.frameSize}
+                                    position={{ x, y }}
+                                    dimensions={{ width: actualWidth, height: actualHeight }}
                                     isSelected={selectedFrames.includes(file.name)}
                                     onSelect={handleFrameSelect}
-                                    renderMode="placeholder" // Will change to 'iframe' in Phase 4
+                                    renderMode={getOptimalRenderMode(currentZoom)}
+                                    viewport={frameViewport}
+                                    viewportDimensions={viewportDimensions}
+                                    onViewportChange={handleFrameViewportChange}
+                                    useGlobalViewport={useGlobalViewport}
                                 />
                             );
                         })}

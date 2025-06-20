@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viewport Size Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            margin: 0 0 30px 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        .dimensions {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #FFD700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .info {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            font-size: 1.1em;
+        }
+
+        .ruler {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            color: #333;
+            font-size: 12px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .ruler.top {
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .ruler.left {
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+        }
+
+        .corner-marker {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #FFD700;
+        }
+
+        .corner-marker.tl {
+            top: 0;
+            left: 0;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .corner-marker.tr {
+            top: 0;
+            right: 0;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .corner-marker.bl {
+            bottom: 0;
+            left: 0;
+            border-right: none;
+            border-top: none;
+        }
+
+        .corner-marker.br {
+            bottom: 0;
+            right: 0;
+            border-left: none;
+            border-top: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="corner-marker tl"></div>
+    <div class="corner-marker tr"></div>
+    <div class="corner-marker bl"></div>
+    <div class="corner-marker br"></div>
+    
+    <div class="ruler top" id="widthRuler"></div>
+    <div class="ruler left" id="heightRuler"></div>
+
+    <div class="container">
+        <h1>Viewport Size Test</h1>
+        <div class="dimensions" id="dimensions">
+            Calculating...
+        </div>
+        <div class="info">
+            <div><strong>Window:</strong> <span id="windowSize"></span></div>
+            <div><strong>Screen:</strong> <span id="screenSize"></span></div>
+            <div><strong>Device Pixel Ratio:</strong> <span id="dpr"></span></div>
+            <div><strong>Viewport Meta:</strong> <span id="viewport"></span></div>
+        </div>
+    </div>
+
+    <script>
+        function updateSizes() {
+            const width = window.innerWidth || document.documentElement.clientWidth;
+            const height = window.innerHeight || document.documentElement.clientHeight;
+            
+            document.getElementById('dimensions').textContent = `${width} × ${height}px`;
+            document.getElementById('windowSize').textContent = `${width} × ${height}`;
+            document.getElementById('screenSize').textContent = `${screen.width} × ${screen.height}`;
+            document.getElementById('dpr').textContent = window.devicePixelRatio || 1;
+            
+            // Show viewport meta tag info
+            const viewportMeta = document.querySelector('meta[name="viewport"]');
+            document.getElementById('viewport').textContent = viewportMeta ? viewportMeta.content : 'None';
+            
+            // Update rulers
+            document.getElementById('widthRuler').textContent = `${width}px wide`;
+            document.getElementById('heightRuler').textContent = `${height}px tall`;
+        }
+
+        // Update on load and resize
+        updateSizes();
+        window.addEventListener('resize', updateSizes);
+        
+        // Also update after a short delay to catch any late updates
+        setTimeout(updateSizes, 100);
+        setTimeout(updateSizes, 500);
+    </script>
+</body>
+</html> 
