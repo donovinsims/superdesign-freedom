@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
+import React, { useState, useEffect, useRef } from 'react';
+import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import DesignFrame from './DesignFrame';
+import { calculateGridPosition, calculateFitToView, getGridMetrics, generateResponsiveConfig } from '../utils/gridLayout';
 import { 
     DesignFile, 
     CanvasState, 
@@ -25,6 +27,21 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
     const [selectedFrames, setSelectedFrames] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [currentZoom, setCurrentZoom] = useState(1);
+    const [currentConfig, setCurrentConfig] = useState<CanvasConfig>(CANVAS_CONFIG);
+    const transformRef = useRef<ReactZoomPanPinchRef>(null);
+
+    // Responsive config update
+    useEffect(() => {
+        const updateConfig = () => {
+            const responsive = generateResponsiveConfig(CANVAS_CONFIG, window.innerWidth);
+            setCurrentConfig(responsive);
+        };
+
+        updateConfig();
+        window.addEventListener('resize', updateConfig);
+        return () => window.removeEventListener('resize', updateConfig);
+    }, []);
 
     useEffect(() => {
         // Request design files from extension
@@ -76,17 +93,47 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
         vscode.postMessage(selectMessage);
     };
 
+    // Canvas control functions
     const handleZoomIn = () => {
-        // Will be implemented with TransformWrapper controls
+        if (transformRef.current) {
+            transformRef.current.zoomIn(0.2);
+        }
     };
 
     const handleZoomOut = () => {
-        // Will be implemented with TransformWrapper controls
+        if (transformRef.current) {
+            transformRef.current.zoomOut(0.2);
+        }
     };
 
     const handleResetZoom = () => {
-        // Will be implemented with TransformWrapper controls
+        if (transformRef.current) {
+            transformRef.current.resetTransform();
+        }
     };
+
+    const handleFitToView = () => {
+        if (transformRef.current && designFiles.length > 0) {
+            const containerWidth = window.innerWidth - 100; // Account for controls
+            const containerHeight = window.innerHeight - 150; // Account for controls and padding
+            
+            const { scale, x, y } = calculateFitToView(
+                designFiles.length,
+                currentConfig,
+                containerWidth,
+                containerHeight,
+                50 // Padding
+            );
+            
+            transformRef.current.setTransform(x, y, scale);
+        }
+    };
+
+    const handleTransformChange = (ref: ReactZoomPanPinchRef) => {
+        setCurrentZoom(ref.state.scale);
+    };
+
+
 
     if (isLoading) {
         return (
@@ -137,16 +184,26 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                 <button className="control-btn" onClick={handleResetZoom} title="Reset Zoom">
                     ⌂
                 </button>
+                <button className="control-btn" onClick={handleFitToView} title="Fit to View">
+                    📐
+                </button>
+                <div className="zoom-indicator">
+                    {Math.round(currentZoom * 100)}%
+                </div>
                 <div className="canvas-info">
-                    {designFiles.length} files | {selectedFrames.length} selected
+                    {(() => {
+                        const metrics = getGridMetrics(designFiles.length, currentConfig);
+                        return `${metrics.totalFrames} files (${metrics.rows}×${metrics.cols}) | ${selectedFrames.length} selected`;
+                    })()}
                 </div>
             </div>
 
             {/* Infinite Canvas */}
             <TransformWrapper
+                ref={transformRef}
                 initialScale={1}
-                minScale={CANVAS_CONFIG.minZoom}
-                maxScale={CANVAS_CONFIG.maxZoom}
+                minScale={currentConfig.minZoom}
+                maxScale={currentConfig.maxZoom}
                 limitToBounds={false}
                 doubleClick={{
                     disabled: false,
@@ -157,6 +214,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                     wheelDisabled: false
                 }}
                 centerOnInit={true}
+                onTransformed={(ref) => handleTransformChange(ref)}
             >
                 <TransformComponent
                     wrapperClass="canvas-transform-wrapper"
@@ -164,40 +222,18 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                 >
                     <div className="canvas-grid">
                         {designFiles.map((file, index) => {
-                            // Grid layout using config
-                            const row = Math.floor(index / CANVAS_CONFIG.framesPerRow);
-                            const col = index % CANVAS_CONFIG.framesPerRow;
-                            const gridX = col * (CANVAS_CONFIG.frameSize.width + CANVAS_CONFIG.gridSpacing);
-                            const gridY = row * (CANVAS_CONFIG.frameSize.height + CANVAS_CONFIG.gridSpacing);
+                            const position = calculateGridPosition(index, currentConfig);
                             
                             return (
-                                <div
+                                <DesignFrame
                                     key={file.name}
-                                    className={`design-frame ${
-                                        selectedFrames.includes(file.name) ? 'selected' : ''
-                                    }`}
-                                    style={{
-                                        position: 'absolute',
-                                        left: `${gridX}px`,
-                                        top: `${gridY}px`,
-                                        width: `${CANVAS_CONFIG.frameSize.width}px`,
-                                        height: `${CANVAS_CONFIG.frameSize.height}px`
-                                    }}
-                                    onClick={() => handleFrameSelect(file.name)}
-                                >
-                                    <div className="frame-header">
-                                        <span className="frame-title">{file.name}</span>
-                                    </div>
-                                    <div className="frame-content">
-                                        {/* Placeholder - will implement HTML rendering in Phase 4 */}
-                                        <div className="frame-placeholder">
-                                            <p>HTML Frame</p>
-                                            <p>{file.name}</p>
-                                            <p>{(file.size / 1024).toFixed(1)} KB</p>
-                                            <p>{file.modified.toLocaleDateString()}</p>
-                                        </div>
-                                    </div>
-                                </div>
+                                    file={file}
+                                    position={position}
+                                    dimensions={currentConfig.frameSize}
+                                    isSelected={selectedFrames.includes(file.name)}
+                                    onSelect={handleFrameSelect}
+                                    renderMode="placeholder" // Will change to 'iframe' in Phase 4
+                                />
                             );
                         })}
                     </div>

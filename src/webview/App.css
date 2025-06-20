@@ -203,11 +203,12 @@
 .canvas-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     padding: 12px 16px;
     background: var(--vscode-sideBar-background);
     border-bottom: 1px solid var(--vscode-panel-border);
     z-index: 10;
+    flex-shrink: 0;
 }
 
 .control-btn {
@@ -223,6 +224,24 @@
 
 .control-btn:hover {
     background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.control-btn:active {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.zoom-indicator {
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-family: var(--vscode-font-family);
+    min-width: 45px;
+    text-align: center;
+    font-weight: 500;
 }
 
 .canvas-info {
@@ -278,20 +297,41 @@
 }
 
 .frame-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 8px 12px;
     background: var(--vscode-sideBar-background);
     border-bottom: 1px solid var(--vscode-panel-border);
     border-radius: 6px 6px 0 0;
+    min-height: 32px;
 }
 
 .frame-title {
     font-size: 12px;
     font-weight: 500;
     color: var(--vscode-foreground);
-    display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
+}
+
+.frame-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.frame-size {
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground);
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 500;
 }
 
 .frame-content {
