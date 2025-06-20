@@ -42,11 +42,45 @@ async function main() {
 			esbuildProblemMatcherPlugin,
 		],
 	});
+
+	// Webview build context
+	const webviewCtx = await esbuild.context({
+		entryPoints: ['src/webview/index.tsx'],
+		bundle: true,
+		format: 'esm',
+		minify: production,
+		sourcemap: !production,
+		sourcesContent: false,
+		platform: 'browser',
+		outfile: 'dist/webview.js',
+		logLevel: 'silent',
+		plugins: [esbuildProblemMatcherPlugin],
+		loader: {
+		  '.css': 'text',
+		  '.png': 'file',
+		  '.jpg': 'file',
+		  '.svg': 'file',
+		},
+		define: {
+		  'process.env.NODE_ENV': production ? '"production"' : '"development"',
+		},
+		jsx: 'automatic', // This enables JSX support
+	});
+
 	if (watch) {
-		await ctx.watch();
+		await Promise.all([
+			ctx.watch(),
+			webviewCtx.watch()
+		]);
+		console.log('Watching for changes...');
 	} else {
-		await ctx.rebuild();
+		await Promise.all([
+			ctx.rebuild(),
+			webviewCtx.rebuild()
+		]);
 		await ctx.dispose();
+		await webviewCtx.dispose();
+		console.log('Build complete!');
 	}
 }
 
