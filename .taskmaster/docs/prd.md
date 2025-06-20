@@ -3,7 +3,7 @@
 ## 1. Product Overview
 
 ### 1.1 Product Vision
-SuperDesign is a VS Code/Cursor/Windsurf extension that empowers developers to rapidly prototype and iterate on UI designs using AI. It provides an infinite canvas interface where users can generate, preview, and refine multiple UI variations through natural language prompts.
+SuperDesign is an open source VS Code/Cursor/Windsurf extension that empowers developers to rapidly prototype and iterate on UI designs using AI. It provides an infinite canvas interface where users can generate, preview, and refine multiple UI variations through natural language prompts.
 
 RAW REQUIREMENTS
 Key features:
@@ -63,18 +63,16 @@ BELOW ARE AI GENERATED:
   └── metadata.json # UI generation metadata
   ```
 
-### 2.2 User Onboarding & Authentication
+### 2.2 User Onboarding
 
 #### 2.2.1 Initial Setup Flow
 1. **Email Collection**
-   - Purpose: User identification and analytics
+   - Purpose: Asking for user email (dont have user auth yet)
    - Validation: Basic email format validation
    - Storage: Local extension storage
 
 2. **Claude API Key Setup**
    - Input field with secure masking
-   - Validation through test API call
-   - Storage: VS Code secure storage API
    - Error handling for invalid keys
 
 #### 2.2.2 Setup Completion
