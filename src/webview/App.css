@@ -184,3 +184,228 @@
 .export-btn:active {
     background: var(--vscode-button-activeBackground);
 }
+
+/* Canvas View Styles */
+.canvas-view {
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.canvas-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: var(--vscode-editor-background);
+}
+
+/* Canvas Controls */
+.canvas-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--vscode-sideBar-background);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    z-index: 10;
+}
+
+.control-btn {
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.control-btn:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.canvas-info {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+/* Transform Wrapper */
+.canvas-transform-wrapper {
+    flex: 1;
+    overflow: hidden;
+    cursor: grab;
+}
+
+.canvas-transform-wrapper:active {
+    cursor: grabbing;
+}
+
+.canvas-transform-content {
+    position: relative;
+    background: 
+        linear-gradient(90deg, var(--vscode-panel-border) 1px, transparent 1px),
+        linear-gradient(var(--vscode-panel-border) 1px, transparent 1px);
+    background-size: 50px 50px;
+}
+
+/* Canvas Grid */
+.canvas-grid {
+    position: relative;
+    min-width: 2000px;
+    min-height: 2000px;
+}
+
+/* Design Frames */
+.design-frame {
+    background: var(--vscode-editor-background);
+    border: 2px solid var(--vscode-input-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.design-frame:hover {
+    border-color: var(--vscode-focusBorder);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.design-frame.selected {
+    border-color: var(--vscode-button-background);
+    box-shadow: 0 0 0 2px var(--vscode-button-background);
+}
+
+.frame-header {
+    padding: 8px 12px;
+    background: var(--vscode-sideBar-background);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    border-radius: 6px 6px 0 0;
+}
+
+.frame-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--vscode-foreground);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.frame-content {
+    height: calc(100% - 32px);
+    padding: 12px;
+    overflow: hidden;
+}
+
+.frame-placeholder {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: var(--vscode-descriptionForeground);
+    text-align: center;
+    background: var(--vscode-input-background);
+    border: 1px dashed var(--vscode-input-border);
+    border-radius: 4px;
+}
+
+.frame-placeholder p {
+    margin: 4px 0;
+    font-size: 12px;
+}
+
+/* Loading States */
+.canvas-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: var(--vscode-editor-background);
+}
+
+.loading-spinner {
+    text-align: center;
+    color: var(--vscode-foreground);
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--vscode-input-border);
+    border-top: 3px solid var(--vscode-button-background);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error States */
+.canvas-error {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: var(--vscode-editor-background);
+}
+
+.error-message {
+    text-align: center;
+    padding: 32px;
+    background: var(--vscode-sideBar-background);
+    border-radius: 8px;
+    border: 1px solid var(--vscode-panel-border);
+    max-width: 400px;
+}
+
+.error-message h3 {
+    margin: 0 0 12px 0;
+    color: var(--vscode-errorForeground);
+}
+
+.error-message p {
+    margin: 0 0 20px 0;
+    color: var(--vscode-foreground);
+}
+
+.error-message button {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Empty States */
+.canvas-empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: var(--vscode-editor-background);
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+}
+
+.empty-state h3 {
+    margin: 0 0 12px 0;
+    color: var(--vscode-foreground);
+}
+
+.empty-state code {
+    background: var(--vscode-textCodeBlock-background);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: var(--vscode-editor-font-family);
+}
