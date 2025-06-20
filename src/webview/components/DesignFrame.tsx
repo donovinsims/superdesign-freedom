@@ -13,6 +13,8 @@ interface DesignFrameProps {
     viewportDimensions?: FrameDimensions;
     onViewportChange?: (fileName: string, viewport: ViewportMode) => void;
     useGlobalViewport?: boolean;
+    onDragStart?: (fileName: string, startPos: GridPosition, mouseEvent: React.MouseEvent) => void;
+    isDragging?: boolean;
 }
 
 const DesignFrame: React.FC<DesignFrameProps> = ({
@@ -26,14 +28,36 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
     viewport = 'desktop',
     viewportDimensions,
     onViewportChange,
-    useGlobalViewport = false
+    useGlobalViewport = false,
+    onDragStart,
+    isDragging = false
 }) => {
     const [isLoading, setIsLoading] = React.useState(renderMode === 'iframe');
     const [hasError, setHasError] = React.useState(false);
+    const [dragPreventOverlay, setDragPreventOverlay] = React.useState(false);
 
     const handleClick = () => {
         onSelect(file.name);
     };
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (onDragStart && e.button === 0) { // Left mouse button only
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Show overlay to prevent iframe interaction during potential drag
+            setDragPreventOverlay(true);
+            
+            onDragStart(file.name, position, e);
+        }
+    };
+
+    // Clear drag prevention overlay when dragging ends
+    React.useEffect(() => {
+        if (!isDragging) {
+            setDragPreventOverlay(false);
+        }
+    }, [isDragging]);
 
     const handleViewportToggle = (newViewport: ViewportMode) => {
         if (onViewportChange && !useGlobalViewport) {
@@ -84,7 +108,8 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                             height: viewportDimensions ? `${viewportDimensions.height}px` : '100%',
                             border: 'none',
                             background: 'white',
-                            borderRadius: '0 0 6px 6px'
+                            borderRadius: '0 0 6px 6px',
+                            pointerEvents: (isSelected && !dragPreventOverlay && !isDragging) ? 'auto' : 'none'
                         }}
                         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
                         referrerPolicy="no-referrer"
@@ -140,16 +165,20 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
 
     return (
         <div
-            className={`design-frame ${isSelected ? 'selected' : ''}`}
+            className={`design-frame ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
             style={{
                 position: 'absolute',
                 left: `${position.x}px`,
                 top: `${position.y}px`,
                 width: `${dimensions.width}px`,
-                height: `${dimensions.height}px`
+                height: `${dimensions.height}px`,
+                cursor: isDragging ? 'grabbing' : 'grab',
+                zIndex: isDragging ? 1000 : (isSelected ? 10 : 1),
+                opacity: isDragging ? 0.8 : 1
             }}
             onClick={handleClick}
             title={`${file.name} (${(file.size / 1024).toFixed(1)} KB)`}
+            onMouseDown={handleMouseDown}
         >
             <div className="frame-header">
                 <span className="frame-title">{file.name}</span>
@@ -207,6 +236,28 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
             </div>
             <div className="frame-content">
                 {renderContent()}
+                
+                {/* Drag prevention overlay - prevents iframe interaction during drag */}
+                {(dragPreventOverlay || isDragging) && isSelected && renderMode === 'iframe' && (
+                    <div className="frame-drag-overlay">
+                        {dragPreventOverlay && !isDragging && (
+                            <div className="drag-ready-hint">
+                                <span>✋</span>
+                                <p>Ready to drag</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+                
+                {/* Interaction overlay for non-selected frames */}
+                {!isSelected && renderMode === 'iframe' && (
+                    <div className="frame-interaction-overlay">
+                        <div className="interaction-hint">
+                            <span>👆</span>
+                            <p>Click to select and interact</p>
+                        </div>
+                    </div>
+                )}
                 
                 {/* Loading overlay for iframe */}
                 {isLoading && renderMode === 'iframe' && (

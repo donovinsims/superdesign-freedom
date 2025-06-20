@@ -88,6 +88,18 @@ export interface FrameViewportState {
     [fileName: string]: ViewportMode;
 }
 
+export interface FramePositionState {
+    [fileName: string]: GridPosition;
+}
+
+export interface DragState {
+    isDragging: boolean;
+    draggedFrame: string | null;
+    startPosition: GridPosition;
+    currentPosition: GridPosition;
+    offset: GridPosition;
+}
+
 export interface CanvasConfig {
     frameSize: FrameDimensions;
     gridSpacing: number;

@@ -9,7 +9,10 @@ import {
     ExtensionToWebviewMessage,
     CanvasConfig,
     ViewportMode,
-    FrameViewportState
+    FrameViewportState,
+    FramePositionState,
+    DragState,
+    GridPosition
 } from '../types/canvas.types';
 
 interface CanvasViewProps {
@@ -45,6 +48,14 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
     const [globalViewportMode, setGlobalViewportMode] = useState<ViewportMode>('desktop');
     const [frameViewports, setFrameViewports] = useState<FrameViewportState>({});
     const [useGlobalViewport, setUseGlobalViewport] = useState(false);
+    const [customPositions, setCustomPositions] = useState<FramePositionState>({});
+    const [dragState, setDragState] = useState<DragState>({
+        isDragging: false,
+        draggedFrame: null,
+        startPosition: { x: 0, y: 0 },
+        currentPosition: { x: 0, y: 0 },
+        offset: { x: 0, y: 0 }
+    });
     const transformRef = useRef<ReactZoomPanPinchRef>(null);
 
     // Performance optimization: Switch render modes based on zoom level
@@ -196,6 +207,127 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
         setCurrentZoom(ref.state.scale);
     };
 
+    // Get frame position (custom or default grid position)
+    const getFramePosition = (fileName: string, index: number): GridPosition => {
+        if (customPositions[fileName]) {
+            return customPositions[fileName];
+        }
+        
+        // Default grid position calculation
+        const viewportMode = getFrameViewport(fileName);
+        const viewportDimensions = currentConfig.viewports[viewportMode];
+        const actualWidth = viewportDimensions.width;
+        const actualHeight = viewportDimensions.height + 50;
+        
+        const col = index % currentConfig.framesPerRow;
+        const row = Math.floor(index / currentConfig.framesPerRow);
+        
+        const x = col * (Math.max(actualWidth, currentConfig.frameSize.width) + currentConfig.gridSpacing);
+        const y = row * (Math.max(actualHeight, currentConfig.frameSize.height) + currentConfig.gridSpacing);
+        
+        return { x, y };
+    };
+
+    // Drag handlers
+    const handleDragStart = (fileName: string, startPos: GridPosition, mouseEvent: React.MouseEvent) => {
+        // Get canvas grid element for proper coordinate calculation
+        const canvasGrid = document.querySelector('.canvas-grid') as HTMLElement;
+        if (!canvasGrid) return;
+        
+        const canvasRect = canvasGrid.getBoundingClientRect();
+        const canvasMousePos = {
+            x: mouseEvent.clientX - canvasRect.left,
+            y: mouseEvent.clientY - canvasRect.top
+        };
+        
+        // Also ensure this frame is selected
+        if (!selectedFrames.includes(fileName)) {
+            setSelectedFrames([fileName]);
+        }
+        
+        setDragState({
+            isDragging: true,
+            draggedFrame: fileName,
+            startPosition: startPos,
+            currentPosition: startPos,
+            offset: {
+                x: canvasMousePos.x - startPos.x,
+                y: canvasMousePos.y - startPos.y
+            }
+        });
+    };
+
+    const handleDragMove = (mousePos: GridPosition) => {
+        if (!dragState.isDragging || !dragState.draggedFrame) return;
+        
+        const newPosition = {
+            x: mousePos.x - dragState.offset.x,
+            y: mousePos.y - dragState.offset.y
+        };
+        
+        setDragState(prev => ({
+            ...prev,
+            currentPosition: newPosition
+        }));
+    };
+
+    const handleDragEnd = () => {
+        if (!dragState.isDragging || !dragState.draggedFrame) return;
+        
+        // Snap to grid (optional - makes positioning cleaner)
+        const gridSize = 25;
+        const snappedPosition = {
+            x: Math.round(dragState.currentPosition.x / gridSize) * gridSize,
+            y: Math.round(dragState.currentPosition.y / gridSize) * gridSize
+        };
+        
+        // Save the new position
+        setCustomPositions(prev => ({
+            ...prev,
+            [dragState.draggedFrame!]: snappedPosition
+        }));
+        
+        // Reset drag state
+        setDragState({
+            isDragging: false,
+            draggedFrame: null,
+            startPosition: { x: 0, y: 0 },
+            currentPosition: { x: 0, y: 0 },
+            offset: { x: 0, y: 0 }
+        });
+    };
+
+    // Reset positions to grid
+    const handleResetPositions = () => {
+        setCustomPositions({});
+    };
+
+    // Keyboard shortcuts for zoom
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
+                switch (e.key) {
+                    case '=':
+                    case '+':
+                        e.preventDefault();
+                        handleZoomIn();
+                        break;
+                    case '-':
+                        e.preventDefault();
+                        handleZoomOut();
+                        break;
+                    case '0':
+                        e.preventDefault();
+                        handleResetZoom();
+                        break;
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
 
 
     if (isLoading) {
@@ -238,17 +370,20 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
         <div className="canvas-container">
             {/* Canvas Controls */}
             <div className="canvas-controls">
-                <button className="control-btn" onClick={handleZoomIn} title="Zoom In">
+                <button className="control-btn" onClick={handleZoomIn} title="Zoom In (Cmd/Ctrl + +)">
                     🔍+
                 </button>
-                <button className="control-btn" onClick={handleZoomOut} title="Zoom Out">
+                <button className="control-btn" onClick={handleZoomOut} title="Zoom Out (Cmd/Ctrl + -)">
                     🔍-
                 </button>
-                <button className="control-btn" onClick={handleResetZoom} title="Reset Zoom">
+                <button className="control-btn" onClick={handleResetZoom} title="Reset Zoom (Cmd/Ctrl + 0)">
                     ⌂
                 </button>
                 <button className="control-btn" onClick={handleFitToView} title="Fit to View">
                     📐
+                </button>
+                <button className="control-btn" onClick={handleResetPositions} title="Reset Frame Positions">
+                    🔄
                 </button>
                 
                 <div className="viewport-divider"></div>
@@ -294,7 +429,10 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                         const metrics = getGridMetrics(designFiles.length, currentConfig);
                         const renderMode = getOptimalRenderMode(currentZoom);
                         const renderIcon = renderMode === 'iframe' ? '🖼️' : '📄';
-                        return `${metrics.totalFrames} files (${metrics.rows}×${metrics.cols}) | ${selectedFrames.length} selected | ${renderIcon}`;
+                        const customCount = Object.keys(customPositions).length;
+                        const customInfo = customCount > 0 ? ` | ${customCount} moved` : '';
+                        const gestureInfo = ' | 👋 Scroll=Pan 🤏 Pinch=Zoom';
+                        return `${metrics.totalFrames} files (${metrics.rows}×${metrics.cols}) | ${selectedFrames.length} selected | ${renderIcon}${customInfo}${gestureInfo}`;
                     })()}
                 </div>
             </div>
@@ -311,8 +449,17 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                     mode: "zoomIn"
                 }}
                 wheel={{
-                    step: 0.1,
-                    wheelDisabled: false
+                    wheelDisabled: true,        // Disable wheel zoom
+                    touchPadDisabled: false,    // Enable trackpad pan
+                    step: 0.1
+                }}
+                panning={{
+                    disabled: dragState.isDragging,
+                    velocityDisabled: false,    // Enable smooth momentum
+                    wheelPanning: true          // Enable trackpad panning
+                }}
+                pinch={{
+                    disabled: false             // Keep pinch zoom enabled
                 }}
                 centerOnInit={true}
                 onTransformed={(ref) => handleTransformChange(ref)}
@@ -321,7 +468,27 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                     wrapperClass="canvas-transform-wrapper"
                     contentClass="canvas-transform-content"
                 >
-                    <div className="canvas-grid">
+                    <div 
+                        className={`canvas-grid ${dragState.isDragging ? 'dragging' : ''}`}
+                        onMouseMove={(e) => {
+                            if (dragState.isDragging) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const mousePos = {
+                                    x: e.clientX - rect.left,
+                                    y: e.clientY - rect.top
+                                };
+                                handleDragMove(mousePos);
+                            }
+                        }}
+                        onMouseUp={handleDragEnd}
+                        onMouseLeave={handleDragEnd}
+                        onClick={(e) => {
+                            // Clear selection when clicking on empty space
+                            if (e.target === e.currentTarget) {
+                                setSelectedFrames([]);
+                            }
+                        }}
+                    >
                         {designFiles.map((file, index) => {
                             const frameViewport = getFrameViewport(file.name);
                             const viewportDimensions = currentConfig.viewports[frameViewport];
@@ -330,18 +497,19 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                             const actualWidth = viewportDimensions.width;
                             const actualHeight = viewportDimensions.height + 50; // Add space for header
                             
-                            // Calculate position based on actual frame sizes
-                            const col = index % currentConfig.framesPerRow;
-                            const row = Math.floor(index / currentConfig.framesPerRow);
+                            // Get position (custom or default grid)
+                            const position = getFramePosition(file.name, index);
                             
-                            const x = col * (Math.max(actualWidth, currentConfig.frameSize.width) + currentConfig.gridSpacing);
-                            const y = row * (Math.max(actualHeight, currentConfig.frameSize.height) + currentConfig.gridSpacing);
+                            // If this frame is being dragged, use current drag position
+                            const finalPosition = dragState.isDragging && dragState.draggedFrame === file.name 
+                                ? dragState.currentPosition 
+                                : position;
                             
                             return (
                                 <DesignFrame
                                     key={file.name}
                                     file={file}
-                                    position={{ x, y }}
+                                    position={finalPosition}
                                     dimensions={{ width: actualWidth, height: actualHeight }}
                                     isSelected={selectedFrames.includes(file.name)}
                                     onSelect={handleFrameSelect}
@@ -350,6 +518,8 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                                     viewportDimensions={viewportDimensions}
                                     onViewportChange={handleFrameViewportChange}
                                     useGlobalViewport={useGlobalViewport}
+                                    onDragStart={handleDragStart}
+                                    isDragging={dragState.isDragging && dragState.draggedFrame === file.name}
                                 />
                             );
                         })}
