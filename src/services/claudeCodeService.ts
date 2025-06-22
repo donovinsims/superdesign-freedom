@@ -14,13 +14,6 @@ interface ClaudeCodeOptions {
     outputFormat?: 'text' | 'json' | 'stream-json';
 }
 
-interface QueryParams {
-    prompt: string;
-    abortController?: AbortController;
-    options?: ClaudeCodeOptions;
-    cwd?: string;
-}
-
 export class ClaudeCodeService {
     private isInitialized = false;
     private initializationPromise: Promise<void> | null = null;
@@ -137,11 +130,10 @@ export class ClaudeCodeService {
         }
     }
 
-    async query(params: QueryParams): Promise<SDKMessage[]> {
+    async query(prompt: string, options?: Partial<ClaudeCodeOptions>): Promise<SDKMessage[]> {
         this.outputChannel.appendLine('=== QUERY FUNCTION CALLED ===');
-        this.outputChannel.appendLine(`Query prompt: ${params.prompt.substring(0, 200)}...`);
-        this.outputChannel.appendLine(`Query options: ${JSON.stringify(params.options, null, 2)}`);
-        this.outputChannel.appendLine(`Query cwd: ${params.cwd}`);
+        this.outputChannel.appendLine(`Query prompt: ${prompt.substring(0, 200)}...`);
+        this.outputChannel.appendLine(`Query options: ${JSON.stringify(options, null, 2)}`);
 
         await this.ensureInitialized();
         this.outputChannel.appendLine('Initialization check completed');
@@ -149,31 +141,26 @@ export class ClaudeCodeService {
         const messages: SDKMessage[] = [];
         
         try {
-            // Use .superdesign folder as the working directory
-            const workingDir = params.cwd || this.workingDirectory;
-            this.outputChannel.appendLine(`Resolved working directory: ${workingDir}`);
-
             const queryParams = {
-                prompt: params.prompt,
-                abortController: params.abortController || new AbortController(),
+                prompt,
+                abortController: new AbortController(),
                 options: {
-                    maxTurns: 5,
-                    // Enable file tools by default
+                    maxTurns: 10,
                     allowedTools: [
                         'Read', 'Write', 'Edit', 'MultiEdit', 'Bash', 'LS', 'Grep', 'Glob'
                     ],
                     permissionMode: 'acceptEdits' as const,
                     cwd: this.workingDirectory,
                     customSystemPrompt: 'you always respond in ALL CAPS',
-                    ...params.options
-                },
+                    ...options
+                }
             };
-
+            
             this.outputChannel.appendLine(`Final query params: ${JSON.stringify({
                 prompt: queryParams.prompt.substring(0, 100) + '...',
-                options: queryParams.options,
+                options: queryParams.options
             }, null, 2)}`);
-
+            
             this.outputChannel.appendLine('Starting Claude Code SDK query...');
 
             let messageCount = 0;
@@ -195,54 +182,6 @@ export class ClaudeCodeService {
             vscode.window.showErrorMessage(`Claude Code query failed: ${error}`);
             throw error;
         }
-    }
-
-    // Convenience method for simple text queries
-    async simpleQuery(prompt: string, options?: ClaudeCodeOptions): Promise<string> {
-        const messages = await this.query({ prompt, options });
-        
-        // Find the result message
-        const resultMessage = messages.find(m => m.type === 'result');
-        if (resultMessage?.type === 'result' && resultMessage.subtype === 'success') {
-            return resultMessage.result;
-        }
-
-        // Fallback to last assistant message
-        const assistantMessages = messages.filter(m => m.type === 'assistant');
-        if (assistantMessages.length > 0) {
-            const lastMessage = assistantMessages[assistantMessages.length - 1];
-            return lastMessage.message?.content?.[0]?.text || 'No response received';
-        }
-
-        throw new Error('No valid response received from Claude Code');
-    }
-
-    // Enhanced method for file operations with tools
-    async queryWithFileTools(prompt: string, options?: Partial<ClaudeCodeOptions>): Promise<SDKMessage[]> {
-        this.outputChannel.appendLine('=== QUERY WITH FILE TOOLS CALLED ===');
-        this.outputChannel.appendLine(`File tools prompt: ${prompt.substring(0, 200)}...`);
-        this.outputChannel.appendLine(`File tools options: ${JSON.stringify(options, null, 2)}`);
-        
-        const queryParams = {
-            prompt,
-            options: {
-                maxTurns: 10,
-                allowedTools: [
-                    'Read', 'Write', 'Edit', 'MultiEdit', 'Bash', 'LS', 'Grep', 'Glob'
-                ],
-                permissionMode: 'acceptEdits' as const,
-                cwd: this.workingDirectory,
-                customSystemPrompt: 'you always respond in ALL CAPS',
-                ...options
-            }
-        };
-        
-        this.outputChannel.appendLine(`Calling query() with params: ${JSON.stringify({
-            prompt: queryParams.prompt.substring(0, 100) + '...',
-            options: queryParams.options
-        }, null, 2)}`);
-        
-        return this.query(queryParams);
     }
 
     get isReady(): boolean {

@@ -107,7 +107,7 @@ class SuperdesignPanel {
             outputChannel.appendLine(`Chat message received: ${message.message}`);
             
             // Use the enhanced file tools method
-            const response = await this.claudeService.queryWithFileTools(message.message);
+            const response = await this.claudeService.query(message.message);
 
             outputChannel.appendLine(`Claude response with tools: ${JSON.stringify(response, null, 2)}`);
 
