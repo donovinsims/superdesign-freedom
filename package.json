@@ -25,17 +25,37 @@
         "title": "Hello World",
         "category": "Superdesign"
       },
-      {
-        "command": "superdesign.openDesignPanel",
-        "title": "Open Design Panel",
-        "category": "Superdesign"
-      },
+
       {
         "command": "superdesign.configureApiKey",
         "title": "Configure Anthropic API Key",
         "category": "Superdesign"
+      },
+      {
+        "command": "superdesign.showChatSidebar",
+        "title": "Show Chat Sidebar",
+        "category": "Superdesign"
       }
     ],
+    "views": {
+      "superdesign-sidebar": [
+        {
+          "type": "webview",
+          "id": "superdesign.chatView",
+          "name": "Chat",
+          "when": "true"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "superdesign-sidebar",
+          "title": "Superdesign",
+          "icon": "$(comment-discussion)"
+        }
+      ]
+    },
     "configuration": {
       "title": "Superdesign",
       "properties": {

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import ChatPanel from './components/DesignPanel';
+import ChatInterface from './components/Chat/ChatInterface';
+import { WebviewContext } from '../types/context';
 
 // Import CSS as string for esbuild
 import styles from './App.css';
 
 const App: React.FC = () => {
     const [vscode] = useState(() => acquireVsCodeApi());
-    const [isLoading, setIsLoading] = useState(false);
-    const [chatHistory, setChatHistory] = useState<Array<{type: 'user' | 'assistant', message: string}>>([]);
+    const [context, setContext] = useState<WebviewContext | null>(null);
 
     useEffect(() => {
         // Inject CSS styles
@@ -15,27 +15,20 @@ const App: React.FC = () => {
         styleElement.textContent = styles;
         document.head.appendChild(styleElement);
 
-        // Listen for messages from the extension
-        const messageHandler = (event: MessageEvent) => {
-            const message = event.data;
-            switch (message.command) {
-                case 'chatResponse':
-                    setChatHistory(prev => [...prev, {
-                        type: 'assistant',
-                        message: message.response
-                    }]);
-                    setIsLoading(false);
-                    break;
-            }
-        };
-
-        window.addEventListener('message', messageHandler);
+        // Get context from window
+        const webviewContext = (window as any).__WEBVIEW_CONTEXT__;
+        if (webviewContext) {
+            setContext(webviewContext);
+        }
 
         return () => {
             document.head.removeChild(styleElement);
-            window.removeEventListener('message', messageHandler);
         };
     }, []);
+
+    if (!context) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <div className="superdesign-app">
@@ -43,12 +36,9 @@ const App: React.FC = () => {
                 <h1>🤖 Superdesign Chat</h1>
                 <p>AI-Powered Development Assistant</p>
             </header>
-            <ChatPanel 
-                vscode={vscode} 
-                isLoading={isLoading}
-                setIsLoading={setIsLoading}
-                chatHistory={chatHistory}
-                setChatHistory={setChatHistory}
+            <ChatInterface 
+                layout={context.layout}
+                vscode={vscode}
             />
         </div>
     );

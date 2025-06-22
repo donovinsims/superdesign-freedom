@@ -1,0 +1,31 @@
+export type WebviewLayout = 'sidebar' | 'panel';
+
+export interface WebviewContext {
+    layout: WebviewLayout;
+    extensionUri: string;
+}
+
+export interface WebviewMessage {
+    command: string;
+    [key: string]: any;
+}
+
+export interface ChatCommand extends WebviewMessage {
+    command: 'chatWithClaude';
+    message: string;
+}
+
+export interface ChatResponse extends WebviewMessage {
+    command: 'chatResponse';
+    response: string;
+}
+
+export interface ChatError extends WebviewMessage {
+    command: 'chatError';
+    error: string;
+}
+
+export interface InitContext extends WebviewMessage {
+    command: 'initContext';
+    context: WebviewContext;
+} 
