@@ -263,12 +263,12 @@ class SuperdesignCanvasPanel {
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; frame-src ${webview.cspSource};">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Superdesign Canvas</title>
             </head>
             <body>
-                <div id="root" data-view="canvas"></div>
+                <div id="root" data-view="canvas" data-nonce="${nonce}"></div>
                 <script nonce="${nonce}" src="${scriptUri}"></script>
             </body>
             </html>`;

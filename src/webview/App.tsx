@@ -8,12 +8,18 @@ import styles from './App.css';
 const App: React.FC = () => {
     const [vscode] = useState(() => acquireVsCodeApi());
     const [currentView, setCurrentView] = useState<'design' | 'canvas'>('design');
+    const [nonce, setNonce] = useState<string | null>(null);
 
     useEffect(() => {
         // Detect which view to render based on data-view attribute
         const rootElement = document.getElementById('root');
         const viewType = rootElement?.getAttribute('data-view');
+        const nonceValue = rootElement?.getAttribute('data-nonce');
         
+        if (nonceValue) {
+            setNonce(nonceValue);
+        }
+
         if (viewType === 'canvas') {
             setCurrentView('canvas');
         } else {
@@ -46,7 +52,7 @@ const App: React.FC = () => {
     const renderView = () => {
         switch (currentView) {
             case 'canvas':
-                return <CanvasView vscode={vscode} />;
+                return <CanvasView vscode={vscode} nonce={nonce} />;
             case 'design':
             default:
                 return (

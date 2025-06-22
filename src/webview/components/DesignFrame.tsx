@@ -15,6 +15,7 @@ interface DesignFrameProps {
     useGlobalViewport?: boolean;
     onDragStart?: (fileName: string, startPos: GridPosition, mouseEvent: React.MouseEvent) => void;
     isDragging?: boolean;
+    nonce?: string | null;
 }
 
 const DesignFrame: React.FC<DesignFrameProps> = ({
@@ -30,7 +31,8 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
     onViewportChange,
     useGlobalViewport = false,
     onDragStart,
-    isDragging = false
+    isDragging = false,
+    nonce = null
 }) => {
     const [isLoading, setIsLoading] = React.useState(renderMode === 'iframe');
     const [hasError, setHasError] = React.useState(false);
@@ -86,6 +88,12 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
     const renderContent = () => {
         switch (renderMode) {
             case 'iframe':
+                // Function to inject nonce into script tags
+                const injectNonce = (html: string, nonce: string | null) => {
+                    if (!nonce) return html;
+                    return html.replace(/<script/g, `<script nonce="${nonce}"`);
+                };
+
                 // Inject viewport meta tag if we have viewport dimensions
                 let modifiedContent = file.content;
                 if (viewportDimensions) {
@@ -99,6 +107,9 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                     }
                 }
 
+                // Inject nonce into all script tags
+                modifiedContent = injectNonce(modifiedContent, nonce);
+
                 return (
                     <iframe
                         srcDoc={modifiedContent}
@@ -111,7 +122,6 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                             borderRadius: '0 0 6px 6px',
                             pointerEvents: (isSelected && !dragPreventOverlay && !isDragging) ? 'auto' : 'none'
                         }}
-                        csp="script-src 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;"
                         referrerPolicy="no-referrer"
                         loading="lazy"
                         onLoad={() => {

@@ -28,6 +28,7 @@ import {
 
 interface CanvasViewProps {
     vscode: any;
+    nonce: string | null;
 }
 
 const CANVAS_CONFIG: CanvasConfig = {
@@ -49,16 +50,16 @@ const CANVAS_CONFIG: CanvasConfig = {
     }
 };
 
-const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
+const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
     const [designFiles, setDesignFiles] = useState<DesignFile[]>([]);
     const [selectedFrames, setSelectedFrames] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentZoom, setCurrentZoom] = useState(1);
     const [currentConfig, setCurrentConfig] = useState<CanvasConfig>(CANVAS_CONFIG);
-    const [globalViewportMode, setGlobalViewportMode] = useState<ViewportMode>('desktop');
+    const [globalViewportMode, setGlobalViewportMode] = useState<ViewportMode>('mobile');
     const [frameViewports, setFrameViewports] = useState<FrameViewportState>({});
-    const [useGlobalViewport, setUseGlobalViewport] = useState(false);
+    const [useGlobalViewport, setUseGlobalViewport] = useState(true);
     const [customPositions, setCustomPositions] = useState<FramePositionState>({});
     const [dragState, setDragState] = useState<DragState>({
         isDragging: false,
@@ -512,6 +513,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
                                     useGlobalViewport={useGlobalViewport}
                                     onDragStart={handleDragStart}
                                     isDragging={dragState.isDragging && dragState.draggedFrame === file.name}
+                                    nonce={nonce}
                                 />
                             );
                         })}
