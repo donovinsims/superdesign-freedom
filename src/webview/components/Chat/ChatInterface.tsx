@@ -429,47 +429,39 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         onClick={toggleExpanded}
                     >
                         <div className="tool-message__main">
-                            <span className="tool-icon">🔧</span>
-                            <span className="tool-name">{getFriendlyToolName(toolName)}</span>
-                            {description && (
-                                <span className="tool-description">{description}</span>
-                            )}
-                            {isLoading && (
-                                <div className="tool-loading-info">
-                                    <span className="tool-countdown">
+                            <span className="tool-icon">
+                                {isLoading ? (
+                                    <div className="loading-icon-simple">
+                                        <div className="loading-ring"></div>
+                                    </div>
+                                ) : (
+                                    '🔧'
+                                )}
+                            </span>
+                            <div className="tool-info">
+                                <span className="tool-name">{getFriendlyToolName(toolName)}</span>
+                                {description && (
+                                    <span className="tool-description">{description}</span>
+                                )}
+                                {isLoading && (
+                                    <span className="tool-time-remaining">
                                         ⏱️ {formatTime(remainingTime)} remaining
                                     </span>
-                                    <div className="tool-progress-container">
-                                        <div 
-                                            className="tool-progress-bar" 
-                                            style={{ width: `${progressPercentage}%` }}
-                                        />
-                                    </div>
-                                    <span className="tool-progress-text">
-                                        {Math.round(progressPercentage)}%
-                                    </span>
-                                </div>
-                            )}
-                            {isLoading && (
-                                <span className="tool-status tool-status--loading">
-                                    <div className="loading-spinner-enhanced">
-                                        <div className="spinner-ring"></div>
-                                        <div className="spinner-ring"></div>
-                                        <div className="spinner-ring"></div>
-                                    </div>
-                                </span>
-                            )}
+                                )}
+                            </div>
+                        </div>
+                        <div className="tool-actions">
                             {toolComplete && (
                                 <span className="tool-status tool-status--complete">
                                     ✅
                                 </span>
                             )}
+                            <button className={`tool-expand-btn ${isExpanded ? 'expanded' : ''}`}>
+                                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                                </svg>
+                            </button>
                         </div>
-                        <button className={`tool-expand-btn ${isExpanded ? 'expanded' : ''}`}>
-                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-                            </svg>
-                        </button>
                     </div>
                     {isExpanded && (
                         <div className="tool-message__details">
@@ -478,7 +470,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                     <div className="loading-tip">
                                         <span className="tip-icon">💡</span>
                                         <span className="tip-text">
-                                            {getLoadingTip(toolName, progressPercentage)}
+                                            {getLoadingTip(toolName, Math.floor((estimatedDuration - remainingTime) / estimatedDuration * 100))}
                                         </span>
                                     </div>
                                 </div>
@@ -623,45 +615,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         onClick={toggleExpanded}
                     >
                         <div className="tool-group__main">
-                            <span className="tool-group-icon">📋</span>
-                            <span className="tool-group-name">{groupName}</span>
-                            <span className="tool-group-count">{childTools.length} steps</span>
-                            {isLoading && (
-                                <div className="tool-loading-info">
-                                    <span className="tool-countdown">
+                            <span className="tool-group-icon">
+                                {isLoading ? (
+                                    <div className="loading-icon-simple">
+                                        <div className="loading-ring"></div>
+                                    </div>
+                                ) : (
+                                    '📋'
+                                )}
+                            </span>
+                            <div className="tool-group-info">
+                                <span className="tool-group-name">{groupName}</span>
+                                {isLoading && (
+                                    <span className="tool-time-remaining">
                                         ⏱️ {formatTime(remainingTime)} remaining
                                     </span>
-                                    <div className="tool-progress-container">
-                                        <div 
-                                            className="tool-progress-bar" 
-                                            style={{ width: `${totalProgress}%` }}
-                                        />
-                                    </div>
-                                    <span className="tool-progress-text">
-                                        {Math.round(totalProgress)}%
-                                    </span>
-                                </div>
-                            )}
-                            {isLoading && (
-                                <span className="tool-status tool-status--loading">
-                                    <div className="loading-spinner-enhanced">
-                                        <div className="spinner-ring"></div>
-                                        <div className="spinner-ring"></div>
-                                        <div className="spinner-ring"></div>
-                                    </div>
-                                </span>
-                            )}
+                                )}
+                            </div>
+                        </div>
+                        <div className="tool-group-actions">
+                            <span className="tool-group-count">{childTools.length} steps</span>
                             {taskComplete && (
                                 <span className="tool-status tool-status--complete">
                                     ✅
                                 </span>
                             )}
+                            <button className={`tool-expand-btn ${isExpanded ? 'expanded' : ''}`}>
+                                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                                </svg>
+                            </button>
                         </div>
-                        <button className={`tool-expand-btn ${isExpanded ? 'expanded' : ''}`}>
-                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-                            </svg>
-                        </button>
                     </div>
                     {isExpanded && (
                         <div className="tool-group__children">

@@ -857,7 +857,7 @@
 
 .tool-message__main {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     flex: 1;
     min-width: 0;
@@ -866,21 +866,39 @@
 .tool-icon {
     font-size: 14px;
     flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.tool-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
 }
 
 .tool-name {
     font-weight: 600;
     color: var(--vscode-textLink-foreground);
     flex-shrink: 0;
+    font-size: 13px;
+    line-height: 1.2;
 }
 
 .tool-description {
     color: var(--vscode-descriptionForeground);
-    font-size: 12px;
+    font-size: 11px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-left: 4px;
+    line-height: 1.2;
+}
+
+.tool-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .tool-status {
@@ -1214,7 +1232,7 @@
 
 .tool-group__main {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
     flex: 1;
     min-width: 0;
@@ -1223,6 +1241,15 @@
 .tool-group-icon {
     font-size: 16px;
     flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.tool-group-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
 }
 
 .tool-group-name {
@@ -1230,16 +1257,57 @@
     color: var(--vscode-textLink-foreground);
     flex-shrink: 0;
     font-size: 14px;
+    line-height: 1.2;
+}
+
+.tool-time-remaining {
+    font-size: 11px;
+    color: var(--vscode-charts-blue);
+    font-weight: 500;
+    line-height: 1.2;
+    opacity: 0.9;
+}
+
+.tool-group-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .tool-group-count {
     color: var(--vscode-descriptionForeground);
     font-size: 11px;
-    background: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
-    padding: 3px 8px;
-    border-radius: 12px;
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 500;
     flex-shrink: 0;
+}
+
+/* Simple loading icon */
+.loading-icon-simple {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-ring {
+    width: 14px;
+    height: 14px;
+    border: 2px solid transparent;
+    border-top: 2px solid var(--vscode-charts-blue);
+    border-radius: 50%;
+    animation: spin-simple 1s linear infinite;
+}
+
+@keyframes spin-simple {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .tool-group__children {
@@ -1318,113 +1386,6 @@
     background: var(--vscode-list-hoverBackground);
     color: var(--vscode-foreground);
     opacity: 1;
-}
-
-/* Enhanced Tool Loading States */
-.tool-loading-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-left: 8px;
-    flex: 1;
-    min-width: 0;
-}
-
-.tool-countdown {
-    font-size: 11px;
-    color: var(--vscode-charts-blue);
-    background: rgba(0, 122, 255, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-weight: 500;
-    white-space: nowrap;
-    border: 1px solid rgba(0, 122, 255, 0.2);
-}
-
-.tool-progress-container {
-    flex: 1;
-    height: 4px;
-    background: var(--vscode-progressBar-background);
-    border-radius: 2px;
-    overflow: hidden;
-    position: relative;
-    min-width: 60px;
-}
-
-.tool-progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--vscode-charts-blue), var(--vscode-charts-green));
-    border-radius: 2px;
-    transition: width 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.tool-progress-bar::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-    animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-    0% { left: -100%; }
-    100% { left: 100%; }
-}
-
-.tool-progress-text {
-    font-size: 10px;
-    color: var(--vscode-descriptionForeground);
-    font-weight: 500;
-    min-width: 30px;
-    text-align: right;
-}
-
-/* Enhanced Loading Spinner */
-.loading-spinner-enhanced {
-    position: relative;
-    width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.spinner-ring {
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    border: 2px solid transparent;
-    border-radius: 50%;
-    animation: spin-enhanced 2s linear infinite;
-}
-
-.spinner-ring:nth-child(1) {
-    border-top-color: var(--vscode-charts-blue);
-    animation-delay: 0s;
-}
-
-.spinner-ring:nth-child(2) {
-    border-right-color: var(--vscode-charts-green);
-    animation-delay: 0.3s;
-    width: 12px;
-    height: 12px;
-}
-
-.spinner-ring:nth-child(3) {
-    border-bottom-color: var(--vscode-charts-orange);
-    animation-delay: 0.6s;
-    width: 8px;
-    height: 8px;
-}
-
-@keyframes spin-enhanced {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
 }
 
 /* Loading Tips */
@@ -1525,23 +1486,16 @@
 
 /* Responsive adjustments for mobile */
 @media (max-width: 768px) {
-    .tool-loading-info {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
-    }
-    
-    .tool-countdown {
-        font-size: 10px;
-    }
-    
-    .tool-progress-container {
-        width: 100%;
-        min-width: unset;
-    }
-    
     .tip-text {
         font-size: 11px;
+    }
+    
+    .tool-group-info {
+        gap: 1px;
+    }
+    
+    .tool-time-remaining {
+        font-size: 10px;
     }
 }
 
