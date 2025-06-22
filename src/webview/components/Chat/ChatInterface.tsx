@@ -28,14 +28,47 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             document.head.appendChild(styleElement);
         }
 
+        // Auto-open canvas if not already open
+        const autoOpenCanvas = () => {
+            // Check if canvas panel is already open by looking for the canvas webview
+            vscode.postMessage({
+                command: 'checkCanvasStatus'
+            });
+            
+            // Listen for canvas status response
+            const handleMessage = (event: MessageEvent) => {
+                const message = event.data;
+                if (message.command === 'canvasStatusResponse') {
+                    if (!message.isOpen) {
+                        // Canvas is not open, auto-open it
+                        console.log('🎨 Auto-opening canvas view...');
+                        vscode.postMessage({
+                            command: 'autoOpenCanvas'
+                        });
+                    }
+                }
+            };
+            
+            window.addEventListener('message', handleMessage);
+            
+            // Cleanup listener
+            return () => {
+                window.removeEventListener('message', handleMessage);
+            };
+        };
+        
+        // Delay the check slightly to ensure chat is fully loaded
+        const timeoutId = setTimeout(autoOpenCanvas, 500);
+
         return () => {
+            clearTimeout(timeoutId);
             // Clean up on unmount
             const existingStyle = document.getElementById(styleId);
             if (existingStyle) {
                 document.head.removeChild(existingStyle);
             }
         };
-    }, []);
+    }, [vscode]);
 
     // Auto-collapse tools when new messages arrive
     useEffect(() => {

@@ -35,11 +35,18 @@ export function activate(context: vscode.ExtensionContext) {
 		await configureAnthropicApiKey();
 	});
 
-	// Register sidebar provider
+	// Create the chat sidebar provider
 	const sidebarProvider = new ChatSidebarProvider(context.extensionUri, claudeService, outputChannel);
+	
+	// Register the webview view provider for sidebar
 	const sidebarDisposable = vscode.window.registerWebviewViewProvider(
 		ChatSidebarProvider.VIEW_TYPE,
-		sidebarProvider
+		sidebarProvider,
+		{
+			webviewOptions: {
+				retainContextWhenHidden: true
+			}
+		}
 	);
 
 	// Register command to show sidebar
@@ -50,6 +57,25 @@ export function activate(context: vscode.ExtensionContext) {
 	// Register canvas command
 	const openCanvasDisposable = vscode.commands.registerCommand('superdesign.openCanvas', () => {
 		SuperdesignCanvasPanel.createOrShow(context.extensionUri);
+	});
+
+	// Set up message handler for auto-canvas functionality
+	sidebarProvider.setMessageHandler((message) => {
+		switch (message.command) {
+			case 'checkCanvasStatus':
+				// Check if canvas panel is currently open
+				const isCanvasOpen = SuperdesignCanvasPanel.currentPanel !== undefined;
+				sidebarProvider.sendMessage({
+					command: 'canvasStatusResponse',
+					isOpen: isCanvasOpen
+				});
+				break;
+				
+			case 'autoOpenCanvas':
+				// Auto-open canvas if not already open
+				SuperdesignCanvasPanel.createOrShow(context.extensionUri);
+				break;
+		}
 	});
 
 	context.subscriptions.push(
