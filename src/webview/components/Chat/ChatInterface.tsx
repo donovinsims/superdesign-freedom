@@ -685,6 +685,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
     return (
         <div className={`chat-interface chat-interface--${layout}`}>
+            {/* Top Action Bar */}
+            <div className="chat-action-bar">
+                <button 
+                    className="open-canvas-btn"
+                    onClick={() => {
+                        // Send message to extension to open canvas
+                        if (vscode) {
+                            vscode.postMessage({
+                                type: 'openCanvas'
+                            });
+                        }
+                    }}
+                    title="Open Canvas View"
+                >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
+                    </svg>
+                    Open Canvas
+                </button>
+                <button 
+                    className="clear-chat-icon-btn"
+                    onClick={handleNewConversation}
+                    disabled={isLoading}
+                    title="Clear chat"
+                >
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                    </svg>
+                </button>
+            </div>
+
             {layout === 'panel' && (
                 <header className="chat-header">
                     <h2>💬 Chat with Claude</h2>
@@ -763,17 +794,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 className="message-input"
                                 rows={1}
                             />
-                            <button 
-                                className="clear-chat-btn"
-                                onClick={handleNewConversation}
-                                disabled={isLoading}
-                                title="Clear chat and start fresh"
-                            >
-                                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                                    <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/>
-                                    <path fillRule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 4.9 4c1.552 0 2.94-.707 3.857-1.818a.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/>
-                                </svg>
-                            </button>
+                            <div className="input-actions">
+                                <button 
+                                    className="attach-btn"
+                                    onClick={() => {/* TODO: Handle file attachment */}}
+                                    disabled={isLoading}
+                                    title="Attach file"
+                                >
+                                    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                                        <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0V3a1.5 1.5 0 0 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0V3z"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Agent and Model Selectors with Actions */}
@@ -812,16 +844,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             </div>
                             
                             <div className="input-actions">
-                                <button 
-                                    className="attach-btn"
-                                    disabled={isLoading}
-                                    title="Attach file"
-                                >
-                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                                        <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
-                                        <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
-                                    </svg>
-                                </button>
                                 {isLoading ? (
                                     <button 
                                         onClick={stopResponse}

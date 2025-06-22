@@ -572,7 +572,7 @@
 
 .message-input {
     width: 100%;
-    padding: 0 24px 0 0;
+    padding: 0;
     background: transparent;
     color: var(--vscode-input-foreground);
     border: none;
@@ -649,43 +649,7 @@
     transform: none;
 }
 
-.clear-chat-btn {
-    position: absolute;
-    top: 4px;
-    right: 8px;
-    background: transparent;
-    border: none;
-    color: var(--vscode-descriptionForeground);
-    cursor: pointer;
-    padding: 2px;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    width: 16px;
-    height: 16px;
-    opacity: 0.6;
-    z-index: 10;
-}
 
-.clear-chat-btn:hover:not(:disabled) {
-    background: var(--vscode-list-hoverBackground);
-    color: var(--vscode-foreground);
-    opacity: 1;
-    transform: scale(1.1);
-}
-
-.clear-chat-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.clear-chat-btn svg {
-    width: 10px;
-    height: 10px;
-}
 
 .send-btn {
     background: var(--vscode-button-background);
@@ -1497,6 +1461,72 @@
     .tool-time-remaining {
         font-size: 10px;
     }
+}
+
+/* Chat Action Bar */
+.chat-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background: var(--vscode-titleBar-activeBackground);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    min-height: 32px;
+    flex-shrink: 0;
+}
+
+.open-canvas-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    color: var(--vscode-titleBar-activeForeground);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.open-canvas-btn:hover {
+    background: var(--vscode-titleBar-hoverBackground);
+    color: var(--vscode-titleBar-hoverForeground);
+}
+
+.open-canvas-btn svg {
+    flex-shrink: 0;
+}
+
+.clear-chat-icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--vscode-titleBar-activeForeground);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    transition: all 0.2s ease;
+    opacity: 0.8;
+}
+
+.clear-chat-icon-btn:hover:not(:disabled) {
+    background: var(--vscode-titleBar-hoverBackground);
+    color: var(--vscode-titleBar-hoverForeground);
+    opacity: 1;
+}
+
+.clear-chat-icon-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.chat-interface {
 }
 
  
