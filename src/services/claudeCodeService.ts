@@ -2,23 +2,14 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { query, type SDKMessage } from "@anthropic-ai/claude-code";
-
-interface ClaudeCodeOptions {
-    maxTurns?: number;
-    systemPrompt?: string;
-    appendSystemPrompt?: string;
-    allowedTools?: string[];
-    disallowedTools?: string[];
-    permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
-    outputFormat?: 'text' | 'json' | 'stream-json';
-}
+import { query, type SDKMessage, type Options as ClaudeCodeOptions } from "@anthropic-ai/claude-code";
 
 export class ClaudeCodeService {
     private isInitialized = false;
     private initializationPromise: Promise<void> | null = null;
     private workingDirectory: string = '';
     private outputChannel: vscode.OutputChannel;
+    private currentSessionId: string | null = null;
 
     constructor(outputChannel: vscode.OutputChannel) {
         this.outputChannel = outputChannel;
@@ -141,19 +132,26 @@ export class ClaudeCodeService {
         const messages: SDKMessage[] = [];
         
         try {
+            const finalOptions: Partial<ClaudeCodeOptions> = {
+                maxTurns: 10,
+                allowedTools: [
+                    'Read', 'Write', 'Edit', 'MultiEdit', 'Bash', 'LS', 'Grep', 'Glob'
+                ],
+                permissionMode: 'acceptEdits' as const,
+                cwd: this.workingDirectory,
+                customSystemPrompt: 'you always respond in ALL CAPS',
+                ...options
+            };
+
+            if (this.currentSessionId) {
+                finalOptions.resume = this.currentSessionId;
+                this.outputChannel.appendLine(`Resuming session with ID: ${this.currentSessionId}`);
+            }
+
             const queryParams = {
                 prompt,
                 abortController: new AbortController(),
-                options: {
-                    maxTurns: 10,
-                    allowedTools: [
-                        'Read', 'Write', 'Edit', 'MultiEdit', 'Bash', 'LS', 'Grep', 'Glob'
-                    ],
-                    permissionMode: 'acceptEdits' as const,
-                    cwd: this.workingDirectory,
-                    customSystemPrompt: 'you always respond in ALL CAPS',
-                    ...options
-                }
+                options: finalOptions
             };
             
             this.outputChannel.appendLine(`Final query params: ${JSON.stringify({
@@ -172,6 +170,12 @@ export class ClaudeCodeService {
                     this.outputChannel.appendLine(`Result message: ${JSON.stringify(message, null, 2)}`);
                 }
                 messages.push(message as SDKMessage);
+            }
+
+            const lastMessageWithSessionId = [...messages].reverse().find(m => 'session_id' in m && m.session_id);
+            if (lastMessageWithSessionId && 'session_id' in lastMessageWithSessionId && lastMessageWithSessionId.session_id) {
+                this.currentSessionId = lastMessageWithSessionId.session_id;
+                this.outputChannel.appendLine(`Updated session ID to: ${this.currentSessionId}`);
             }
 
             this.outputChannel.appendLine(`Query completed successfully. Total messages: ${messages.length}`);
