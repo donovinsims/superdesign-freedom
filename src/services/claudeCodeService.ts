@@ -2,26 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-
-// Types for Claude Code responses
-interface SDKMessage {
-    type: 'assistant' | 'user' | 'result' | 'system';
-    subtype?: string;
-    message?: any;
-    session_id?: string;
-    duration_ms?: number;
-    duration_api_ms?: number;
-    is_error?: boolean;
-    num_turns?: number;
-    result?: string;
-    total_cost_usd?: number;
-    apiKeySource?: string;
-    cwd?: string;
-    tools?: string[];
-    mcp_servers?: Array<{ name: string; status: string }>;
-    model?: string;
-    permissionMode?: string;
-}
+import { query, type SDKMessage } from "@anthropic-ai/claude-code";
 
 interface ClaudeCodeOptions {
     maxTurns?: number;
@@ -41,7 +22,6 @@ interface QueryParams {
 }
 
 export class ClaudeCodeService {
-    private claudeCode: any = null;
     private isInitialized = false;
     private initializationPromise: Promise<void> | null = null;
     private workingDirectory: string = '';
@@ -92,11 +72,6 @@ export class ClaudeCodeService {
             this.outputChannel.appendLine('Setting environment variable for Claude Code SDK');
             process.env.ANTHROPIC_API_KEY = apiKey;
 
-            // Simple dynamic import - esbuild will handle this as external
-            this.outputChannel.appendLine('Importing Claude Code SDK...');
-            this.claudeCode = await import('@anthropic-ai/claude-code');
-            this.outputChannel.appendLine('Claude Code SDK imported successfully');
-            
             this.isInitialized = true;
             
             this.outputChannel.appendLine(`Claude Code SDK initialized successfully with working directory: ${this.workingDirectory}`);
@@ -202,9 +177,10 @@ export class ClaudeCodeService {
             this.outputChannel.appendLine('Starting Claude Code SDK query...');
 
             let messageCount = 0;
-            for await (const message of this.claudeCode.query(queryParams)) {
+            for await (const message of query(queryParams)) {
                 messageCount++;
-                this.outputChannel.appendLine(`Received message ${messageCount}: type=${message.type}, subtype=${message.subtype}`);
+                const subtype = 'subtype' in message ? message.subtype : undefined;
+                this.outputChannel.appendLine(`Received message ${messageCount}: type=${message.type}${subtype ? `, subtype=${subtype}` : ''}`);
                 if (message.type === 'result') {
                     this.outputChannel.appendLine(`Result message: ${JSON.stringify(message, null, 2)}`);
                 }
@@ -227,7 +203,7 @@ export class ClaudeCodeService {
         
         // Find the result message
         const resultMessage = messages.find(m => m.type === 'result');
-        if (resultMessage?.result) {
+        if (resultMessage?.type === 'result' && resultMessage.subtype === 'success') {
             return resultMessage.result;
         }
 
@@ -268,8 +244,6 @@ export class ClaudeCodeService {
         
         return this.query(queryParams);
     }
-
-
 
     get isReady(): boolean {
         return this.isInitialized;

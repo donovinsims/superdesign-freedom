@@ -117,7 +117,8 @@ class SuperdesignPanel {
             let toolResults: string[] = [];
             
             for (const msg of response) {
-                outputChannel.appendLine(`Processing message type: ${msg.type}, subtype: ${msg.subtype}`);
+                const subtype = 'subtype' in msg ? msg.subtype : undefined;
+                outputChannel.appendLine(`Processing message type: ${msg.type}${subtype ? `, subtype: ${subtype}` : ''}`);
                 
                 // Collect assistant messages
                 if (msg.type === 'assistant' && msg.message) {
@@ -140,13 +141,13 @@ class SuperdesignPanel {
                 }
                 
                 // Collect tool results
-                if (msg.type === 'result' && msg.result) {
+                if (msg.type === 'result' && msg.subtype === 'success' && msg.result) {
                     const result = typeof msg.result === 'string' ? msg.result : JSON.stringify(msg.result, null, 2);
                     toolResults.push(result);
                 }
                 
                 // Handle tool usage messages
-                if (msg.subtype === 'tool_use' || msg.subtype === 'tool_result') {
+                if ((msg.type === 'assistant' || msg.type === 'user') && ('subtype' in msg) && (msg.subtype === 'tool_use' || msg.subtype === 'tool_result')) {
                     outputChannel.appendLine(`Tool activity detected: ${msg.subtype}`);
                 }
             }
