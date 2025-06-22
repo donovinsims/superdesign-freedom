@@ -25,7 +25,6 @@
         "title": "Hello World",
         "category": "Superdesign"
       },
-
       {
         "command": "superdesign.configureApiKey",
         "title": "Configure Anthropic API Key",
