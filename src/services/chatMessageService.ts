@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { ClaudeCodeService } from './claudeCodeService';
 
 export class ChatMessageService {
+    private currentRequestController?: AbortController;
+
     constructor(
         private claudeService: ClaudeCodeService,
         private outputChannel: vscode.OutputChannel
@@ -11,8 +13,17 @@ export class ChatMessageService {
         try {
             this.outputChannel.appendLine(`Chat message received: ${message.message}`);
             
+            // Create new AbortController for this request
+            this.currentRequestController = new AbortController();
+            
             // Use the enhanced file tools method
-            const response = await this.claudeService.query(message.message);
+            const response = await this.claudeService.query(message.message, undefined, this.currentRequestController);
+
+            // Check if request was aborted
+            if (this.currentRequestController.signal.aborted) {
+                this.outputChannel.appendLine('Request was aborted');
+                return;
+            }
 
             this.outputChannel.appendLine(`Claude response with tools: ${JSON.stringify(response, null, 2)}`);
 
@@ -28,6 +39,15 @@ export class ChatMessageService {
             });
 
         } catch (error) {
+            // Check if the error is due to abort
+            if (this.currentRequestController?.signal.aborted) {
+                this.outputChannel.appendLine('Request was stopped by user');
+                webview.postMessage({
+                    command: 'chatStopped'
+                });
+                return;
+            }
+
             this.outputChannel.appendLine(`Chat message failed: ${error}`);
             vscode.window.showErrorMessage(`Chat failed: ${error}`);
             
@@ -36,6 +56,23 @@ export class ChatMessageService {
                 command: 'chatError',
                 error: error instanceof Error ? error.message : String(error)
             });
+        } finally {
+            // Clear the controller when done
+            this.currentRequestController = undefined;
+        }
+    }
+
+    async stopCurrentChat(webview: vscode.Webview): Promise<void> {
+        if (this.currentRequestController) {
+            this.outputChannel.appendLine('Stopping current chat request');
+            this.currentRequestController.abort();
+            
+            // Send stopped message back to webview
+            webview.postMessage({
+                command: 'chatStopped'
+            });
+        } else {
+            this.outputChannel.appendLine('No active chat request to stop');
         }
     }
 

@@ -25,6 +25,14 @@ export interface ChatError extends WebviewMessage {
     error: string;
 }
 
+export interface StopChatCommand extends WebviewMessage {
+    command: 'stopChat';
+}
+
+export interface ChatStopped extends WebviewMessage {
+    command: 'chatStopped';
+}
+
 export interface InitContext extends WebviewMessage {
     command: 'initContext';
     context: WebviewContext;

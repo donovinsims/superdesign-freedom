@@ -49,6 +49,9 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     case 'chatWithClaude':
                         await this.messageHandler.handleChatMessage(message, webviewView.webview);
                         break;
+                    case 'stopChat':
+                        await this.messageHandler.stopCurrentChat(webviewView.webview);
+                        break;
                 }
             }
         );

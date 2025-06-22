@@ -10,6 +10,7 @@ export interface ChatHookResult {
     chatHistory: ChatMessage[];
     isLoading: boolean;
     sendMessage: (message: string) => void;
+    stopResponse: () => void;
     clearHistory: () => void;
 }
 
@@ -33,6 +34,14 @@ export function useChat(vscode: any): ChatHookResult {
                     setChatHistory(prev => [...prev, {
                         type: 'assistant',
                         message: `Error: ${message.error}`,
+                        timestamp: Date.now()
+                    }]);
+                    setIsLoading(false);
+                    break;
+                case 'chatStopped':
+                    setChatHistory(prev => [...prev, {
+                        type: 'assistant',
+                        message: 'Response stopped by user.',
                         timestamp: Date.now()
                     }]);
                     setIsLoading(false);
@@ -64,6 +73,15 @@ export function useChat(vscode: any): ChatHookResult {
         });
     }, [vscode, isLoading]);
 
+    const stopResponse = useCallback(() => {
+        if (isLoading) {
+            vscode.postMessage({
+                command: 'stopChat'
+            });
+            setIsLoading(false);
+        }
+    }, [vscode, isLoading]);
+
     const clearHistory = useCallback(() => {
         setChatHistory([]);
     }, []);
@@ -72,6 +90,7 @@ export function useChat(vscode: any): ChatHookResult {
         chatHistory,
         isLoading,
         sendMessage,
+        stopResponse,
         clearHistory
     };
 } 

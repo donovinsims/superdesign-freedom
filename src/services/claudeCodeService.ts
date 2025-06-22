@@ -121,7 +121,7 @@ export class ClaudeCodeService {
         }
     }
 
-    async query(prompt: string, options?: Partial<ClaudeCodeOptions>): Promise<SDKMessage[]> {
+    async query(prompt: string, options?: Partial<ClaudeCodeOptions>, abortController?: AbortController): Promise<SDKMessage[]> {
         this.outputChannel.appendLine('=== QUERY FUNCTION CALLED ===');
         this.outputChannel.appendLine(`Query prompt: ${prompt.substring(0, 200)}...`);
         this.outputChannel.appendLine(`Query options: ${JSON.stringify(options, null, 2)}`);
@@ -433,7 +433,7 @@ Prevention strategies for next time:
 
             const queryParams = {
                 prompt,
-                abortController: new AbortController(),
+                abortController: abortController || new AbortController(),
                 options: finalOptions
             };
             
