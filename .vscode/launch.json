@@ -14,7 +14,7 @@
 			],
 			"outFiles": [
 				"${workspaceFolder}/dist/**/*.js"
-			],
+			]
 		}
 	]
 }
