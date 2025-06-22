@@ -202,6 +202,7 @@ body, html {
     overflow: hidden;
     background-color: #1A1A1A; /* Dark background for the canvas area */
     position: relative;
+
 }
 
 /* Canvas Controls */
@@ -326,10 +327,10 @@ body, html {
 
 /* Canvas Grid */
 .canvas-grid {
-    width: 100%;
-    height: 100%;
     position: relative;
-    background-color: transparent;
+    min-width: 2000px;
+    min-height: 2000px;
+    user-select: none;
 }
 
 .canvas-grid.dragging {
