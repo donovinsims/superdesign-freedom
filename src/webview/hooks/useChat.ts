@@ -22,6 +22,11 @@ export interface ChatMessage {
         group_id?: string;
         is_loading?: boolean;
         child_tools?: ChatMessage[];
+        // Enhanced loading states
+        estimated_duration?: number;
+        start_time?: number;
+        elapsed_time?: number;
+        progress_percentage?: number;
     };
 }
 
@@ -33,9 +38,108 @@ export interface ChatHookResult {
     clearHistory: () => void;
 }
 
+// Tool time estimation map (in seconds)
+const TOOL_TIME_ESTIMATES: { [key: string]: number } = {
+    'mcp_taskmaster-ai_initialize_project': 45,
+    'mcp_taskmaster-ai_parse_prd': 180,
+    'mcp_taskmaster-ai_analyze_project_complexity': 120,
+    'mcp_taskmaster-ai_expand_task': 90,
+    'mcp_taskmaster-ai_expand_all': 200,
+    'mcp_taskmaster-ai_update_task': 60,
+    'mcp_taskmaster-ai_update_subtask': 45,
+    'mcp_taskmaster-ai_add_task': 75,
+    'mcp_taskmaster-ai_research': 150,
+    'codebase_search': 30,
+    'read_file': 15,
+    'edit_file': 45,
+    'run_terminal_cmd': 60,
+    'default': 90 // Default for unknown tools
+};
+
+function getToolTimeEstimate(toolName: string): number {
+    // Check for exact match first
+    if (TOOL_TIME_ESTIMATES[toolName]) {
+        return TOOL_TIME_ESTIMATES[toolName];
+    }
+    
+    // Check for partial matches for similar tools
+    for (const [key, value] of Object.entries(TOOL_TIME_ESTIMATES)) {
+        if (toolName.includes(key) || key.includes(toolName)) {
+            return value;
+        }
+    }
+    
+    // Special cases based on tool name patterns
+    if (toolName.includes('taskmaster') || toolName.includes('task')) {
+        return 120; // Task-related tools tend to be slower
+    }
+    if (toolName.includes('search') || toolName.includes('grep')) {
+        return 30; // Search tools are usually faster
+    }
+    if (toolName.includes('file') || toolName.includes('read') || toolName.includes('write')) {
+        return 25; // File operations are usually quick
+    }
+    
+    return TOOL_TIME_ESTIMATES.default;
+}
+
 export function useChat(vscode: any): ChatHookResult {
-    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+    const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
+        // Initialize with persisted chat history from localStorage
+        try {
+            const saved = localStorage.getItem('superdesign-chat-history');
+            return saved ? JSON.parse(saved) : [];
+        } catch (error) {
+            console.warn('Failed to load chat history from localStorage:', error);
+            return [];
+        }
+    });
     const [isLoading, setIsLoading] = useState(false);
+
+    // Persist chat history to localStorage whenever it changes
+    useEffect(() => {
+        try {
+            localStorage.setItem('superdesign-chat-history', JSON.stringify(chatHistory));
+        } catch (error) {
+            console.warn('Failed to save chat history to localStorage:', error);
+        }
+    }, [chatHistory]);
+
+    // Timer for updating tool progress
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setChatHistory(prev => {
+                const newHistory = [...prev];
+                let hasUpdates = false;
+
+                // Helper function to update tool progress recursively
+                const updateToolProgress = (messages: ChatMessage[]) => {
+                    messages.forEach(msg => {
+                        if ((msg.type === 'tool' || msg.type === 'tool-group') && msg.metadata?.is_loading) {
+                            const startTime = msg.metadata.start_time || Date.now();
+                            const estimatedDuration = msg.metadata.estimated_duration || 90;
+                            const elapsed = (Date.now() - startTime) / 1000; // in seconds
+                            const progress = Math.min((elapsed / estimatedDuration) * 100, 95); // Cap at 95% until complete
+
+                            msg.metadata.elapsed_time = elapsed;
+                            msg.metadata.progress_percentage = progress;
+                            hasUpdates = true;
+                        }
+
+                        // Update child tools in groups
+                        if (msg.type === 'tool-group' && msg.metadata?.child_tools) {
+                            updateToolProgress(msg.metadata.child_tools);
+                        }
+                    });
+                };
+
+                updateToolProgress(newHistory);
+                return hasUpdates ? newHistory : prev;
+            });
+        }, 1000); // Update every second
+
+        return () => clearInterval(interval);
+    }, []);
 
     // Function to auto-collapse previous tool messages
     const autoCollapseTools = () => {
@@ -77,6 +181,10 @@ export function useChat(vscode: any): ChatHookResult {
                                 console.log('Adding tool message:', message.metadata?.tool_name);
                                 
                                 const parentToolId = message.metadata?.parent_tool_use_id;
+                                const toolName = message.metadata?.tool_name || 'Unknown Tool';
+                                const estimatedDuration = getToolTimeEstimate(toolName);
+                                const startTime = Date.now();
+                                
                                 const newTool: ChatMessage = {
                                     type: 'tool',
                                     message: message.content || '',
@@ -84,7 +192,11 @@ export function useChat(vscode: any): ChatHookResult {
                                     subtype: message.subtype,
                                     metadata: {
                                         ...message.metadata,
-                                        is_loading: true // Start in loading state
+                                        is_loading: true, // Start in loading state
+                                        estimated_duration: estimatedDuration,
+                                        start_time: startTime,
+                                        elapsed_time: 0,
+                                        progress_percentage: 0
                                     }
                                 };
                                 
@@ -174,7 +286,7 @@ export function useChat(vscode: any): ChatHookResult {
                                     const msg = messages[i];
                                     
                                     if (msg.type === 'tool' && msg.metadata?.tool_id === toolId) {
-                                        // Found the tool - update it with result and remove loading state
+                                        // Found the tool - update it with result and complete loading state
                                         messages[i] = {
                                             ...msg,
                                             metadata: {
@@ -182,7 +294,9 @@ export function useChat(vscode: any): ChatHookResult {
                                                 tool_result: message.content,
                                                 result_is_error: message.is_error,
                                                 result_received: true,
-                                                is_loading: false // Remove loading state
+                                                is_loading: false, // Remove loading state
+                                                progress_percentage: 100, // Set to 100% on completion
+                                                elapsed_time: msg.metadata?.estimated_duration || 90 // Set elapsed to estimated duration
                                             }
                                         };
                                         return true;
@@ -199,7 +313,7 @@ export function useChat(vscode: any): ChatHookResult {
                             const found = findAndUpdateTool(newHistory, message.tool_use_id);
                             
                             if (found) {
-                                console.log('Updated tool with result');
+                                console.log('Updated tool with result and completed loading');
                             } else {
                                 console.warn('Could not find tool with ID:', message.tool_use_id);
                             }

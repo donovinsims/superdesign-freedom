@@ -9,7 +9,7 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
-    const { chatHistory, isLoading, sendMessage, stopResponse } = useChat(vscode);
+    const { chatHistory, isLoading, sendMessage, stopResponse, clearHistory } = useChat(vscode);
     const [inputMessage, setInputMessage] = useState('');
     const [selectedAgent, setSelectedAgent] = useState('Agent #1');
     const [selectedModel, setSelectedModel] = useState('claude-4-sonnet');
@@ -148,6 +148,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const handleDislikeMessage = (index: number) => {
         // TODO: Implement dislike functionality
         console.log('Disliked message:', index);
+    };
+
+    const handleNewConversation = () => {
+        clearHistory();
+        setCurrentContext(null);
     };
 
     const renderChatMessage = (msg: ChatMessage, index: number) => {
@@ -294,7 +299,78 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             const toolResult = msg.metadata?.tool_result || '';
             const resultIsError = msg.metadata?.result_is_error || false;
             
-            console.log('Rendering tool message:', { toolName, hasResult, isLoading, resultLength: toolResult.length });
+            // Tool is complete when it has finished (regardless of errors)
+            const toolComplete = hasResult && !isLoading;
+            
+            // Enhanced loading data
+            const estimatedDuration = msg.metadata?.estimated_duration || 90;
+            const elapsedTime = msg.metadata?.elapsed_time || 0;
+            const progressPercentage = msg.metadata?.progress_percentage || 0;
+            const remainingTime = Math.max(0, estimatedDuration - elapsedTime);
+            
+            // Format time display
+            const formatTime = (seconds: number): string => {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+            
+            // Get friendly tool name for display
+            const getFriendlyToolName = (name: string): string => {
+                const friendlyNames: { [key: string]: string } = {
+                    'mcp_taskmaster-ai_parse_prd': 'Parsing Requirements Document',
+                    'mcp_taskmaster-ai_analyze_project_complexity': 'Analyzing Project Complexity',
+                    'mcp_taskmaster-ai_expand_task': 'Expanding Task',
+                    'mcp_taskmaster-ai_expand_all': 'Expanding All Tasks',
+                    'mcp_taskmaster-ai_research': 'Researching Information',
+                    'codebase_search': 'Searching Codebase',
+                    'read_file': 'Reading File',
+                    'edit_file': 'Editing File',
+                    'run_terminal_cmd': 'Running Command'
+                };
+                return friendlyNames[name] || name.replace(/mcp_|_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            };
+            
+            // Get helpful loading tips based on tool and progress
+            const getLoadingTip = (toolName: string, progress: number): string => {
+                const progressStage = progress < 25 ? 'early' : progress < 50 ? 'mid' : progress < 75 ? 'late' : 'final';
+                
+                const tipsByTool: { [key: string]: { [stage: string]: string[] } } = {
+                    'mcp_taskmaster-ai_parse_prd': {
+                        early: ['Analyzing requirements and identifying key features...', 'Breaking down complex requirements into manageable tasks...'],
+                        mid: ['Structuring tasks based on dependencies and priorities...', 'Defining implementation details for each component...'],
+                        late: ['Finalizing task relationships and estimates...', 'Optimizing task breakdown for efficient development...'],
+                        final: ['Completing task generation and validation...', 'Almost ready with your project roadmap!']
+                    },
+                    'mcp_taskmaster-ai_research': {
+                        early: ['Gathering the latest information from multiple sources...', 'Searching for best practices and recent developments...'],
+                        mid: ['Analyzing findings and filtering relevant information...', 'Cross-referencing multiple sources for accuracy...'],
+                        late: ['Synthesizing research into actionable insights...', 'Preparing comprehensive research summary...'],
+                        final: ['Finalizing research report with recommendations...', 'Almost done with your research!']
+                    },
+                    'mcp_taskmaster-ai_expand_task': {
+                        early: ['Breaking down the task into detailed subtasks...', 'Analyzing task complexity and dependencies...'],
+                        mid: ['Defining implementation steps and requirements...', 'Creating detailed subtask specifications...'],
+                        late: ['Optimizing subtask flow and dependencies...', 'Adding implementation details and strategies...'],
+                        final: ['Finalizing subtask breakdown...', 'Your detailed implementation plan is almost ready!']
+                    }
+                };
+                
+                const generalTips = {
+                    early: ['AI is working hard to process your request...', 'Analyzing your requirements in detail...', 'Loading the best approach for your needs...'],
+                    mid: ['Making good progress on your request...', 'Processing complex logic and relationships...', 'Halfway there! Building your solution...'],
+                    late: ['Finalizing details and optimizations...', 'Almost finished with the heavy lifting...', 'Putting the finishing touches on your request...'],
+                    final: ['Just a few more seconds...', 'Completing final validations...', 'Almost ready with your results!']
+                };
+                
+                const toolTips = tipsByTool[toolName] || generalTips;
+                const stageTips = toolTips[progressStage] || generalTips[progressStage];
+                const randomIndex = Math.floor((progress / 10)) % stageTips.length;
+                
+                return stageTips[randomIndex];
+            };
+            
+            console.log('Rendering tool message:', { toolName, hasResult, isLoading, progressPercentage, remainingTime });
             
             const toggleExpanded = () => {
                 setExpandedTools(prev => ({
@@ -347,30 +423,45 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 : prompt;
             
             return (
-                <div key={index} className={`tool-message tool-message--${layout} ${hasResult ? (resultIsError ? 'tool-message--error' : 'tool-message--success') : ''} ${isLoading ? 'tool-message--loading' : ''}`}>
+                <div key={index} className={`tool-message tool-message--${layout} ${toolComplete ? 'tool-message--complete' : ''} ${isLoading ? 'tool-message--loading' : ''}`}>
                     <div 
                         className="tool-message__header"
                         onClick={toggleExpanded}
                     >
                         <div className="tool-message__main">
                             <span className="tool-icon">🔧</span>
-                            <span className="tool-name">{toolName}</span>
+                            <span className="tool-name">{getFriendlyToolName(toolName)}</span>
                             {description && (
                                 <span className="tool-description">{description}</span>
                             )}
                             {isLoading && (
+                                <div className="tool-loading-info">
+                                    <span className="tool-countdown">
+                                        ⏱️ {formatTime(remainingTime)} remaining
+                                    </span>
+                                    <div className="tool-progress-container">
+                                        <div 
+                                            className="tool-progress-bar" 
+                                            style={{ width: `${progressPercentage}%` }}
+                                        />
+                                    </div>
+                                    <span className="tool-progress-text">
+                                        {Math.round(progressPercentage)}%
+                                    </span>
+                                </div>
+                            )}
+                            {isLoading && (
                                 <span className="tool-status tool-status--loading">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" className="loading-spinner">
-                                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="31.416" strokeDashoffset="31.416">
-                                            <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
-                                            <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
-                                        </circle>
-                                    </svg>
+                                    <div className="loading-spinner-enhanced">
+                                        <div className="spinner-ring"></div>
+                                        <div className="spinner-ring"></div>
+                                        <div className="spinner-ring"></div>
+                                    </div>
                                 </span>
                             )}
-                            {hasResult && !isLoading && (
-                                <span className={`tool-status ${resultIsError ? 'tool-status--error' : 'tool-status--success'}`}>
-                                    {resultIsError ? '❌' : '✅'}
+                            {toolComplete && (
+                                <span className="tool-status tool-status--complete">
+                                    ✅
                                 </span>
                             )}
                         </div>
@@ -382,6 +473,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                     </div>
                     {isExpanded && (
                         <div className="tool-message__details">
+                            {isLoading && (
+                                <div className="tool-loading-tips">
+                                    <div className="loading-tip">
+                                        <span className="tip-icon">💡</span>
+                                        <span className="tip-text">
+                                            {getLoadingTip(toolName, progressPercentage)}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                             {command && (
                                 <div className="tool-detail">
                                     <span className="tool-detail__label">Command:</span>
@@ -477,7 +578,36 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             const hasErrors = childTools.some(tool => tool.metadata?.result_is_error);
             const isLoading = childTools.some(tool => tool.metadata?.is_loading);
             
-            console.log('Rendering tool group:', { groupName, childCount: childTools.length, hasResults, isLoading });
+            // Task is complete when ALL tools have finished (regardless of errors)
+            const allToolsFinished = childTools.length > 0 && childTools.every(tool => tool.metadata?.result_received);
+            const taskComplete = allToolsFinished && !isLoading;
+            
+            // Calculate group progress based on child tools
+            let totalProgress = 0;
+            let totalTime = 0;
+            let remainingTime = 0;
+            if (childTools.length > 0) {
+                childTools.forEach(tool => {
+                    totalProgress += tool.metadata?.progress_percentage || 0;
+                    totalTime += tool.metadata?.estimated_duration || 0;
+                    remainingTime += Math.max(0, (tool.metadata?.estimated_duration || 0) - (tool.metadata?.elapsed_time || 0));
+                });
+                totalProgress = totalProgress / childTools.length;
+                
+                // If all tools are finished, set progress to 100%
+                if (allToolsFinished) {
+                    totalProgress = 100;
+                }
+            }
+            
+            // Format time display
+            const formatTime = (seconds: number): string => {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            };
+            
+            console.log('Rendering tool group:', { groupName, childCount: childTools.length, taskComplete, isLoading, hasErrors });
             
             const toggleExpanded = () => {
                 setExpandedTools(prev => ({
@@ -487,7 +617,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             };
             
             return (
-                <div key={index} className={`tool-group tool-group--${layout} ${hasResults ? (hasErrors ? 'tool-group--error' : 'tool-group--success') : ''} ${isLoading ? 'tool-group--loading' : ''}`}>
+                <div key={index} className={`tool-group tool-group--${layout} ${taskComplete ? 'tool-group--complete' : ''} ${isLoading ? 'tool-group--loading' : ''}`}>
                     <div 
                         className="tool-group__header"
                         onClick={toggleExpanded}
@@ -497,18 +627,33 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             <span className="tool-group-name">{groupName}</span>
                             <span className="tool-group-count">{childTools.length} steps</span>
                             {isLoading && (
+                                <div className="tool-loading-info">
+                                    <span className="tool-countdown">
+                                        ⏱️ {formatTime(remainingTime)} remaining
+                                    </span>
+                                    <div className="tool-progress-container">
+                                        <div 
+                                            className="tool-progress-bar" 
+                                            style={{ width: `${totalProgress}%` }}
+                                        />
+                                    </div>
+                                    <span className="tool-progress-text">
+                                        {Math.round(totalProgress)}%
+                                    </span>
+                                </div>
+                            )}
+                            {isLoading && (
                                 <span className="tool-status tool-status--loading">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" className="loading-spinner">
-                                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="31.416" strokeDashoffset="31.416">
-                                            <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
-                                            <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
-                                        </circle>
-                                    </svg>
+                                    <div className="loading-spinner-enhanced">
+                                        <div className="spinner-ring"></div>
+                                        <div className="spinner-ring"></div>
+                                        <div className="spinner-ring"></div>
+                                    </div>
                                 </span>
                             )}
-                            {hasResults && !isLoading && (
-                                <span className={`tool-status ${hasErrors ? 'tool-status--error' : 'tool-status--success'}`}>
-                                    {hasErrors ? '❌' : '✅'}
+                            {taskComplete && (
+                                <span className="tool-status tool-status--complete">
+                                    ✅
                                 </span>
                             )}
                         </div>
@@ -560,6 +705,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 <header className="chat-header">
                     <h2>💬 Chat with Claude</h2>
                     <p>Ask Claude anything about code, design, or development!</p>
+                    <button 
+                        className="new-conversation-btn"
+                        onClick={handleNewConversation}
+                        title="Start a new conversation"
+                        disabled={isLoading}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                        </svg>
+                    </button>
                 </header>
             )}
 
@@ -662,6 +817,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             </div>
                             
                             <div className="input-actions">
+                                <button 
+                                    className="clear-chat-btn"
+                                    onClick={handleNewConversation}
+                                    disabled={isLoading}
+                                    title="Clear chat and start fresh"
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                        <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                                    </svg>
+                                </button>
                                 <button 
                                     className="attach-btn"
                                     disabled={isLoading}
