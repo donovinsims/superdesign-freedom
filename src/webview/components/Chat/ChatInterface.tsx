@@ -15,6 +15,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const [selectedModel, setSelectedModel] = useState('claude-4-sonnet');
     const [expandedTools, setExpandedTools] = useState<{[key: number]: boolean}>({});
     const [showFullContent, setShowFullContent] = useState<{[key: string | number]: boolean}>({});
+    const [currentContext, setCurrentContext] = useState<{fileName: string; type: string} | null>(null);
 
     useEffect(() => {
         // Inject ChatInterface CSS styles
@@ -28,14 +29,55 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             document.head.appendChild(styleElement);
         }
 
+        // Auto-open canvas if not already open
+        const autoOpenCanvas = () => {
+            // Check if canvas panel is already open by looking for the canvas webview
+            vscode.postMessage({
+                command: 'checkCanvasStatus'
+            });
+            
+            // Listen for canvas status response and context messages
+            const handleMessage = (event: MessageEvent) => {
+                const message = event.data;
+                if (message.command === 'canvasStatusResponse') {
+                    if (!message.isOpen) {
+                        // Canvas is not open, auto-open it
+                        console.log('🎨 Auto-opening canvas view...');
+                        vscode.postMessage({
+                            command: 'autoOpenCanvas'
+                        });
+                    }
+                } else if (message.command === 'contextFromCanvas') {
+                    // Handle context from canvas
+                    console.log('📄 Received context from canvas:', message.data);
+                    if (message.data.type === 'clear' || !message.data.fileName) {
+                        setCurrentContext(null);
+                    } else {
+                        setCurrentContext(message.data);
+                    }
+                }
+            };
+            
+            window.addEventListener('message', handleMessage);
+            
+            // Cleanup listener
+            return () => {
+                window.removeEventListener('message', handleMessage);
+            };
+        };
+        
+        // Delay the check slightly to ensure chat is fully loaded
+        const timeoutId = setTimeout(autoOpenCanvas, 500);
+
         return () => {
+            clearTimeout(timeoutId);
             // Clean up on unmount
             const existingStyle = document.getElementById(styleId);
             if (existingStyle) {
                 document.head.removeChild(existingStyle);
             }
         };
-    }, []);
+    }, [vscode]);
 
     // Auto-collapse tools when new messages arrive
     useEffect(() => {
@@ -67,7 +109,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
     const handleSendMessage = () => {
         if (inputMessage.trim()) {
-            sendMessage(inputMessage);
+            let finalMessage = inputMessage;
+            
+            // Add context prefix if available
+            if (currentContext) {
+                finalMessage = `Context: ${currentContext.fileName}\n\nMessage: ${inputMessage}`;
+            }
+            
+            sendMessage(finalMessage);
             setInputMessage('');
         }
     };
@@ -518,7 +567,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 <div className="chat-history">
                     {chatHistory.length === 0 ? renderPlaceholder() : (
                         <>
-                            {chatHistory.map(renderChatMessage)}
+                            {chatHistory
+                                .filter(msg => {
+                                    // Filter out verbose result messages to keep chat clean
+                                    if (msg.type === 'result' && msg.subtype === 'success') {
+                                        return false;
+                                    }
+                                    return true;
+                                })
+                                .map(renderChatMessage)
+                            }
                         </>
                     )}
                 </div>
@@ -526,15 +584,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 <div className="chat-input-container">
                     {/* Main Input Area */}
                     <div className="chat-input-wrapper">
-                        {/* Add Context Button */}
-                        <button 
-                            className="add-context-btn"
-                            onClick={handleAddContext}
-                            disabled={isLoading}
-                        >
-                            <span className="add-context-icon">@</span>
-                            Add Context
-                        </button>
+                        {/* Context Display */}
+                        {currentContext ? (
+                            <div className="context-display">
+                                <span className="context-icon">📄</span>
+                                <span className="context-text">
+                                    {currentContext.fileName.includes('.superdesign') 
+                                        ? currentContext.fileName.split('.superdesign/')[1] || currentContext.fileName
+                                        : currentContext.fileName.split('/').pop() || currentContext.fileName
+                                    }
+                                </span>
+                                <button 
+                                    className="context-clear-btn"
+                                    onClick={() => setCurrentContext(null)}
+                                    title="Clear context"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ) : (
+                            <button 
+                                className="add-context-btn"
+                                onClick={handleAddContext}
+                                disabled={isLoading}
+                            >
+                                <span className="add-context-icon">@</span>
+                                Add Context
+                            </button>
+                        )}
 
                         {/* Input Area */}
                         <div className="chat-input">

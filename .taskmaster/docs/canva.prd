@@ -1,0 +1,260 @@
+# **Canvas View PRD - Figma-Style HTML Frame Viewer**
+
+## **Product Overview**
+
+This PRD outlines the implementation of a new Figma-style infinite canvas view for the Superdesign VS Code extension. The canvas will display HTML files from `.superdesign/design_files/` as individual frames in an infinite, zoomable, pannable workspace.
+
+## **Goals & Objectives**
+
+### **Primary Goals**
+- Create an intuitive visual interface for browsing HTML design files
+- Provide Figma-like zoom, pan, and selection capabilities
+- Enable quick visual comparison of multiple HTML designs
+- Integrate seamlessly with existing VS Code extension architecture
+
+### **Success Metrics**
+- Users can view all HTML files simultaneously in canvas
+- Smooth zoom/pan performance with 60fps
+- Selection system works intuitively
+- Files load and render correctly within 2 seconds
+
+## **Technical Requirements**
+
+### **Dependencies**
+- `react-zoom-pan-pinch` (1.7k⭐, 516k weekly downloads)
+- Existing React/TypeScript VS Code extension framework
+- VS Code file system APIs
+
+### **Architecture Decisions**
+- **Canvas Library**: react-zoom-pan-pinch for proven zoom/pan functionality
+- **HTML Rendering**: iframe-based for security and isolation
+- **File Reading**: VS Code workspace APIs with file watching
+- **State Management**: React state for selection, VS Code state for persistence
+
+## **Implementation Plan**
+
+## **Phase 1: Foundation Setup**
+
+### **Task 1.1: Project Dependencies**
+- [✅] Install `react-zoom-pan-pinch` in package.json
+- [✅] Update build configuration if needed for new dependencies
+
+### **Task 1.2: Extension Command Setup**
+- [✅] Add `superdesign.openCanvas` command to package.json
+- [✅] Create `SuperdesignCanvasPanel` class in extension.ts (similar to existing `SuperdesignPanel`)
+- [✅] Register command handler in `activate()` function
+
+### **Task 1.3: Basic Canvas View Structure**
+- [✅] Create `src/webview/components/CanvasView.tsx`
+- [✅] Update `App.tsx` to support multiple views (Design Panel vs Canvas)
+- [✅] Add view switching logic (tabs or separate commands)
+
+---
+
+## **Phase 2: File System Integration**
+
+### **Task 2.1: HTML File Reading**
+- [✅] Implement `loadDesignFiles()` method in extension.ts
+- [✅] Scan `.superdesign/design_files/` for `*.html` files
+- [✅] Read file contents and metadata (name, size, modified date)
+- [✅] Handle cases where folder doesn't exist
+
+### **Task 2.2: Message Passing Setup**
+- [✅] Define message types for file data transfer
+- [✅] Send file data from extension to webview
+- [✅] Handle file data in React components
+- [✅] Add error handling for file reading failures
+
+### **Task 2.3: File Watching (Optional)**
+- [✅] Set up VS Code file system watcher
+- [✅] Auto-refresh canvas when HTML files change
+- [✅] Handle file add/delete/rename scenarios
+
+---
+
+## **Phase 3: Canvas Core Implementation**
+
+### **Task 3.1: Basic Canvas Setup**
+- [✅] Integrate `react-zoom-pan-pinch` TransformWrapper
+- [✅] Set up initial zoom/pan configuration
+- [✅] Add basic canvas container styling
+- [✅] Test zoom/pan functionality
+
+### **Task 3.2: Frame Component**
+- [✅] Create `DesignFrame.tsx` component
+- [✅] Implement HTML content rendering (iframe vs innerHTML decision)
+- [✅] Add frame styling (border, shadow, filename label)
+- [✅] Set fixed frame dimensions (e.g., 300x400px)
+
+### **Task 3.3: Grid Layout System**
+- [✅] Implement auto-positioning algorithm for frames
+- [✅] Calculate grid positions based on file count
+- [✅] Add spacing between frames
+- [✅] Handle dynamic layout when files are added/removed
+
+---
+
+## **Phase 4: Frame Rendering & Security**
+
+### **Task 4.1: HTML Rendering Strategy**
+- [ ] Decide: iframe vs dangerouslySetInnerHTML vs other
+- [ ] Implement secure HTML rendering
+- [ ] Handle CSS isolation between frames
+- [ ] Test with various HTML content types
+
+### **Task 4.2: Frame Metadata Display**
+- [ ] Add filename labels to frames
+- [ ] Show file size/modified date (optional)
+- [ ] Style metadata overlay
+- [ ] Handle long filenames gracefully
+
+### **Task 4.3: Frame Scaling & Responsive**
+- [ ] Implement responsive frame sizing
+- [ ] Handle different aspect ratios
+- [ ] Add frame resize capabilities (optional)
+- [ ] Ensure readability at different zoom levels
+
+---
+
+## **Phase 5: Selection System**
+
+### **Task 5.1: Single Selection**
+- [ ] Add click handlers to frames
+- [ ] Implement selection state management
+- [ ] Add visual selection indicators (border highlight)
+- [ ] Handle click-outside to deselect
+
+### **Task 5.2: Multi-Selection**
+- [ ] Add Ctrl/Cmd+click for multi-select
+- [ ] Implement selection state array
+- [ ] Update visual indicators for multiple selected frames
+- [ ] Add "Select All" functionality
+
+### **Task 5.3: Selection Actions**
+- [ ] Add context menu for selected frames (optional)
+- [ ] Implement delete selected frames
+- [ ] Add selection info display (count, names)
+- [ ] Keyboard shortcuts for selection (optional)
+
+---
+
+## **Phase 6: User Experience**
+
+### **Task 6.1: Canvas Controls**
+- [ ] Add zoom in/out buttons
+- [ ] Add "Fit to view" button
+- [ ] Add "Reset zoom" button
+- [ ] Add mini-map (optional advanced feature)
+
+### **Task 6.2: Loading & Error States**
+- [ ] Add loading spinner while reading files
+- [ ] Handle "no files found" state
+- [ ] Add error messages for file reading failures
+- [ ] Implement retry mechanisms
+
+### **Task 6.3: Performance Optimization**
+- [ ] Implement virtualization for large numbers of files
+- [ ] Lazy load frame content when zoomed out
+- [ ] Optimize re-renders during zoom/pan
+- [ ] Add frame visibility culling
+
+---
+
+## **Phase 7: Polish & Advanced Features**
+
+### **Task 7.1: Styling & Animation**
+- [ ] Add smooth transitions for selection
+- [ ] Implement hover effects on frames
+- [ ] Add loading animations for frames
+- [ ] Polish overall visual design
+
+### **Task 7.2: Keyboard Navigation**
+- [ ] Arrow keys for frame navigation
+- [ ] Space bar for selection toggle
+- [ ] Escape to clear selection
+- [ ] Tab navigation between frames
+
+### **Task 7.3: Advanced Features (Optional)**
+- [ ] Frame preview on hover
+- [ ] Zoom to selected frame
+- [ ] Frame grouping/organizing
+- [ ] Export selected frames
+
+---
+
+## **File Structure After Implementation**
+
+```
+src/
+├── extension.ts                    # Add openCanvas command + CanvasPanel
+└── webview/
+    ├── App.tsx                     # Add view switching
+    ├── components/
+    │   ├── DesignPanel.tsx         # Existing
+    │   ├── CanvasView.tsx          # NEW: Main canvas container
+    │   ├── DesignFrame.tsx         # NEW: Individual HTML frame
+    │   ├── FrameControls.tsx       # NEW: Zoom/pan controls
+    │   └── FrameSelector.tsx       # NEW: Selection management
+    └── types/
+        └── canvas.types.ts         # NEW: Type definitions
+```
+
+## **Estimated Timeline**
+
+- **Phase 1-2**: 1-2 days (Foundation + File System)
+- **Phase 3-4**: 2-3 days (Core Canvas + Rendering) 
+- **Phase 5**: 1-2 days (Selection System)
+- **Phase 6-7**: 2-3 days (UX + Polish)
+
+**Total: ~7-10 days** for full implementation
+
+## **Priority Order**
+
+1. **MVP**: Phases 1-3 (Basic canvas with file loading)
+2. **Core Features**: Phase 4-5 (Rendering + Selection)
+3. **Production Ready**: Phase 6-7 (UX + Polish)
+
+## **Technical Specifications**
+
+### **Frame Specifications**
+- **Default Size**: 300x400px per frame
+- **Grid Spacing**: 50px between frames
+- **Grid Layout**: Auto-arrange in rows (3-4 frames per row)
+- **File Support**: `.html` files only
+- **Rendering**: iframe-based for security
+
+### **Canvas Specifications**
+- **Zoom Range**: 0.1x to 5x
+- **Pan Boundaries**: None (infinite canvas)
+- **Selection**: Single + multi-select with Ctrl/Cmd
+- **Performance**: Support 100+ frames without lag
+
+### **File System**
+- **Watch Path**: `.superdesign/design_files/*.html`
+- **Auto-refresh**: On file changes
+- **Error Handling**: Graceful fallbacks for missing files/folders
+
+## **User Stories**
+
+### **As a designer, I want to:**
+- View all my HTML designs at once to compare them visually
+- Zoom in to see details of specific designs
+- Pan around the canvas to explore different areas
+- Select multiple frames to perform batch operations
+- See filenames clearly labeled on each frame
+
+### **As a developer, I want to:**
+- Quickly browse HTML prototypes and mockups
+- Compare different iterations of designs side-by-side
+- Access this view through a simple VS Code command
+- Have the view update automatically when I modify HTML files
+
+## **Success Criteria**
+
+- [ ] Canvas loads within 2 seconds with 10+ HTML files
+- [ ] Smooth 60fps zoom/pan performance
+- [ ] All HTML files render correctly in frames
+- [ ] Selection system is intuitive and responsive
+- [ ] File watching works reliably
+- [ ] No security issues with HTML rendering
+- [ ] Integrates seamlessly with existing extension UI 
