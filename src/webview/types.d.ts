@@ -14,3 +14,10 @@ declare module '*.css' {
     getState(): any;
     setState(state: any): void;
   };
+
+// Add csp property to React's iframe attributes
+declare namespace React {
+  interface IframeHTMLAttributes<T> {
+    csp?: string;
+  }
+}

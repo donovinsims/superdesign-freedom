@@ -14,6 +14,17 @@ import {
     DragState,
     GridPosition
 } from '../types/canvas.types';
+import {
+    ZoomInIcon,
+    ZoomOutIcon,
+    HomeIcon,
+    ScaleIcon,
+    RefreshIcon,
+    GlobeIcon,
+    MobileIcon,
+    TabletIcon,
+    DesktopIcon
+} from './Icons';
 
 interface CanvasViewProps {
     vscode: any;
@@ -59,9 +70,9 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
     const transformRef = useRef<ReactZoomPanPinchRef>(null);
 
     // Performance optimization: Switch render modes based on zoom level
-    const getOptimalRenderMode = (zoom: number): 'placeholder' | 'iframe' => {
-        // Use placeholder for very zoomed out views for better performance
-        return zoom < 0.5 ? 'placeholder' : 'iframe';
+    const getOptimalRenderMode = (_zoom: number): 'placeholder' | 'iframe' => {
+        // Always render iframe as requested by the user
+        return 'iframe';
     };
 
     // Viewport management functions
@@ -183,23 +194,6 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
     const handleResetZoom = () => {
         if (transformRef.current) {
             transformRef.current.resetTransform();
-        }
-    };
-
-    const handleFitToView = () => {
-        if (transformRef.current && designFiles.length > 0) {
-            const containerWidth = window.innerWidth - 100; // Account for controls
-            const containerHeight = window.innerHeight - 150; // Account for controls and padding
-            
-            const { scale, x, y } = calculateFitToView(
-                designFiles.length,
-                currentConfig,
-                containerWidth,
-                containerHeight,
-                50 // Padding
-            );
-            
-            transformRef.current.setTransform(x, y, scale);
         }
     };
 
@@ -360,7 +354,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
             <div className="canvas-empty">
                 <div className="empty-state">
                     <h3>No design files found</h3>
-                    <p>Create HTML files in <code>.superdesign/design_files/</code> to get started</p>
+                    <p>Create HTML files in <code>.superdesign/ui_iterations/</code> to get started</p>
                 </div>
             </div>
         );
@@ -370,70 +364,66 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
         <div className="canvas-container">
             {/* Canvas Controls */}
             <div className="canvas-controls">
-                <button className="control-btn" onClick={handleZoomIn} title="Zoom In (Cmd/Ctrl + +)">
-                    🔍+
-                </button>
-                <button className="control-btn" onClick={handleZoomOut} title="Zoom Out (Cmd/Ctrl + -)">
-                    🔍-
-                </button>
-                <button className="control-btn" onClick={handleResetZoom} title="Reset Zoom (Cmd/Ctrl + 0)">
-                    ⌂
-                </button>
-                <button className="control-btn" onClick={handleFitToView} title="Fit to View">
-                    📐
-                </button>
-                <button className="control-btn" onClick={handleResetPositions} title="Reset Frame Positions">
-                    🔄
-                </button>
+                <div className="control-group">
+                    <button className="control-btn" onClick={handleZoomIn} title="Zoom In (Cmd/Ctrl + +)">
+                        <ZoomInIcon />
+                    </button>
+                    <button className="control-btn" onClick={handleZoomOut} title="Zoom Out (Cmd/Ctrl + -)">
+                        <ZoomOutIcon />
+                    </button>
+                    <div className="zoom-indicator">
+                        {Math.round(currentZoom * 100)}%
+                    </div>
+                </div>
+
+                <div className="viewport-divider"></div>
                 
+                <div className="control-group">
+                    <button className="control-btn" onClick={handleResetZoom} title="Reset Zoom (Cmd/Ctrl + 0)">
+                        <HomeIcon />
+                    </button>
+                    <button className="control-btn" onClick={handleResetPositions} title="Reset Frame Positions">
+                        <RefreshIcon />
+                    </button>
+                </div>
+
                 <div className="viewport-divider"></div>
                 
                 {/* Global Viewport Controls */}
-                <button 
-                    className={`control-btn viewport-toggle ${useGlobalViewport ? 'active' : ''}`}
-                    onClick={toggleGlobalViewport}
-                    title="Toggle Global Viewport Mode"
-                >
-                    🌐
-                </button>
-                
-                <div className="viewport-controls">
+                <div className="control-group">
                     <button 
-                        className={`viewport-btn ${globalViewportMode === 'mobile' ? 'active' : ''}`}
-                        onClick={() => handleGlobalViewportChange('mobile')}
-                        title="Mobile View (375×667)"
+                        className={`control-btn viewport-toggle ${useGlobalViewport ? 'active' : ''}`}
+                        onClick={toggleGlobalViewport}
+                        title="Toggle Global Viewport Mode"
                     >
-                        📱
+                        <GlobeIcon />
                     </button>
-                    <button 
-                        className={`viewport-btn ${globalViewportMode === 'tablet' ? 'active' : ''}`}
-                        onClick={() => handleGlobalViewportChange('tablet')}
-                        title="Tablet View (768×1024)"
-                    >
-                        📋
-                    </button>
-                    <button 
-                        className={`viewport-btn ${globalViewportMode === 'desktop' ? 'active' : ''}`}
-                        onClick={() => handleGlobalViewportChange('desktop')}
-                        title="Desktop View (1200×800)"
-                    >
-                        🖥️
-                    </button>
-                </div>
-                
-                <div className="zoom-indicator">
-                    {Math.round(currentZoom * 100)}%
-                </div>
-                <div className="canvas-info">
-                    {(() => {
-                        const metrics = getGridMetrics(designFiles.length, currentConfig);
-                        const renderMode = getOptimalRenderMode(currentZoom);
-                        const renderIcon = renderMode === 'iframe' ? '🖼️' : '📄';
-                        const customCount = Object.keys(customPositions).length;
-                        const customInfo = customCount > 0 ? ` | ${customCount} moved` : '';
-                        const gestureInfo = ' | 👋 Scroll=Pan 🤏 Pinch=Zoom';
-                        return `${metrics.totalFrames} files (${metrics.rows}×${metrics.cols}) | ${selectedFrames.length} selected | ${renderIcon}${customInfo}${gestureInfo}`;
-                    })()}
+                    <div className="viewport-controls">
+                        <button 
+                            className={`control-btn viewport-btn ${globalViewportMode === 'mobile' && useGlobalViewport ? 'active' : ''}`}
+                            onClick={() => handleGlobalViewportChange('mobile')}
+                            title="Mobile View (375×667)"
+                            disabled={!useGlobalViewport}
+                        >
+                            <MobileIcon />
+                        </button>
+                        <button 
+                            className={`control-btn viewport-btn ${globalViewportMode === 'tablet' && useGlobalViewport ? 'active' : ''}`}
+                            onClick={() => handleGlobalViewportChange('tablet')}
+                            title="Tablet View (768×1024)"
+                            disabled={!useGlobalViewport}
+                        >
+                            <TabletIcon />
+                        </button>
+                        <button 
+                            className={`control-btn viewport-btn ${globalViewportMode === 'desktop' && useGlobalViewport ? 'active' : ''}`}
+                            onClick={() => handleGlobalViewportChange('desktop')}
+                            title="Desktop View (1200×800)"
+                            disabled={!useGlobalViewport}
+                        >
+                            <DesktopIcon />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -441,17 +431,19 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode }) => {
             <TransformWrapper
                 ref={transformRef}
                 initialScale={1}
-                minScale={currentConfig.minZoom}
-                maxScale={currentConfig.maxZoom}
+                minScale={0.2}                  // Reasonable min scale
+                maxScale={2}                    // Reasonable max scale  
                 limitToBounds={false}
+                smooth={true}                   // Re-enable smoothing but keep it snappy
                 doubleClick={{
                     disabled: false,
-                    mode: "zoomIn"
+                    mode: "zoomIn",
+                    step: 50                    // Moderate double-click zoom step
                 }}
                 wheel={{
                     wheelDisabled: true,        // Disable wheel zoom
                     touchPadDisabled: false,    // Enable trackpad pan
-                    step: 0.1
+                    step: 0.3                   // Back to reasonable zoom button step
                 }}
                 panning={{
                     disabled: dragState.isDragging,

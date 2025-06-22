@@ -111,7 +111,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                             borderRadius: '0 0 6px 6px',
                             pointerEvents: (isSelected && !dragPreventOverlay && !isDragging) ? 'auto' : 'none'
                         }}
-                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"
+                        csp="script-src 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;"
                         referrerPolicy="no-referrer"
                         loading="lazy"
                         onLoad={() => {
@@ -246,16 +246,6 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                                 <p>Ready to drag</p>
                             </div>
                         )}
-                    </div>
-                )}
-                
-                {/* Interaction overlay for non-selected frames */}
-                {!isSelected && renderMode === 'iframe' && (
-                    <div className="frame-interaction-overlay">
-                        <div className="interaction-hint">
-                            <span>👆</span>
-                            <p>Click to select and interact</p>
-                        </div>
                     </div>
                 )}
                 
