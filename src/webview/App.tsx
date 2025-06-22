@@ -32,10 +32,6 @@ const App: React.FC = () => {
 
     return (
         <div className="superdesign-app">
-            <header className="app-header">
-                <h1>🤖 Superdesign Chat</h1>
-                <p>AI-Powered Development Assistant</p>
-            </header>
             <ChatInterface 
                 layout={context.layout}
                 vscode={vscode}
