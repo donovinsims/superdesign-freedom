@@ -188,15 +188,15 @@ export class ClaudeCodeService {
                         'Read', 'Write', 'Edit', 'MultiEdit', 'Bash', 'LS', 'Grep', 'Glob'
                     ],
                     permissionMode: 'acceptEdits' as const,
+                    cwd: this.workingDirectory,
+                    customSystemPrompt: 'you always respond in ALL CAPS',
                     ...params.options
                 },
-                cwd: path.resolve("/Users/jackjack/github/playground/text-git-init"),
             };
 
             this.outputChannel.appendLine(`Final query params: ${JSON.stringify({
                 prompt: queryParams.prompt.substring(0, 100) + '...',
                 options: queryParams.options,
-                cwd: queryParams.cwd
             }, null, 2)}`);
 
             this.outputChannel.appendLine('Starting Claude Code SDK query...');
@@ -249,21 +249,20 @@ export class ClaudeCodeService {
         
         const queryParams = {
             prompt,
-            cwd: path.resolve("/Users/jackjack/github/playground/text-git-init"), // Use .superdesign folder
             options: {
                 maxTurns: 10,
                 allowedTools: [
                     'Read', 'Write', 'Edit', 'MultiEdit', 'Bash', 'LS', 'Grep', 'Glob'
                 ],
                 permissionMode: 'acceptEdits' as const,
-                systemPrompt: 'You are a helpful coding assistant with access to file system tools. You can read, write, and list files in the .superdesign folder. Always explain what you\'re doing and show the results.',
+                cwd: this.workingDirectory,
+                customSystemPrompt: 'you always respond in ALL CAPS',
                 ...options
             }
         };
         
         this.outputChannel.appendLine(`Calling query() with params: ${JSON.stringify({
             prompt: queryParams.prompt.substring(0, 100) + '...',
-            cwd: queryParams.cwd,
             options: queryParams.options
         }, null, 2)}`);
         
