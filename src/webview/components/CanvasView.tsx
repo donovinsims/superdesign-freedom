@@ -177,11 +177,22 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
     const handleFrameSelect = (fileName: string) => {
         setSelectedFrames([fileName]); // Single selection for now
         
+        // Find the selected file to get its full path
+        const selectedFile = designFiles.find(file => file.name === fileName);
+        const filePath = selectedFile ? selectedFile.path : fileName;
+        
         const selectMessage: WebviewMessage = {
             command: 'selectFrame',
             data: { fileName }
         };
         vscode.postMessage(selectMessage);
+
+        // Also send context to chat interface with full path
+        const contextMessage: WebviewMessage = {
+            command: 'setContextFromCanvas',
+            data: { fileName: filePath, type: 'frame' }
+        };
+        vscode.postMessage(contextMessage);
     };
 
     // Canvas control functions
@@ -482,6 +493,13 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                             // Clear selection when clicking on empty space
                             if (e.target === e.currentTarget) {
                                 setSelectedFrames([]);
+                                
+                                // Also clear context in chat
+                                const clearContextMessage: WebviewMessage = {
+                                    command: 'setContextFromCanvas',
+                                    data: { fileName: '', type: 'clear' }
+                                };
+                                vscode.postMessage(clearContextMessage);
                             }
                         }}
                     >

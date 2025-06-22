@@ -41,6 +41,14 @@ export interface SelectFrameMessage extends ExtensionMessage {
     };
 }
 
+export interface SetContextFromCanvasMessage extends ExtensionMessage {
+    command: 'setContextFromCanvas';
+    data: {
+        fileName: string;
+        type: 'frame' | 'clear';
+    };
+}
+
 export interface ErrorMessage extends ExtensionMessage {
     command: 'error';
     data: {
@@ -58,7 +66,8 @@ export interface FileWatchMessage extends ExtensionMessage {
 
 export type WebviewMessage = 
     | LoadDesignFilesMessage 
-    | SelectFrameMessage;
+    | SelectFrameMessage
+    | SetContextFromCanvasMessage;
 
 export type ExtensionToWebviewMessage = 
     | DesignFilesLoadedMessage 

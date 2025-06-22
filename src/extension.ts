@@ -56,7 +56,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register canvas command
 	const openCanvasDisposable = vscode.commands.registerCommand('superdesign.openCanvas', () => {
-		SuperdesignCanvasPanel.createOrShow(context.extensionUri);
+		SuperdesignCanvasPanel.createOrShow(context.extensionUri, sidebarProvider);
 	});
 
 	// Set up message handler for auto-canvas functionality
@@ -73,7 +73,15 @@ export function activate(context: vscode.ExtensionContext) {
 				
 			case 'autoOpenCanvas':
 				// Auto-open canvas if not already open
-				SuperdesignCanvasPanel.createOrShow(context.extensionUri);
+				SuperdesignCanvasPanel.createOrShow(context.extensionUri, sidebarProvider);
+				break;
+
+			case 'setContextFromCanvas':
+				// Forward context from canvas to chat sidebar
+				sidebarProvider.sendMessage({
+					command: 'contextFromCanvas',
+					data: message.data
+				});
 				break;
 		}
 	});
@@ -138,10 +146,11 @@ class SuperdesignCanvasPanel {
 
 	private readonly _panel: vscode.WebviewPanel;
 	private readonly _extensionUri: vscode.Uri;
+	private readonly _sidebarProvider: ChatSidebarProvider;
 	private _disposables: vscode.Disposable[] = [];
 	private _fileWatcher: vscode.FileSystemWatcher | undefined;
 
-	public static createOrShow(extensionUri: vscode.Uri) {
+	public static createOrShow(extensionUri: vscode.Uri, sidebarProvider: ChatSidebarProvider) {
 		const column = vscode.window.activeTextEditor?.viewColumn;
 
 		if (SuperdesignCanvasPanel.currentPanel) {
@@ -159,12 +168,13 @@ class SuperdesignCanvasPanel {
 			}
 		);
 
-		SuperdesignCanvasPanel.currentPanel = new SuperdesignCanvasPanel(panel, extensionUri);
+		SuperdesignCanvasPanel.currentPanel = new SuperdesignCanvasPanel(panel, extensionUri, sidebarProvider);
 	}
 
-	private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+	private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, sidebarProvider: ChatSidebarProvider) {
 		this._panel = panel;
 		this._extensionUri = extensionUri;
+		this._sidebarProvider = sidebarProvider;
 
 		this._update();
 		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
@@ -179,6 +189,13 @@ class SuperdesignCanvasPanel {
 						break;
 					case 'selectFrame':
 						console.log('Frame selected:', message.data?.fileName);
+						break;
+					case 'setContextFromCanvas':
+						// Forward context to chat sidebar
+						this._sidebarProvider.sendMessage({
+							command: 'contextFromCanvas',
+							data: message.data
+						});
 						break;
 				}
 			},
