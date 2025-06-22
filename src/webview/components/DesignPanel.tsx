@@ -1,96 +1,161 @@
 import React, { useState } from 'react';
 
-interface DesignPanelProps {
+interface ChatPanelProps {
     vscode: any;
+    isLoading: boolean;
+    setIsLoading: (loading: boolean) => void;
+    chatHistory: Array<{type: 'user' | 'assistant', message: string}>;
+    setChatHistory: (history: Array<{type: 'user' | 'assistant', message: string}>) => void;
 }
 
-const DesignPanel: React.FC<DesignPanelProps> = ({ vscode }) => {
-    const [activeTab, setActiveTab] = useState('colors');
-    const [colors, setColors] = useState([
-        { name: 'Primary', value: '#007ACC' },
-        { name: 'Secondary', value: '#1E1E1E' },
-        { name: 'Success', value: '#4CAF50' },
-        { name: 'Warning', value: '#FF9800' }
-    ]);
+const ChatPanel: React.FC<ChatPanelProps> = ({ vscode, isLoading, setIsLoading, chatHistory, setChatHistory }) => {
+    const [chatMessage, setChatMessage] = useState('');
 
-    const handleExportDesign = () => {
+    const handleChatMessage = () => {
+        if (!chatMessage.trim()) return;
+        
+        // Add user message to chat history
+        setChatHistory([...chatHistory, { type: 'user', message: chatMessage }]);
+        
+        setIsLoading(true);
         vscode.postMessage({
-            command: 'exportDesign',
-            data: { colors, activeTab }
+            command: 'chatWithClaude',
+            message: chatMessage
         });
+        
+        setChatMessage('');
     };
 
     return (
-        <div className="design-panel">
-            <nav className="tab-nav">
-                <button 
-                    className={`tab ${activeTab === 'colors' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('colors')}
-                >
-                    🎨 Colors
-                </button>
-                <button 
-                    className={`tab ${activeTab === 'typography' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('typography')}
-                >
-                    ✏️ Typography
-                </button>
-                <button 
-                    className={`tab ${activeTab === 'components' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('components')}
-                >
-                    🧩 Components
-                </button>
-            </nav>
-
-            <div className="tab-content">
-                {activeTab === 'colors' && (
-                    <div className="colors-panel">
-                        <h3>Color Palette</h3>
-                        <div className="color-grid">
-                            {colors.map((color, index) => (
-                                <div key={index} className="color-item">
-                                    <div 
-                                        className="color-swatch"
-                                        style={{ backgroundColor: color.value }}
-                                    ></div>
-                                    <div className="color-info">
-                                        <span className="color-name">{color.name}</span>
-                                        <span className="color-value">{color.value}</span>
-                                    </div>
+        <div className="chat-panel">
+            <header className="chat-header">
+                <h2>💬 Chat with Claude</h2>
+                <p>Ask Claude anything about code, design, or development!</p>
+            </header>
+            
+            <div className="chat-container">
+                <div className="chat-history">
+                    {chatHistory.length === 0 ? (
+                        <div className="chat-placeholder">
+                            <p>👋 Start a conversation with Claude!</p>
+                            <p>You can ask about:</p>
+                            <ul>
+                                <li>🎨 Design and UI/UX questions</li>
+                                <li>💻 Code generation and debugging</li>
+                                <li>🏗️ Architecture and best practices</li>
+                                <li>📚 Learning and explanations</li>
+                            </ul>
+                        </div>
+                    ) : (
+                        chatHistory.map((msg, index) => (
+                            <div key={index} className={`chat-message ${msg.type}`}>
+                                <div className="message-header">
+                                    <strong>{msg.type === 'user' ? '👤 You' : '🤖 Claude'}</strong>
                                 </div>
-                            ))}
+                                <div className="message-content">
+                                    {typeof msg.message === 'string' ? msg.message : JSON.stringify(msg.message)}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                    {isLoading && (
+                        <div className="chat-message assistant">
+                            <div className="message-header">
+                                <strong>🤖 Claude</strong>
+                            </div>
+                            <div className="message-content typing">
+                                <span className="typing-indicator">●●●</span> Thinking...
+                            </div>
                         </div>
+                    )}
+                </div>
+                
+                <div className="chat-input-container">
+                    <div className="quick-suggestions">
+                        <button 
+                            onClick={() => {
+                                const message = 'List all files in the current directory';
+                                setChatHistory([...chatHistory, { type: 'user', message }]);
+                                setIsLoading(true);
+                                vscode.postMessage({
+                                    command: 'chatWithClaude',
+                                    message
+                                });
+                            }}
+                            disabled={isLoading}
+                            className="suggestion-btn"
+                        >
+                            📁 List Files
+                        </button>
+                        <button 
+                            onClick={() => {
+                                const message = 'Create a new file called "test.txt" with the content "Hello from Claude Code tools!"';
+                                setChatHistory([...chatHistory, { type: 'user', message }]);
+                                setIsLoading(true);
+                                vscode.postMessage({
+                                    command: 'chatWithClaude',
+                                    message
+                                });
+                            }}
+                            disabled={isLoading}
+                            className="suggestion-btn"
+                        >
+                            ✏️ Write File
+                        </button>
+                        <button 
+                            onClick={() => {
+                                const message = 'Read the contents of package.json file';
+                                setChatHistory([...chatHistory, { type: 'user', message }]);
+                                setIsLoading(true);
+                                vscode.postMessage({
+                                    command: 'chatWithClaude',
+                                    message
+                                });
+                            }}
+                            disabled={isLoading}
+                            className="suggestion-btn"
+                        >
+                            📖 Read File
+                        </button>
+                        <button 
+                            onClick={() => {
+                                const message = 'Generate a React component and save it to a new file';
+                                setChatHistory([...chatHistory, { type: 'user', message }]);
+                                setIsLoading(true);
+                                vscode.postMessage({
+                                    command: 'chatWithClaude',
+                                    message
+                                });
+                            }}
+                            disabled={isLoading}
+                            className="suggestion-btn"
+                        >
+                            ✨ Generate & Save Component
+                        </button>
                     </div>
-                )}
-
-                {activeTab === 'typography' && (
-                    <div className="typography-panel">
-                        <h3>Typography Scale</h3>
-                        <div className="font-samples">
-                            <div className="font-sample h1">Heading 1</div>
-                            <div className="font-sample h2">Heading 2</div>
-                            <div className="font-sample body">Body Text</div>
-                            <div className="font-sample caption">Caption</div>
-                        </div>
+                    
+                    <div className="chat-input">
+                        <input
+                            type="text"
+                            placeholder="Ask Claude anything..."
+                            value={chatMessage}
+                            onChange={(e) => setChatMessage(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleChatMessage()}
+                            disabled={isLoading}
+                            className="message-input"
+                        />
+                        <button 
+                            onClick={handleChatMessage}
+                            disabled={isLoading || !chatMessage.trim()}
+                            className="send-btn"
+                        >
+                            {isLoading ? '⏳' : '📤'}
+                        </button>
                     </div>
-                )}
-
-                {activeTab === 'components' && (
-                    <div className="components-panel">
-                        <h3>Design Components</h3>
-                        <p>Component library coming soon...</p>
-                    </div>
-                )}
-            </div>
-
-            <div className="actions">
-                <button className="export-btn" onClick={handleExportDesign}>
-                    📤 Export Design System
-                </button>
+                </div>
             </div>
         </div>
     );
 };
 
-export default DesignPanel;
+export default ChatPanel;

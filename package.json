@@ -29,8 +29,23 @@
         "command": "superdesign.openDesignPanel",
         "title": "Open Design Panel",
         "category": "Superdesign"
+      },
+      {
+        "command": "superdesign.configureApiKey",
+        "title": "Configure Anthropic API Key",
+        "category": "Superdesign"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Superdesign",
+      "properties": {
+        "superdesign.anthropicApiKey": {
+          "type": "string",
+          "description": "Anthropic API key for Claude Code integration",
+          "scope": "application"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -60,6 +75,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@anthropic-ai/claude-code": "^1.0.31",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "react": "^19.1.0",

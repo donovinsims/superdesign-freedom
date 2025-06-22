@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import DesignPanel from './components/DesignPanel';
+import ChatPanel from './components/DesignPanel';
 
 // Import CSS as string for esbuild
 import styles from './App.css';
 
 const App: React.FC = () => {
     const [vscode] = useState(() => acquireVsCodeApi());
+    const [isLoading, setIsLoading] = useState(false);
+    const [chatHistory, setChatHistory] = useState<Array<{type: 'user' | 'assistant', message: string}>>([]);
 
     useEffect(() => {
         // Inject CSS styles
@@ -17,8 +19,12 @@ const App: React.FC = () => {
         const messageHandler = (event: MessageEvent) => {
             const message = event.data;
             switch (message.command) {
-                case 'updateDesign':
-                    // Handle design updates
+                case 'chatResponse':
+                    setChatHistory(prev => [...prev, {
+                        type: 'assistant',
+                        message: message.response
+                    }]);
+                    setIsLoading(false);
                     break;
             }
         };
@@ -34,10 +40,16 @@ const App: React.FC = () => {
     return (
         <div className="superdesign-app">
             <header className="app-header">
-                <h1>🎨 Superdesign</h1>
-                <p>Design System Manager for VS Code</p>
+                <h1>🤖 Superdesign Chat</h1>
+                <p>AI-Powered Development Assistant</p>
             </header>
-            <DesignPanel vscode={vscode} />
+            <ChatPanel 
+                vscode={vscode} 
+                isLoading={isLoading}
+                setIsLoading={setIsLoading}
+                chatHistory={chatHistory}
+                setChatHistory={setChatHistory}
+            />
         </div>
     );
 };
