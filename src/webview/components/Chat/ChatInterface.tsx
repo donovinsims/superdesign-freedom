@@ -13,6 +13,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const [inputMessage, setInputMessage] = useState('');
     const [selectedAgent, setSelectedAgent] = useState('Agent #1');
     const [selectedModel, setSelectedModel] = useState('claude-4-sonnet');
+    const [expandedTools, setExpandedTools] = useState<{[key: number]: boolean}>({});
+    const [showFullContent, setShowFullContent] = useState<{[key: string | number]: boolean}>({});
 
     useEffect(() => {
         // Inject ChatInterface CSS styles
@@ -34,6 +36,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             }
         };
     }, []);
+
+    // Auto-collapse tools when new messages arrive
+    useEffect(() => {
+        const handleAutoCollapse = () => {
+            setExpandedTools(prev => {
+                const newState = { ...prev };
+                const toolIndices = chatHistory
+                    .map((msg, index) => ({ msg, index }))
+                    .filter(({ msg }) => msg.type === 'tool' || msg.type === 'tool-result')
+                    .map(({ index }) => index);
+                
+                // Keep only the last tool/tool-result expanded
+                if (toolIndices.length > 1) {
+                    const lastToolIndex = toolIndices[toolIndices.length - 1];
+                    toolIndices.forEach(index => {
+                        if (index !== lastToolIndex) {
+                            newState[index] = false;
+                        }
+                    });
+                }
+                
+                return newState;
+            });
+        };
+
+        window.addEventListener('autoCollapseTools', handleAutoCollapse);
+        return () => window.removeEventListener('autoCollapseTools', handleAutoCollapse);
+    }, [chatHistory]);
 
     const handleSendMessage = () => {
         if (inputMessage.trim()) {
@@ -72,22 +102,83 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     };
 
     const renderChatMessage = (msg: ChatMessage, index: number) => {
-        const isLastUserMessage = msg.type === 'user' && index === chatHistory.length - 1 && isLoading;
+        const isLastUserMessage = msg.type === 'user-input' && index === chatHistory.length - 1 && isLoading;
+        const isLastStreamingMessage = (msg.type === 'assistant' || msg.type === 'result') && index === chatHistory.length - 1;
+        const isStreaming = isLastStreamingMessage && isLoading;
         const messageText = typeof msg.message === 'string' ? msg.message : JSON.stringify(msg.message);
         
+        // Handle tool messages specially
+        if (msg.type === 'tool') {
+            return renderToolMessage(msg, index);
+        }
+        
+        // Handle tool groups specially
+        if (msg.type === 'tool-group') {
+            return renderToolGroup(msg, index);
+        }
+        
+        // Determine message label and styling
+        let messageLabel = '';
+        let messageClass = '';
+        
+        switch (msg.type) {
+            case 'user-input':
+                messageLabel = 'You';
+                messageClass = 'user';
+                break;
+            case 'user':
+                messageLabel = 'Claude (User Message)';
+                messageClass = 'user-sdk';
+                break;
+            case 'assistant':
+                messageLabel = 'Claude';
+                messageClass = 'assistant';
+                break;
+            case 'result':
+                if (msg.subtype === 'success') {
+                    messageLabel = 'Result';
+                } else if (msg.subtype === 'error_max_turns') {
+                    messageLabel = 'Error (Max Turns)';
+                } else if (msg.subtype === 'error_during_execution') {
+                    messageLabel = 'Error (Execution)';
+                } else if (msg.subtype === 'stopped') {
+                    messageLabel = 'Stopped';
+                } else if (msg.subtype === 'error') {
+                    messageLabel = 'Error';
+                } else {
+                    messageLabel = 'Result';
+                }
+                messageClass = msg.metadata?.is_error ? 'result-error' : 'result';
+                break;
+        }
+        
         return (
-            <div key={index} className={`chat-message chat-message--${msg.type} chat-message--${layout}`}>
+            <div key={index} className={`chat-message chat-message--${messageClass} chat-message--${layout}`}>
                 {layout === 'panel' && (
                     <div className="chat-message__header">
                         <span className="chat-message__label">
-                            {msg.type === 'user' ? 'You' : 'Claude'}
+                            {messageLabel}
                         </span>
+                        {msg.metadata && (
+                            <span className="chat-message__metadata">
+                                {msg.metadata.duration_ms && (
+                                    <span className="metadata-item">{msg.metadata.duration_ms}ms</span>
+                                )}
+                                {msg.metadata.total_cost_usd && (
+                                    <span className="metadata-item">${msg.metadata.total_cost_usd.toFixed(4)}</span>
+                                )}
+                                {msg.metadata.num_turns && (
+                                    <span className="metadata-item">{msg.metadata.num_turns} turns</span>
+                                )}
+                            </span>
+                        )}
                     </div>
                 )}
                 <div className="chat-message__content">
                     {messageText}
+                    {isStreaming && <span className="streaming-cursor">▋</span>}
                 </div>
-                {msg.type === 'assistant' && (
+                {(msg.type === 'assistant' || msg.type === 'result') && !isStreaming && (
                     <div className="message-actions">
                         <button 
                             onClick={() => handleLikeMessage(index)}
@@ -133,6 +224,269 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 )}
             </div>
         );
+    };
+
+    const renderToolMessage = (msg: ChatMessage, index: number) => {
+        try {
+            const isExpanded = expandedTools[index] || false;
+            const showFullResult = showFullContent[index] || false;
+            const showFullInput = showFullContent[`${index}_input`] || false;
+            const showFullPrompt = showFullContent[`${index}_prompt`] || false;
+            
+            const toolName = msg.metadata?.tool_name || 'Unknown Tool';
+            const toolInput = msg.metadata?.tool_input || {};
+            const description = toolInput.description || '';
+            const command = toolInput.command || '';
+            const prompt = toolInput.prompt || '';
+            
+            // Tool result data
+            const hasResult = msg.metadata?.result_received || false;
+            const isLoading = msg.metadata?.is_loading || false;
+            const toolResult = msg.metadata?.tool_result || '';
+            const resultIsError = msg.metadata?.result_is_error || false;
+            
+            console.log('Rendering tool message:', { toolName, hasResult, isLoading, resultLength: toolResult.length });
+            
+            const toggleExpanded = () => {
+                setExpandedTools(prev => ({
+                    ...prev,
+                    [index]: !prev[index]
+                }));
+            };
+            
+            const toggleShowFullResult = () => {
+                setShowFullContent(prev => ({
+                    ...prev,
+                    [index]: !prev[index]
+                }));
+            };
+            
+            const toggleShowFullInput = () => {
+                setShowFullContent(prev => ({
+                    ...prev,
+                    [`${index}_input`]: !prev[`${index}_input`]
+                }));
+            };
+            
+            const toggleShowFullPrompt = () => {
+                setShowFullContent(prev => ({
+                    ...prev,
+                    [`${index}_prompt`]: !prev[`${index}_prompt`]
+                }));
+            };
+            
+            // Determine if content needs truncation
+            const MAX_PREVIEW = 300;
+            
+            // Result truncation
+            const resultNeedsTruncation = toolResult.length > MAX_PREVIEW;
+            const displayResult = resultNeedsTruncation && !showFullResult 
+                ? toolResult.substring(0, MAX_PREVIEW) + '...'
+                : toolResult;
+            
+            // Input truncation
+            const inputString = JSON.stringify(toolInput, null, 2);
+            const inputNeedsTruncation = inputString.length > MAX_PREVIEW;
+            const displayInput = inputNeedsTruncation && !showFullInput 
+                ? inputString.substring(0, MAX_PREVIEW) + '...'
+                : inputString;
+            
+            // Prompt truncation
+            const promptNeedsTruncation = prompt.length > MAX_PREVIEW;
+            const displayPrompt = promptNeedsTruncation && !showFullPrompt 
+                ? prompt.substring(0, MAX_PREVIEW) + '...'
+                : prompt;
+            
+            return (
+                <div key={index} className={`tool-message tool-message--${layout} ${hasResult ? (resultIsError ? 'tool-message--error' : 'tool-message--success') : ''} ${isLoading ? 'tool-message--loading' : ''}`}>
+                    <div 
+                        className="tool-message__header"
+                        onClick={toggleExpanded}
+                    >
+                        <div className="tool-message__main">
+                            <span className="tool-icon">🔧</span>
+                            <span className="tool-name">{toolName}</span>
+                            {description && (
+                                <span className="tool-description">{description}</span>
+                            )}
+                            {isLoading && (
+                                <span className="tool-status tool-status--loading">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" className="loading-spinner">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="31.416" strokeDashoffset="31.416">
+                                            <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
+                                            <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
+                                        </circle>
+                                    </svg>
+                                </span>
+                            )}
+                            {hasResult && !isLoading && (
+                                <span className={`tool-status ${resultIsError ? 'tool-status--error' : 'tool-status--success'}`}>
+                                    {resultIsError ? '❌' : '✅'}
+                                </span>
+                            )}
+                        </div>
+                        <button className={`tool-expand-btn ${isExpanded ? 'expanded' : ''}`}>
+                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    {isExpanded && (
+                        <div className="tool-message__details">
+                            {command && (
+                                <div className="tool-detail">
+                                    <span className="tool-detail__label">Command:</span>
+                                    <code className="tool-detail__value">{command}</code>
+                                </div>
+                            )}
+                            {Object.keys(toolInput).length > 0 && (
+                                <div className="tool-detail">
+                                    <span className="tool-detail__label">Input:</span>
+                                    <div className="tool-detail__value tool-detail__value--result">
+                                        <pre className="tool-result-content">
+                                            {displayInput}
+                                        </pre>
+                                        {inputNeedsTruncation && (
+                                            <button 
+                                                className="tool-result__show-more"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleShowFullInput();
+                                                }}
+                                            >
+                                                {showFullInput ? 'Show Less' : 'Show More'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            {prompt && (
+                                <div className="tool-detail">
+                                    <span className="tool-detail__label">Prompt:</span>
+                                    <div className="tool-detail__value tool-detail__value--result">
+                                        <pre className="tool-result-content">
+                                            {displayPrompt}
+                                        </pre>
+                                        {promptNeedsTruncation && (
+                                            <button 
+                                                className="tool-result__show-more"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleShowFullPrompt();
+                                                }}
+                                            >
+                                                {showFullPrompt ? 'Show Less' : 'Show More'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            {hasResult && (
+                                <div className="tool-detail">
+                                    <span className="tool-detail__label">
+                                        {resultIsError ? 'Error Result:' : 'Result:'}
+                                    </span>
+                                    <div className={`tool-detail__value tool-detail__value--result ${resultIsError ? 'tool-detail__value--error' : ''}`}>
+                                        <pre className="tool-result-content">
+                                            {displayResult}
+                                        </pre>
+                                        {resultNeedsTruncation && (
+                                            <button 
+                                                className="tool-result__show-more"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleShowFullResult();
+                                                }}
+                                            >
+                                                {showFullResult ? 'Show Less' : 'Show More'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        } catch (error) {
+            console.error('Error rendering tool message:', error, msg);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            return (
+                <div key={index} className={`tool-message tool-message--${layout}`} style={{background: 'red', color: 'white', padding: '8px'}}>
+                    Error rendering tool: {msg.metadata?.tool_name || 'Unknown'} - {errorMessage}
+                </div>
+            );
+        }
+    };
+
+    const renderToolGroup = (msg: ChatMessage, index: number) => {
+        try {
+            const isExpanded = expandedTools[index] || false;
+            const childTools = msg.metadata?.child_tools || [];
+            const groupName = msg.metadata?.tool_name || 'Tool Group';
+            const hasResults = childTools.some(tool => tool.metadata?.result_received);
+            const hasErrors = childTools.some(tool => tool.metadata?.result_is_error);
+            const isLoading = childTools.some(tool => tool.metadata?.is_loading);
+            
+            console.log('Rendering tool group:', { groupName, childCount: childTools.length, hasResults, isLoading });
+            
+            const toggleExpanded = () => {
+                setExpandedTools(prev => ({
+                    ...prev,
+                    [index]: !prev[index]
+                }));
+            };
+            
+            return (
+                <div key={index} className={`tool-group tool-group--${layout} ${hasResults ? (hasErrors ? 'tool-group--error' : 'tool-group--success') : ''} ${isLoading ? 'tool-group--loading' : ''}`}>
+                    <div 
+                        className="tool-group__header"
+                        onClick={toggleExpanded}
+                    >
+                        <div className="tool-group__main">
+                            <span className="tool-group-icon">📋</span>
+                            <span className="tool-group-name">{groupName}</span>
+                            <span className="tool-group-count">{childTools.length} steps</span>
+                            {isLoading && (
+                                <span className="tool-status tool-status--loading">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" className="loading-spinner">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="31.416" strokeDashoffset="31.416">
+                                            <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
+                                            <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
+                                        </circle>
+                                    </svg>
+                                </span>
+                            )}
+                            {hasResults && !isLoading && (
+                                <span className={`tool-status ${hasErrors ? 'tool-status--error' : 'tool-status--success'}`}>
+                                    {hasErrors ? '❌' : '✅'}
+                                </span>
+                            )}
+                        </div>
+                        <button className={`tool-expand-btn ${isExpanded ? 'expanded' : ''}`}>
+                            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    {isExpanded && (
+                        <div className="tool-group__children">
+                            {childTools.map((childTool, childIndex) => 
+                                renderToolMessage(childTool, `${index}_${childIndex}` as any)
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        } catch (error) {
+            console.error('Error rendering tool group:', error, msg);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            return (
+                <div key={index} className={`tool-group tool-group--${layout}`} style={{background: 'red', color: 'white', padding: '8px'}}>
+                    Error rendering tool group - {errorMessage}
+                </div>
+            );
+        }
     };
 
     const renderPlaceholder = () => (

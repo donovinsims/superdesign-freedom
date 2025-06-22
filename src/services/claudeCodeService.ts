@@ -121,10 +121,11 @@ export class ClaudeCodeService {
         }
     }
 
-    async query(prompt: string, options?: Partial<ClaudeCodeOptions>, abortController?: AbortController): Promise<SDKMessage[]> {
+    async query(prompt: string, options?: Partial<ClaudeCodeOptions>, abortController?: AbortController, onMessage?: (message: SDKMessage) => void): Promise<SDKMessage[]> {
         this.outputChannel.appendLine('=== QUERY FUNCTION CALLED ===');
         this.outputChannel.appendLine(`Query prompt: ${prompt.substring(0, 200)}...`);
         this.outputChannel.appendLine(`Query options: ${JSON.stringify(options, null, 2)}`);
+        this.outputChannel.appendLine(`Streaming enabled: ${!!onMessage}`);
 
         await this.ensureInitialized();
         this.outputChannel.appendLine('Initialization check completed');
@@ -187,11 +188,11 @@ Your goal is to extract a generalized and reusable design system from the screen
 5. **Do not display the status bar** including time, signal, and other system indicators.
 6. **Do not display non-mobile elements**, such as scrollbars.
 7. **All text should be only black or white**.
-8. Choose a **4 pt or 8 pt spacing system**—all margins, padding, line-heights, and element sizes must be exact multiples.
-9. Use **consistent spacing tokens** (e.g., 4, 8, 16, 24, 32px) — never arbitrary values like 5 px or 13 px.
-10. Apply **visual grouping** (“spacing friendship”): tighter gaps (4–8px) for related items, larger gaps (16–24px) for distinct groups.
-11. Ensure **typographic rhythm**: font‑sizes, line‑heights, and spacing aligned to the grid (e.g., 16 px text with 24 px line-height).
-12. Maintain **touch-area accessibility**: buttons and controls should meet or exceed 48×48 px, padded using grid units.
+8. Choose a **4 pt or 8 pt spacing system**—all margins, padding, line-heights, and element sizes must be exact multiples.
+9. Use **consistent spacing tokens** (e.g., 4, 8, 16, 24, 32px) — never arbitrary values like 5 px or 13 px.
+10. Apply **visual grouping** ("spacing friendship"): tighter gaps (4–8px) for related items, larger gaps (16–24px) for distinct groups.
+11. Ensure **typographic rhythm**: font‑sizes, line‑heights, and spacing aligned to the grid (e.g., 16 px text with 24 px line-height).
+12. Maintain **touch-area accessibility**: buttons and controls should meet or exceed 48×48 px, padded using grid units.
 
 ---
 
@@ -228,7 +229,7 @@ css
 
 * **Inconsistent values**, e.g., padding: 5px; margin: 13px; disrupt the grid.
 * **Manual eyeballing**, which results in misaligned layouts like buttons overflowing their parent container.
-* **Tiny, mixed units** that break rhythm—e.g., 6px vs 10px instead of sticking with 8 pt multiples.
+* **Tiny, mixed units** that break rhythm—e.g., 6px vs 10px instead of sticking with 8 pt multiples.
 
 ---
 
@@ -315,7 +316,7 @@ h1 {
 ### 2. 📏 Size & Scale
 
 * Follow a modular scale: e.g., **H1: 36px**, **H2: 28px**, **Body: 16px** (min). Adjust for mobile if needed .
-* Maintain strong contrast—don’t use size differences of only 2px; aim for at least **6–8px difference** between levels .
+* Maintain strong contrast—don't use size differences of only 2px; aim for at least **6–8px difference** between levels .
 
 ### 3. 🧠 Weight, Style & Color
 
@@ -448,11 +449,21 @@ Prevention strategies for next time:
             for await (const message of query(queryParams)) {
                 messageCount++;
                 const subtype = 'subtype' in message ? message.subtype : undefined;
-                this.outputChannel.appendLine(`Received message ${messageCount}: type=${message.type}${subtype ? `, subtype=${subtype}` : ''}`);
+                this.outputChannel.appendLine(`Received message ${messageCount}: type=${message}`);
                 if (message.type === 'result') {
                     this.outputChannel.appendLine(`Result message: ${JSON.stringify(message, null, 2)}`);
                 }
                 messages.push(message as SDKMessage);
+                
+                // Call the streaming callback if provided
+                if (onMessage) {
+                    try {
+                        onMessage(message as SDKMessage);
+                    } catch (callbackError) {
+                        this.outputChannel.appendLine(`Streaming callback error: ${callbackError}`);
+                        // Don't break the loop if callback fails
+                    }
+                }
             }
 
             const lastMessageWithSessionId = [...messages].reverse().find(m => 'session_id' in m && m.session_id);
