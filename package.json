@@ -38,15 +38,36 @@
       {
         "command": "superdesign.openCanvas",
         "title": "Open Canvas View",
-        "category": "Superdesign"
+        "category": "Superdesign",
+        "icon": "$(window)"
+      },
+      {
+        "command": "superdesign.clearChat",
+        "title": "Clear Chat",
+        "category": "Superdesign",
+        "icon": "$(clear-all)"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "superdesign.openCanvas",
+          "when": "view == superdesign.chatView",
+          "group": "navigation"
+        },
+        {
+          "command": "superdesign.clearChat",
+          "when": "view == superdesign.chatView",
+          "group": "navigation"
+        }
+      ]
+    },
     "views": {
       "superdesign-sidebar": [
         {
           "type": "webview",
           "id": "superdesign.chatView",
-          "name": "Chat",
+          "name": "SUPER DESIGN",
           "when": "true"
         }
       ]
@@ -102,8 +123,12 @@
     "@anthropic-ai/claude-code": "^1.0.31",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "highlight.js": "^11.11.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-zoom-pan-pinch": "^3.7.0"
+    "react-markdown": "^10.1.0",
+    "react-zoom-pan-pinch": "^3.7.0",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1"
   }
 }

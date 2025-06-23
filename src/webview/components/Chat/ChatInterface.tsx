@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useChat, ChatMessage } from '../../hooks/useChat';
 import { WebviewLayout } from '../../../types/context';
+import MarkdownRenderer from '../MarkdownRenderer';
+import { TaskIcon, ClockIcon, CheckIcon, LightBulbIcon, GroupIcon } from '../Icons';
 import chatStyles from './ChatInterface.css';
 
 interface ChatInterfaceProps {
@@ -14,8 +16,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const [selectedAgent, setSelectedAgent] = useState('Agent #1');
     const [selectedModel, setSelectedModel] = useState('claude-4-sonnet');
     const [expandedTools, setExpandedTools] = useState<{[key: number]: boolean}>({});
-    const [showFullContent, setShowFullContent] = useState<{[key: string | number]: boolean}>({});
+    const [showFullContent, setShowFullContent] = useState<{[key: string]: boolean}>({});
     const [currentContext, setCurrentContext] = useState<{fileName: string; type: string} | null>(null);
+
+    // Drag and drop state
+    const [uploadingImages, setUploadingImages] = useState<string[]>([]);
+    const [pendingImages, setPendingImages] = useState<{fileName: string; originalName: string}[]>([]);
 
     useEffect(() => {
         // Inject ChatInterface CSS styles
@@ -50,11 +56,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 } else if (message.command === 'contextFromCanvas') {
                     // Handle context from canvas
                     console.log('📄 Received context from canvas:', message.data);
+                    console.log('📄 Current context before setting:', currentContext);
                     if (message.data.type === 'clear' || !message.data.fileName) {
                         setCurrentContext(null);
+                        console.log('📄 Context cleared');
                     } else {
                         setCurrentContext(message.data);
+                        console.log('📄 Context set to:', message.data);
                     }
+                } else if (message.command === 'clearChat') {
+                    // Handle clear chat command from toolbar
+                    handleNewConversation();
                 }
             };
             
@@ -111,9 +123,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         if (inputMessage.trim()) {
             let finalMessage = inputMessage;
             
+            console.log('📤 Sending message with context:', currentContext);
+            console.log('📤 Input message:', inputMessage);
+            
             // Add context prefix if available
             if (currentContext) {
-                finalMessage = `Context: ${currentContext.fileName}\n\nMessage: ${inputMessage}`;
+                if (currentContext.type === 'images') {
+                    finalMessage = `Context: Multiple images in moodboard\n\nMessage: ${inputMessage}`;
+                } else {
+                    finalMessage = `Context: ${currentContext.fileName}\n\nMessage: ${inputMessage}`;
+                }
+                console.log('📤 Final message with context:', finalMessage);
+            } else {
+                console.log('📤 No context available, sending message as-is');
             }
             
             sendMessage(finalMessage);
@@ -154,6 +176,182 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         clearHistory();
         setCurrentContext(null);
     };
+
+    // Drag and drop handlers
+    const handleDragEnter = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Check if dragged items contain files
+        if (e.dataTransfer.types.includes('Files')) {
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.dropEffect = 'copy';
+        }
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Essential: Must prevent default and set dropEffect for drop to work
+        if (e.dataTransfer.types.includes('Files')) {
+            e.dataTransfer.dropEffect = 'copy';
+        }
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (isLoading) {
+            return;
+        }
+
+        const files = Array.from(e.dataTransfer.files);
+        const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+        if (imageFiles.length === 0) {
+            return;
+        }
+
+        // Process each image file
+        for (const file of imageFiles) {
+            try {
+                await handleImageUpload(file);
+            } catch (error) {
+                console.error('Error processing dropped image:', error);
+            }
+        }
+    };
+
+    const handleImageUpload = async (file: File): Promise<void> => {
+        const maxSize = 10 * 1024 * 1024; // 10MB limit
+        if (file.size > maxSize) {
+            console.error('Image too large:', file.name);
+            vscode.postMessage({
+                command: 'showError',
+                data: `Image "${file.name}" is too large. Maximum size is 10MB.`
+            });
+            return;
+        }
+
+        // Create a unique filename
+        const timestamp = Date.now();
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const fileName = `${timestamp}_${safeName}`;
+
+        // Add to uploading state
+        setUploadingImages(prev => [...prev, file.name]);
+
+        // Convert to base64 for sending to extension
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64Data = reader.result as string;
+            
+            // Send to extension to save in moodboard
+            vscode.postMessage({
+                command: 'saveImageToMoodboard',
+                data: {
+                    fileName,
+                    originalName: file.name,
+                    base64Data,
+                    mimeType: file.type,
+                    size: file.size
+                }
+            });
+
+            // Add to pending images
+            setPendingImages(prev => [...prev, { fileName: `moodboard/${fileName}`, originalName: file.name }]);
+
+            // Remove from uploading state
+            setUploadingImages(prev => prev.filter(name => name !== file.name));
+
+            console.log('📎 Image processed and added to pending:', fileName);
+        };
+
+        reader.onerror = () => {
+            console.error('Error reading file:', file.name);
+            setUploadingImages(prev => prev.filter(name => name !== file.name));
+            vscode.postMessage({
+                command: 'showError',
+                data: `Failed to read image "${file.name}"`
+            });
+        };
+
+        reader.readAsDataURL(file);
+    };
+
+    useEffect(() => {
+        // Auto-set context when images finish uploading
+        if (uploadingImages.length === 0 && pendingImages.length > 0) {
+            if (pendingImages.length === 1) {
+                // Single image - set as context directly
+                setCurrentContext({
+                    fileName: pendingImages[0].fileName,
+                    type: 'image'
+                });
+            } else {
+                // Multiple images - create a combined context
+                setCurrentContext({
+                    fileName: `${pendingImages.length} images in moodboard`,
+                    type: 'images'
+                });
+            }
+            // Clear pending images after setting context
+            setPendingImages([]);
+        }
+    }, [uploadingImages.length, pendingImages.length]);
+
+    // Global drag & drop fallback for VS Code webview
+    useEffect(() => {
+        const handleGlobalDragOver = (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+                e.dataTransfer.dropEffect = 'copy';
+            }
+        };
+
+        const handleGlobalDrop = async (e: DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🎯 Global drop detected!', e.dataTransfer?.files.length, 'files');
+
+            if (!e.dataTransfer?.files) return;
+
+            const files = Array.from(e.dataTransfer.files);
+            console.log('🎯 Global files from drop:', files.map(f => `${f.name} (${f.type})`));
+            
+            const imageFiles = files.filter(file => file.type.startsWith('image/'));
+            console.log('🎯 Global image files:', imageFiles.map(f => f.name));
+
+            if (imageFiles.length > 0 && !isLoading) {
+                console.log('📎 Processing images from global drop:', imageFiles.map(f => f.name));
+                
+                for (const file of imageFiles) {
+                    try {
+                        await handleImageUpload(file);
+                    } catch (error) {
+                        console.error('Error processing dropped image:', error);
+                    }
+                }
+            }
+        };
+
+        // Add global listeners
+        document.addEventListener('dragover', handleGlobalDragOver);
+        document.addEventListener('drop', handleGlobalDrop);
+
+        return () => {
+            document.removeEventListener('dragover', handleGlobalDragOver);
+            document.removeEventListener('drop', handleGlobalDrop);
+        };
+    }, [isLoading, handleImageUpload]);
 
     const renderChatMessage = (msg: ChatMessage, index: number) => {
         const isLastUserMessage = msg.type === 'user-input' && index === chatHistory.length - 1 && isLoading;
@@ -210,7 +408,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             <div key={index} className={`chat-message chat-message--${messageClass} chat-message--${layout}`}>
                 {layout === 'panel' && (
                     <div className="chat-message__header">
-                        <span className="chat-message__label">
+                    <span className="chat-message__label">
                             {messageLabel}
                         </span>
                         {msg.metadata && (
@@ -224,12 +422,39 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 {msg.metadata.num_turns && (
                                     <span className="metadata-item">{msg.metadata.num_turns} turns</span>
                                 )}
-                            </span>
-                        )}
-                    </div>
+                    </span>
                 )}
-                <div className="chat-message__content">
-                    {messageText}
+            </div>
+                )}
+            <div className="chat-message__content">
+                    {(msg.type === 'assistant' || msg.type === 'result') ? (
+                        <MarkdownRenderer content={messageText} />
+                    ) : (
+                        (() => {
+                            // Check if this is a user message with context
+                            if (messageText.startsWith('Context: ') && messageText.includes('\n\nMessage: ')) {
+                                const contextMatch = messageText.match(/^Context: (.+)\n\nMessage: (.+)$/s);
+                                if (contextMatch) {
+                                    const contextFile = contextMatch[1];
+                                    const actualMessage = contextMatch[2];
+                                    const displayFileName = contextFile.includes('.superdesign') 
+                                        ? contextFile.split('.superdesign/')[1] || contextFile
+                                        : contextFile.split('/').pop() || contextFile;
+                                    
+                                    return (
+                                        <>
+                                            <div className="message-context-display">
+                                                <span className="context-icon">@</span>
+                                                <span className="context-text">{displayFileName}</span>
+                                            </div>
+                                            <div className="message-text">{actualMessage}</div>
+                                        </>
+                                    );
+                                }
+                            }
+                            return messageText;
+                        })()
+                    )}
                     {isStreaming && <span className="streaming-cursor">▋</span>}
                 </div>
                 {(msg.type === 'assistant' || msg.type === 'result') && !isStreaming && (
@@ -370,8 +595,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 return stageTips[randomIndex];
             };
             
-            console.log('Rendering tool message:', { toolName, hasResult, isLoading, progressPercentage, remainingTime });
-            
             const toggleExpanded = () => {
                 setExpandedTools(prev => ({
                     ...prev,
@@ -435,7 +658,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                         <div className="loading-ring"></div>
                                     </div>
                                 ) : (
-                                    '🔧'
+                                    <TaskIcon />
                                 )}
                             </span>
                             <div className="tool-info">
@@ -445,7 +668,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 )}
                                 {isLoading && (
                                     <span className="tool-time-remaining">
-                                        ⏱️ {formatTime(remainingTime)} remaining
+                                        <ClockIcon /> {formatTime(remainingTime)} remaining
                                     </span>
                                 )}
                             </div>
@@ -453,7 +676,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         <div className="tool-actions">
                             {toolComplete && (
                                 <span className="tool-status tool-status--complete">
-                                    ✅
+                                    <CheckIcon />
                                 </span>
                             )}
                             <button className={`tool-expand-btn ${isExpanded ? 'expanded' : ''}`}>
@@ -468,7 +691,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             {isLoading && (
                                 <div className="tool-loading-tips">
                                     <div className="loading-tip">
-                                        <span className="tip-icon">💡</span>
+                                        <span className="tip-icon"><LightBulbIcon /></span>
                                         <span className="tip-text">
                                             {getLoadingTip(toolName, Math.floor((estimatedDuration - remainingTime) / estimatedDuration * 100))}
                                         </span>
@@ -551,13 +774,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 </div>
             );
         } catch (error) {
-            console.error('Error rendering tool message:', error, msg);
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             return (
-                <div key={index} className={`tool-message tool-message--${layout}`} style={{background: 'red', color: 'white', padding: '8px'}}>
-                    Error rendering tool: {msg.metadata?.tool_name || 'Unknown'} - {errorMessage}
-                </div>
-            );
+                <div key={index} className={`tool-message tool-message--${layout} tool-message--error`}>
+                    <div className="tool-message__header">
+                        <div className="tool-message__main">
+                            <span className="tool-icon">⚠️</span>
+                            <div className="tool-info">
+                                <span className="tool-name">Error rendering tool: {msg.metadata?.tool_name || 'Unknown'}</span>
+                                <span className="tool-description">{errorMessage}</span>
+                            </div>
+                        </div>
+            </div>
+        </div>
+    );
         }
     };
 
@@ -599,8 +829,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 return `${mins}:${secs.toString().padStart(2, '0')}`;
             };
             
-            console.log('Rendering tool group:', { groupName, childCount: childTools.length, taskComplete, isLoading, hasErrors });
-            
             const toggleExpanded = () => {
                 setExpandedTools(prev => ({
                     ...prev,
@@ -621,14 +849,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                         <div className="loading-ring"></div>
                                     </div>
                                 ) : (
-                                    '📋'
+                                    <GroupIcon />
                                 )}
                             </span>
                             <div className="tool-group-info">
                                 <span className="tool-group-name">{groupName}</span>
                                 {isLoading && (
                                     <span className="tool-time-remaining">
-                                        ⏱️ {formatTime(remainingTime)} remaining
+                                        <ClockIcon /> {formatTime(remainingTime)} remaining
                                     </span>
                                 )}
                             </div>
@@ -637,7 +865,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             <span className="tool-group-count">{childTools.length} steps</span>
                             {taskComplete && (
                                 <span className="tool-status tool-status--complete">
-                                    ✅
+                                    <CheckIcon />
                                 </span>
                             )}
                             <button className={`tool-expand-btn ${isExpanded ? 'expanded' : ''}`}>
@@ -657,11 +885,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 </div>
             );
         } catch (error) {
-            console.error('Error rendering tool group:', error, msg);
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             return (
-                <div key={index} className={`tool-group tool-group--${layout}`} style={{background: 'red', color: 'white', padding: '8px'}}>
-                    Error rendering tool group - {errorMessage}
+                <div key={index} className={`tool-group tool-group--${layout} tool-group--error`}>
+                    <div className="tool-group__header">
+                        <div className="tool-group__main">
+                            <span className="tool-group-icon">⚠️</span>
+                            <div className="tool-group-info">
+                                <span className="tool-group-name">Error rendering tool group</span>
+                                <span className="tool-time-remaining">{errorMessage}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             );
         }
@@ -675,7 +910,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                     <ul>
                         <li>🎨 Design and UI/UX questions</li>
                         <li>💻 Code generation and debugging</li>
-                        <li>🏗️ Architecture and best practices</li>
+                                                        <li>Architecture and best practices</li>
                         <li>📚 Learning and explanations</li>
                     </ul>
                 </div>
@@ -684,37 +919,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     );
 
     return (
-        <div className={`chat-interface chat-interface--${layout}`}>
-            {/* Top Action Bar */}
-            <div className="chat-action-bar">
-                <button 
-                    className="open-canvas-btn"
-                    onClick={() => {
-                        // Send message to extension to open canvas
-                        if (vscode) {
-                            vscode.postMessage({
-                                type: 'openCanvas'
-                            });
-                        }
-                    }}
-                    title="Open Canvas View"
-                >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
-                    </svg>
-                    Open Canvas
-                </button>
-                <button 
-                    className="clear-chat-icon-btn"
-                    onClick={handleNewConversation}
-                    disabled={isLoading}
-                    title="Clear chat"
-                >
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                    </svg>
-                </button>
-            </div>
+        <div 
+            className={`chat-interface chat-interface--${layout}`}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+        >
 
             {layout === 'panel' && (
                 <header className="chat-header">
@@ -757,8 +968,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         {/* Context Display */}
                         {currentContext ? (
                             <div className="context-display">
-                                <span className="context-icon">📄</span>
+                                <span className="context-icon">
+                                    {currentContext.type === 'image' ? '🖼️' : currentContext.type === 'images' ? '🖼️' : '📄'}
+                                </span>
                                 <span className="context-text">
+                                    {currentContext.type === 'image' ? 'Image: ' : currentContext.type === 'images' ? 'Images: ' : 'Context: '}
                                     {currentContext.fileName.includes('.superdesign') 
                                         ? currentContext.fileName.split('.superdesign/')[1] || currentContext.fileName
                                         : currentContext.fileName.split('/').pop() || currentContext.fileName
@@ -772,7 +986,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                     ×
                                 </button>
                             </div>
-                        ) : (
+                        ) : null}
+
+                        {/* Upload Progress */}
+                        {uploadingImages.length > 0 && (
+                            <div className="upload-progress">
+                                {uploadingImages.length > 1 && (
+                                    <div className="upload-summary">
+                                        Uploading {uploadingImages.length} images...
+                                    </div>
+                                )}
+                                {uploadingImages.map((fileName, index) => (
+                                    <div key={index} className="uploading-item">
+                                        <span className="upload-icon">📎</span>
+                                        <span className="upload-text">Uploading {fileName}...</span>
+                                        <div className="upload-spinner"></div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Add Context Button */}
+                        {!currentContext && uploadingImages.length === 0 && (
                             <button 
                                 className="add-context-btn"
                                 onClick={handleAddContext}
@@ -784,28 +1019,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         )}
 
                         {/* Input Area */}
-                        <div className="chat-input">
+                    <div className="chat-input">
                             <textarea
                                 placeholder="Plan, search, build anything"
-                                value={inputMessage}
-                                onChange={(e) => setInputMessage(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                disabled={isLoading}
-                                className="message-input"
+                            value={inputMessage}
+                            onChange={(e) => setInputMessage(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            disabled={isLoading}
+                            className="message-input"
                                 rows={1}
-                            />
-                            <div className="input-actions">
-                                <button 
-                                    className="attach-btn"
-                                    onClick={() => {/* TODO: Handle file attachment */}}
-                                    disabled={isLoading}
-                                    title="Attach file"
-                                >
-                                    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
-                                        <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 1-1 0V3a1.5 1.5 0 0 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0V3z"/>
-                                    </svg>
-                                </button>
-                            </div>
+                        />
                         </div>
 
                         {/* Agent and Model Selectors with Actions */}
@@ -844,27 +1067,57 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             </div>
                             
                             <div className="input-actions">
+                                <button 
+                                    className="attach-btn"
+                                    onClick={() => {
+                                        // Create file input and trigger it
+                                        const fileInput = document.createElement('input');
+                                        fileInput.type = 'file';
+                                        fileInput.accept = 'image/*';
+                                        fileInput.multiple = true;
+                                        fileInput.onchange = async (e) => {
+                                            const files = (e.target as HTMLInputElement).files;
+                                            if (files) {
+                                                for (const file of Array.from(files)) {
+                                                    try {
+                                                        await handleImageUpload(file);
+                                                    } catch (error) {
+                                                        console.error('Error uploading image:', error);
+                                                    }
+                                                }
+                                            }
+                                        };
+                                        fileInput.click();
+                                    }}
+                                    disabled={isLoading}
+                                    title="Attach images"
+                                >
+                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                                        <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                                        <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+                                    </svg>
+                                </button>
                                 {isLoading ? (
                                     <button 
                                         onClick={stopResponse}
                                         className="send-btn stop-btn"
                                         title="Stop response"
                                     >
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
                                             <path d="M5.5 3.5A1.5 1.5 0 0 1 7 2h2a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 9 14H7a1.5 1.5 0 0 1-1.5-1.5v-9z"/>
                                         </svg>
                                     </button>
                                 ) : (
-                                    <button 
-                                        onClick={handleSendMessage}
+                        <button 
+                            onClick={handleSendMessage}
                                         disabled={!inputMessage.trim()}
-                                        className="send-btn"
+                            className="send-btn"
                                         title="Send message"
-                                    >
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        >
+                                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
                                             <path d="M8 12a.5.5 0 0 0 .5-.5V5.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 1 0 .708.708L7.5 5.707V11.5a.5.5 0 0 0 .5.5z"/>
                                         </svg>
-                                    </button>
+                        </button>
                                 )}
                             </div>
                         </div>

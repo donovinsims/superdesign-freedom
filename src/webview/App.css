@@ -4,12 +4,32 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    background: var(--vscode-editor-background);
-    color: var(--vscode-foreground);
+    background: var(--vscode-sideBar-background);
+    color: var(--vscode-sideBar-foreground);
+    border-right: 1px solid var(--vscode-sideBar-border);
     font-family: var(--vscode-font-family);
     overflow: hidden;
     padding: 0;
     margin: 0;
+}
+
+/* App container variants for different contexts */
+.superdesign-app.chat-view {
+    background: var(--vscode-sideBar-background);
+    color: var(--vscode-sideBar-foreground);
+    border-right: 1px solid var(--vscode-sideBar-border);
+}
+
+.superdesign-app.chat-view.panel-layout {
+    background: var(--vscode-panel-background);
+    color: var(--vscode-panel-foreground);
+    border-right: 1px solid var(--vscode-panel-border);
+}
+
+.superdesign-app.canvas-view {
+    background: var(--vscode-panel-background);
+    color: var(--vscode-panel-foreground);
+    border-right: 1px solid var(--vscode-panel-border);
 }
 
 /* App Header */

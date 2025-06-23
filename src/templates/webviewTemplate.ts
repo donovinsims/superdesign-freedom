@@ -22,12 +22,14 @@ export function generateWebviewHtml(
                 font-family: var(--vscode-font-family);
                 font-size: var(--vscode-font-size);
                 font-weight: var(--vscode-font-weight);
-                color: var(--vscode-foreground);
-                background-color: var(--vscode-editor-background);
+                color: ${context.layout === 'sidebar' ? 'var(--vscode-sideBar-foreground)' : 'var(--vscode-panel-foreground)'};
+                background-color: ${context.layout === 'sidebar' ? 'var(--vscode-sideBar-background)' : 'var(--vscode-panel-background)'};
+                border-right: ${context.layout === 'sidebar' ? '1px solid var(--vscode-sideBar-border)' : '1px solid var(--vscode-panel-border)'};
                 margin: 0;
                 padding: ${context.layout === 'sidebar' ? '8px' : '16px'};
                 height: 100vh;
                 overflow: hidden;
+                box-sizing: border-box;
             }
         </style>
     </head>

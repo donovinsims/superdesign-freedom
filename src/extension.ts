@@ -12,6 +12,47 @@ import { WebviewContext } from './types/context';
 // Create output channel for logging
 const outputChannel = vscode.window.createOutputChannel('Superdesign');
 
+// Function to save uploaded images to moodboard directory
+async function saveImageToMoodboard(data: {
+	fileName: string;
+	originalName: string;
+	base64Data: string;
+	mimeType: string;
+	size: number;
+}) {
+	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+	if (!workspaceFolder) {
+		console.error('No workspace folder found for saving image');
+		return;
+	}
+
+	try {
+		// Create .superdesign/moodboard directory if it doesn't exist
+		const moodboardDir = vscode.Uri.joinPath(workspaceFolder.uri, '.superdesign', 'moodboard');
+		
+		try {
+			await vscode.workspace.fs.stat(moodboardDir);
+		} catch {
+			// Directory doesn't exist, create it
+			await vscode.workspace.fs.createDirectory(moodboardDir);
+			console.log('Created .superdesign/moodboard directory');
+		}
+
+		// Convert base64 to buffer and save file
+		const base64Content = data.base64Data.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+		const buffer = Buffer.from(base64Content, 'base64');
+		const filePath = vscode.Uri.joinPath(moodboardDir, data.fileName);
+		
+		await vscode.workspace.fs.writeFile(filePath, buffer);
+		
+		console.log(`Image saved to moodboard: ${data.fileName} (${(data.size / 1024).toFixed(1)} KB)`);
+		
+	} catch (error) {
+		console.error('Error saving image to moodboard:', error);
+		vscode.window.showErrorMessage(`Failed to save image: ${error}`);
+	}
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	outputChannel.appendLine('Superdesign extension is now active!');
 	outputChannel.show(); // Show the output channel
@@ -59,6 +100,13 @@ export function activate(context: vscode.ExtensionContext) {
 		SuperdesignCanvasPanel.createOrShow(context.extensionUri, sidebarProvider);
 	});
 
+	// Register clear chat command
+	const clearChatDisposable = vscode.commands.registerCommand('superdesign.clearChat', () => {
+		sidebarProvider.sendMessage({
+			command: 'clearChat'
+		});
+	});
+
 	// Set up message handler for auto-canvas functionality
 	sidebarProvider.setMessageHandler((message) => {
 		switch (message.command) {
@@ -83,6 +131,16 @@ export function activate(context: vscode.ExtensionContext) {
 					data: message.data
 				});
 				break;
+
+			case 'saveImageToMoodboard':
+				// Save uploaded image to moodboard directory
+				saveImageToMoodboard(message.data);
+				break;
+
+			case 'showError':
+				// Show error message to user
+				vscode.window.showErrorMessage(message.data);
+				break;
 		}
 	});
 
@@ -91,7 +149,8 @@ export function activate(context: vscode.ExtensionContext) {
 		configureApiKeyDisposable,
 		sidebarDisposable,
 		showSidebarDisposable,
-		openCanvasDisposable
+		openCanvasDisposable,
+		clearChatDisposable
 	);
 }
 
