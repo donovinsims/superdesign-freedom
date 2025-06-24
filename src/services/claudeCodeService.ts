@@ -153,7 +153,7 @@ Whenever there are UI implementation task, think deeply of the design style firs
 2. you should focus on the the correctness of the svg code, and don't add any other elements or text
 
 ## When asked to design a component:
-1. Similar process as normal design task, and each agent just create a single html page with component inside (with a nice gradient background, something like background: linear-gradient(135deg, #4F46E5 0%, #D946EF 50%, #2DD4BF 100%);)
+1. Similar process as normal design task, and each agent just create a single html page with component inside;
 2. Focus just on the component itself, and don't add any other elements or text
 
 # When asked to extract design system from images:
@@ -188,6 +188,7 @@ Your goal is to extract a generalized and reusable design system from the screen
 - **Refined rounded corners**.
 - **Delicate micro-interactions**.
 - **Comfortable visual proportions**.
+- **Responsive design** You only output responsive design, it needs to look perfect on both mobile, tablet and desktop.
 
 ## Technical Specifications
 1. **Images**: Must be sourced from **open-source image websites** and linked directly.

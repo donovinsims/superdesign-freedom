@@ -19,7 +19,7 @@ async function saveImageToMoodboard(data: {
 	base64Data: string;
 	mimeType: string;
 	size: number;
-}) {
+}, sidebarProvider: ChatSidebarProvider) {
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 	if (!workspaceFolder) {
 		console.error('No workspace folder found for saving image');
@@ -47,9 +47,29 @@ async function saveImageToMoodboard(data: {
 		
 		console.log(`Image saved to moodboard: ${data.fileName} (${(data.size / 1024).toFixed(1)} KB)`);
 		
+		// Send back the full absolute path to the webview
+		sidebarProvider.sendMessage({
+			command: 'imageSavedToMoodboard',
+			data: {
+				fileName: data.fileName,
+				originalName: data.originalName,
+				fullPath: filePath.fsPath
+			}
+		});
+		
 	} catch (error) {
 		console.error('Error saving image to moodboard:', error);
 		vscode.window.showErrorMessage(`Failed to save image: ${error}`);
+		
+		// Send error back to webview
+		sidebarProvider.sendMessage({
+			command: 'imageSaveError',
+			data: {
+				fileName: data.fileName,
+				originalName: data.originalName,
+				error: error instanceof Error ? error.message : String(error)
+			}
+		});
 	}
 }
 
@@ -204,7 +224,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 			case 'saveImageToMoodboard':
 				// Save uploaded image to moodboard directory
-				saveImageToMoodboard(message.data);
+				saveImageToMoodboard(message.data, sidebarProvider);
 				break;
 
 			case 'showError':

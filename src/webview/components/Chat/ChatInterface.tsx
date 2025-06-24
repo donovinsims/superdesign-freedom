@@ -26,7 +26,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
     // Drag and drop state
     const [uploadingImages, setUploadingImages] = useState<string[]>([]);
-    const [pendingImages, setPendingImages] = useState<{fileName: string; originalName: string}[]>([]);
+    const [pendingImages, setPendingImages] = useState<{fileName: string; originalName: string; fullPath: string}[]>([]);
 
     useEffect(() => {
         // Inject ChatInterface CSS styles
@@ -80,6 +80,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         setCurrentContext(message.data);
                         console.log('📄 Context set to:', message.data);
                     }
+                } else if (message.command === 'imageSavedToMoodboard') {
+                    // Handle successful image save with full path
+                    console.log('📎 Image saved with full path:', message.data);
+                    setPendingImages(prev => [...prev, {
+                        fileName: message.data.fileName,
+                        originalName: message.data.originalName,
+                        fullPath: message.data.fullPath
+                    }]);
+                    // Remove from uploading state
+                    setUploadingImages(prev => prev.filter(name => name !== message.data.originalName));
+                } else if (message.command === 'imageSaveError') {
+                    // Handle image save error
+                    console.error('📎 Image save error:', message.data);
+                    setUploadingImages(prev => prev.filter(name => name !== message.data.originalName));
                 } else if (message.command === 'clearChat') {
                     // Handle clear chat command from toolbar
                     handleNewConversation();
@@ -304,13 +318,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 }
             });
 
-            // Add to pending images
-            setPendingImages(prev => [...prev, { fileName: `moodboard/${fileName}`, originalName: file.name }]);
-
-            // Remove from uploading state
-            setUploadingImages(prev => prev.filter(name => name !== file.name));
-
-            console.log('📎 Image processed and added to pending:', fileName);
+            console.log('📎 Image sent to extension for saving:', fileName);
         };
 
         reader.onerror = () => {
@@ -329,15 +337,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         // Auto-set context when images finish uploading
         if (uploadingImages.length === 0 && pendingImages.length > 0) {
             if (pendingImages.length === 1) {
-                // Single image - set as context directly
+                // Single image - set as context with full path
                 setCurrentContext({
-                    fileName: pendingImages[0].fileName,
+                    fileName: pendingImages[0].fullPath,
                     type: 'image'
                 });
             } else {
-                // Multiple images - create a combined context
+                // Multiple images - create a combined context with all full paths
+                const fullPaths = pendingImages.map(img => img.fullPath).join(', ');
                 setCurrentContext({
-                    fileName: `${pendingImages.length} images in moodboard`,
+                    fileName: fullPaths,
                     type: 'images'
                 });
             }
@@ -476,9 +485,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 if (contextMatch) {
                                     const contextFile = contextMatch[1];
                                     const actualMessage = contextMatch[2];
-                                    const displayFileName = contextFile.includes('.superdesign') 
-                                        ? contextFile.split('.superdesign/')[1] || contextFile
-                                        : contextFile.split('/').pop() || contextFile;
+                                    
+                                    // Handle display for multiple images or single image
+                                    let displayFileName;
+                                    if (contextFile.includes(', ')) {
+                                        // Multiple images - show count
+                                        const paths = contextFile.split(', ');
+                                        displayFileName = `${paths.length} images in moodboard`;
+                                    } else {
+                                        // Single image - show just filename
+                                        displayFileName = contextFile.includes('.superdesign') 
+                                            ? contextFile.split('.superdesign/')[1] || contextFile.split('/').pop() || contextFile
+                                            : contextFile.split('/').pop() || contextFile;
+                                    }
                                     
                                     return (
                                         <>
@@ -1018,9 +1037,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 </span>
                                 <span className="context-text">
                                     {currentContext.type === 'image' ? 'Image: ' : currentContext.type === 'images' ? 'Images: ' : 'Context: '}
-                                    {currentContext.fileName.includes('.superdesign') 
-                                        ? currentContext.fileName.split('.superdesign/')[1] || currentContext.fileName
-                                        : currentContext.fileName.split('/').pop() || currentContext.fileName
+                                    {currentContext.type === 'images' ? 
+                                        `${currentContext.fileName.split(', ').length} images in moodboard` :
+                                        (currentContext.fileName.includes('.superdesign') 
+                                            ? currentContext.fileName.split('.superdesign/')[1] || currentContext.fileName.split('/').pop() || currentContext.fileName
+                                            : currentContext.fileName.split('/').pop() || currentContext.fileName
+                                        )
                                     }
                                 </span>
                                 <button 
