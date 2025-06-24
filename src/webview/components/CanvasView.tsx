@@ -83,7 +83,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
         currentPosition: { x: 0, y: 0 },
         offset: { x: 0, y: 0 }
     });
-    const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
+    const [layoutMode, setLayoutMode] = useState<LayoutMode>('hierarchy');
     const [hierarchyTree, setHierarchyTree] = useState<HierarchyTree | null>(null);
     const [showConnections, setShowConnections] = useState(true);
     const transformRef = useRef<ReactZoomPanPinchRef>(null);
