@@ -440,7 +440,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
             <div className="canvas-empty">
                 <div className="empty-state">
                     <h3>No design files found</h3>
-                    <p>Create HTML files in <code>.superdesign/ui_iterations/</code> to get started</p>
+                    <p>Create HTML files in <code>.superdesign/design_iterations/</code> to get started</p>
                 </div>
             </div>
         );

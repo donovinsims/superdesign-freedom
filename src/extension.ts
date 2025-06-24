@@ -363,10 +363,10 @@ class SuperdesignCanvasPanel {
 			return;
 		}
 
-		// Watch for changes in .superdesign/ui_iterations/*.html
+		// Watch for changes in .superdesign/design_iterations/*.html
 		const pattern = new vscode.RelativePattern(
 			workspaceFolder, 
-			'.superdesign/ui_iterations/**/*.html'
+			'.superdesign/design_iterations/**/*.html'
 		);
 
 		this._fileWatcher = vscode.workspace.createFileSystemWatcher(
@@ -451,7 +451,7 @@ class SuperdesignCanvasPanel {
 		}
 
 		try {
-			const designFolder = vscode.Uri.joinPath(workspaceFolder.uri, '.superdesign', 'ui_iterations');
+			const designFolder = vscode.Uri.joinPath(workspaceFolder.uri, '.superdesign', 'design_iterations');
 			
 			// Check if the design_files folder exists
 			try {
@@ -460,7 +460,7 @@ class SuperdesignCanvasPanel {
 				// Folder doesn't exist, create it
 				try {
 					await vscode.workspace.fs.createDirectory(designFolder);
-					console.log('Created .superdesign/ui_iterations directory');
+					console.log('Created .superdesign/design_iterations directory');
 				} catch (createError) {
 					this._panel.webview.postMessage({
 						command: 'error',
