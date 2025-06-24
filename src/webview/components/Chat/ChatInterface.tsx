@@ -285,21 +285,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const handleImageUpload = async (file: File): Promise<void> => {
         const maxSize = 10 * 1024 * 1024; // 10MB limit
         if (file.size > maxSize) {
-            console.error('Image too large:', file.name);
+            const displayName = file.name || 'clipboard image';
+            console.error('Image too large:', displayName);
             vscode.postMessage({
                 command: 'showError',
-                data: `Image "${file.name}" is too large. Maximum size is 10MB.`
+                data: `Image "${displayName}" is too large. Maximum size is 10MB.`
             });
             return;
         }
 
-        // Create a unique filename
+        // Create a unique filename - handle clipboard images without names
         const timestamp = Date.now();
-        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const fileName = `${timestamp}_${safeName}`;
+        const originalName = file.name || `clipboard-image-${timestamp}`;
+        const extension = file.type.split('/')[1] || 'png';
+        const safeName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const fileName = safeName.includes('.') ? `${timestamp}_${safeName}` : `${timestamp}_${safeName}.${extension}`;
 
         // Add to uploading state
-        setUploadingImages(prev => [...prev, file.name]);
+        setUploadingImages(prev => [...prev, originalName]);
 
         // Convert to base64 for sending to extension
         const reader = new FileReader();
@@ -311,7 +314,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 command: 'saveImageToMoodboard',
                 data: {
                     fileName,
-                    originalName: file.name,
+                    originalName,
                     base64Data,
                     mimeType: file.type,
                     size: file.size
@@ -391,15 +394,53 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             }
         };
 
+        const handleGlobalPaste = async (e: ClipboardEvent) => {
+            // Only handle paste if we're focused on the chat and not loading
+            if (isLoading || showWelcome) return;
+
+            const clipboardItems = e.clipboardData?.items;
+            if (!clipboardItems) return;
+
+            console.log('📋 Paste detected, checking for images...');
+
+            // Look for image items in clipboard
+            const imageItems = Array.from(clipboardItems).filter(item => 
+                item.type.startsWith('image/')
+            );
+
+            if (imageItems.length > 0) {
+                e.preventDefault();
+                console.log('📋 Found', imageItems.length, 'image(s) in clipboard');
+
+                for (const item of imageItems) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        try {
+                            console.log('📋 Processing pasted image:', file.name || 'clipboard-image', file.type);
+                            await handleImageUpload(file);
+                        } catch (error) {
+                            console.error('Error processing pasted image:', error);
+                            vscode.postMessage({
+                                command: 'showError',
+                                data: `Failed to process pasted image: ${error instanceof Error ? error.message : String(error)}`
+                            });
+                        }
+                    }
+                }
+            }
+        };
+
         // Add global listeners
         document.addEventListener('dragover', handleGlobalDragOver);
         document.addEventListener('drop', handleGlobalDrop);
+        document.addEventListener('paste', handleGlobalPaste);
 
         return () => {
             document.removeEventListener('dragover', handleGlobalDragOver);
             document.removeEventListener('drop', handleGlobalDrop);
+            document.removeEventListener('paste', handleGlobalPaste);
         };
-    }, [isLoading, handleImageUpload]);
+    }, [isLoading, handleImageUpload, showWelcome]);
 
     const renderChatMessage = (msg: ChatMessage, index: number) => {
         const isLastUserMessage = msg.type === 'user-input' && index === chatHistory.length - 1 && isLoading;
@@ -1088,7 +1129,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         {/* Input Area */}
                     <div className="chat-input">
                             <textarea
-                                placeholder="Plan, search, build anything"
+                                placeholder="Plan, search, build anything... (Paste images with Ctrl/Cmd+V)"
                             value={inputMessage}
                             onChange={(e) => setInputMessage(e.target.value)}
                             onKeyPress={handleKeyPress}

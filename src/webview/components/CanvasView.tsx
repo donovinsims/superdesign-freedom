@@ -96,6 +96,25 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
         return 'iframe';
     };
 
+    // Helper function to transform mouse coordinates to canvas space
+    const transformMouseToCanvasSpace = (clientX: number, clientY: number, canvasRect: DOMRect): GridPosition => {
+        // Get current transform state from the TransformWrapper
+        const transformState = transformRef.current?.instance?.transformState;
+        const currentScale = transformState?.scale || 1;
+        const currentTranslateX = transformState?.positionX || 0;
+        const currentTranslateY = transformState?.positionY || 0;
+        
+        // Calculate mouse position relative to canvas, then adjust for zoom and pan
+        const rawMouseX = clientX - canvasRect.left;
+        const rawMouseY = clientY - canvasRect.top;
+        
+        // Transform mouse coordinates to canvas space (inverse of current transform)
+        return {
+            x: (rawMouseX - currentTranslateX) / currentScale,
+            y: (rawMouseY - currentTranslateY) / currentScale
+        };
+    };
+
     // Viewport management functions
     const getFrameViewport = (fileName: string): ViewportMode => {
         if (useGlobalViewport) {
@@ -317,10 +336,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
         if (!canvasGrid) return;
         
         const canvasRect = canvasGrid.getBoundingClientRect();
-        const canvasMousePos = {
-            x: mouseEvent.clientX - canvasRect.left,
-            y: mouseEvent.clientY - canvasRect.top
-        };
+        const canvasMousePos = transformMouseToCanvasSpace(mouseEvent.clientX, mouseEvent.clientY, canvasRect);
         
         // Also ensure this frame is selected
         if (!selectedFrames.includes(fileName)) {
@@ -582,10 +598,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                         onMouseMove={(e) => {
                             if (dragState.isDragging) {
                                 const rect = e.currentTarget.getBoundingClientRect();
-                                const mousePos = {
-                                    x: e.clientX - rect.left,
-                                    y: e.clientY - rect.top
-                                };
+                                const mousePos = transformMouseToCanvasSpace(e.clientX, e.clientY, rect);
                                 handleDragMove(mousePos);
                             }
                         }}

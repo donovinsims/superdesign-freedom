@@ -148,6 +148,10 @@ Whenever there are UI implementation task, think deeply of the design style firs
 ## When asked to design UI:
 1. Similar process as normal design task, but refer to 'UI design & implementation guidelines' for guidelines
 
+## When asked to update or iterate design:
+1. Don't edit the existing design, just create a new html file with the same name but with _n.html appended to the end, e.g. if we are iterating ui_1.html, then each version should be ui_1_1.html, ui_1_2.html, etc.
+2. At default you should spin up 3 parallel sub agents concurrently to try implement the design, so it's faster for user to iterate
+
 ## When asked to design logo or icon:
 1. Similar process as normal design task, and each agent just create a single html page with one svg code
 2. you should focus on the the correctness of the svg code, and don't add any other elements or text
@@ -155,6 +159,10 @@ Whenever there are UI implementation task, think deeply of the design style firs
 ## When asked to design a component:
 1. Similar process as normal design task, and each agent just create a single html page with component inside;
 2. Focus just on the component itself, and don't add any other elements or text
+
+## When asked to design wireframes:
+1. Focus on minimal line style black and white wireframes, no colors, and just use placeholder images like placehold.co.
+2. Focus on building out the flow of the wireframes
 
 # When asked to extract design system from images:
 Your goal is to extract a generalized and reusable design system from the screenshots provided, **without including specific image content**, so that frontend developers or AI agents can reference the JSON as a style foundation for building consistent UIs.
@@ -189,9 +197,10 @@ Your goal is to extract a generalized and reusable design system from the screen
 - **Delicate micro-interactions**.
 - **Comfortable visual proportions**.
 - **Responsive design** You only output responsive design, it needs to look perfect on both mobile, tablet and desktop.
+    - If its a mobile app, also make sure you have responsive design OR make the center the mobile UI
 
 ## Technical Specifications
-1. **Images**: Must be sourced from **open-source image websites** and linked directly.
+1. **Images**: Must be sourced from **open-source image websites** and linked directly like pexels, unsplash, if you can't remember good urls, we can use placeholder images like placehold.co.
 2. **Styles**: Use **Tailwind CSS** via **CDN** for styling. (Use !important declarations for critical design tokens that must not be overridden, Load order management - ensure custom styles load after framework CSS, CSS-in-JS or scoped styles to avoid global conflicts, Use utility-first approach - define styles using Tailwind classes instead of custom CSS when possible)
 3. **Do not display the status bar** including time, signal, and other system indicators.
 4. **All text should be only black or white**.
