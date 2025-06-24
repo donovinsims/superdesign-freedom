@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import DesignFrame from './DesignFrame';
-import { calculateGridPosition, calculateFitToView, getGridMetrics, generateResponsiveConfig } from '../utils/gridLayout';
+import { calculateGridPosition, calculateFitToView, getGridMetrics, generateResponsiveConfig, buildHierarchyTree, calculateHierarchyPositions, getHierarchicalPosition, detectDesignRelationships } from '../utils/gridLayout';
 import { 
     DesignFile, 
     CanvasState, 
@@ -12,8 +12,11 @@ import {
     FrameViewportState,
     FramePositionState,
     DragState,
-    GridPosition
+    GridPosition,
+    LayoutMode,
+    HierarchyTree
 } from '../types/canvas.types';
+import ConnectionLines from './ConnectionLines';
 import {
     ZoomInIcon,
     ZoomOutIcon,
@@ -23,7 +26,9 @@ import {
     GlobeIcon,
     MobileIcon,
     TabletIcon,
-    DesktopIcon
+    DesktopIcon,
+    TreeIcon,
+    LinkIcon
 } from './Icons';
 
 interface CanvasViewProps {
@@ -47,6 +52,13 @@ const CANVAS_CONFIG: CanvasConfig = {
         desktop: { width: 1200, height: 800 },
         tablet: { width: 768, height: 1024 },
         mobile: { width: 375, height: 667 }
+    },
+    hierarchy: {
+        horizontalSpacing: 250,
+        verticalSpacing: 150,
+        connectionLineWidth: 2,
+        connectionLineColor: 'var(--vscode-textLink-foreground)',
+        showConnections: true
     }
 };
 
@@ -71,6 +83,9 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
         currentPosition: { x: 0, y: 0 },
         offset: { x: 0, y: 0 }
     });
+    const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
+    const [hierarchyTree, setHierarchyTree] = useState<HierarchyTree | null>(null);
+    const [showConnections, setShowConnections] = useState(true);
     const transformRef = useRef<ReactZoomPanPinchRef>(null);
 
     console.log('✅ CanvasView state initialized successfully');
@@ -105,6 +120,29 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                 newFrameViewports[file.name] = viewport;
             });
             setFrameViewports(newFrameViewports);
+            
+            // Update hierarchy positioning when viewport changes to adjust connection spacing
+            if (hierarchyTree && designFiles.length > 0) {
+                // Recalculate frame dimensions for new viewport
+                let totalWidth = 0;
+                let totalHeight = 0;
+                let frameCount = 0;
+                
+                designFiles.forEach(file => {
+                    const viewportDimensions = currentConfig.viewports[viewport];
+                    totalWidth += viewportDimensions.width;
+                    totalHeight += viewportDimensions.height + 50; // Add header space
+                    frameCount++;
+                });
+                
+                const avgFrameDimensions = frameCount > 0 ? {
+                    width: Math.round(totalWidth / frameCount),
+                    height: Math.round(totalHeight / frameCount)
+                } : { width: 400, height: 550 };
+                
+                const updatedTree = calculateHierarchyPositions(hierarchyTree, currentConfig, avgFrameDimensions);
+                setHierarchyTree(updatedTree);
+            }
         }
     };
 
@@ -152,7 +190,35 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                         ...file,
                         modified: new Date(file.modified)
                     }));
-                    setDesignFiles(filesWithDates);
+                    
+                    // Detect design relationships and build hierarchy
+                    const filesWithRelationships = detectDesignRelationships(filesWithDates);
+                    setDesignFiles(filesWithRelationships);
+                    
+                    // Build hierarchy tree
+                    const tree = buildHierarchyTree(filesWithRelationships);
+                    
+                    // Calculate average frame dimensions based on viewport usage
+                    let totalWidth = 0;
+                    let totalHeight = 0;
+                    let frameCount = 0;
+                    
+                    filesWithRelationships.forEach(file => {
+                        const frameViewport = getFrameViewport(file.name);
+                        const viewportDimensions = currentConfig.viewports[frameViewport];
+                        totalWidth += viewportDimensions.width;
+                        totalHeight += viewportDimensions.height + 50; // Add header space
+                        frameCount++;
+                    });
+                    
+                    const avgFrameDimensions = frameCount > 0 ? {
+                        width: Math.round(totalWidth / frameCount),
+                        height: Math.round(totalHeight / frameCount)
+                    } : { width: 400, height: 550 };
+                    
+                    const positionedTree = calculateHierarchyPositions(tree, currentConfig, avgFrameDimensions);
+                    setHierarchyTree(positionedTree);
+                    
                     setIsLoading(false);
                     break;
                     
@@ -172,7 +238,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
 
         window.addEventListener('message', messageHandler);
         return () => window.removeEventListener('message', messageHandler);
-    }, [vscode]);
+    }, [vscode, currentConfig]);
 
     const handleFrameSelect = (fileName: string) => {
         setSelectedFrames([fileName]); // Single selection for now
@@ -218,10 +284,15 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
         setCurrentZoom(ref.state.scale);
     };
 
-    // Get frame position (custom or default grid position)
+    // Get frame position (custom, hierarchy, or default grid position)
     const getFramePosition = (fileName: string, index: number): GridPosition => {
         if (customPositions[fileName]) {
             return customPositions[fileName];
+        }
+        
+        // Use hierarchy layout if in hierarchy mode and tree is available
+        if (layoutMode === 'hierarchy' && hierarchyTree) {
+            return getHierarchicalPosition(fileName, hierarchyTree);
         }
         
         // Default grid position calculation
@@ -377,45 +448,75 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
 
     return (
         <div className="canvas-container">
-            {/* Canvas Controls */}
-            <div className="canvas-controls">
+            {/* Canvas Controls - Clean Minimal Design */}
+            <div className="canvas-toolbar">
+                {/* Navigation Section */}
+                <div className="toolbar-section">
                 <div className="control-group">
-                    <button className="control-btn" onClick={handleZoomIn} title="Zoom In (Cmd/Ctrl + +)">
+                        <button className="toolbar-btn zoom-btn" onClick={handleZoomOut} title="Zoom Out (Cmd/Ctrl + -)">
+                            <ZoomOutIcon />
+                        </button>
+                        <div className="zoom-display">
+                            <span className="zoom-value">{Math.round(currentZoom * 100)}%</span>
+                        </div>
+                        <button className="toolbar-btn zoom-btn" onClick={handleZoomIn} title="Zoom In (Cmd/Ctrl + +)">
                         <ZoomInIcon />
                     </button>
-                    <button className="control-btn" onClick={handleZoomOut} title="Zoom Out (Cmd/Ctrl + -)">
-                        <ZoomOutIcon />
+                        <div className="toolbar-divider"></div>
+                        <button className="toolbar-btn" onClick={handleResetZoom} title="Reset Zoom (Cmd/Ctrl + 0)">
+                            <HomeIcon />
+                        </button>
+                        <button className="toolbar-btn" onClick={handleResetPositions} title="Reset Frame Positions">
+                            <RefreshIcon />
                     </button>
-                    <div className="zoom-indicator">
-                        {Math.round(currentZoom * 100)}%
                     </div>
                 </div>
 
-                <div className="viewport-divider"></div>
-                
+                {/* Layout Section */}
+                <div className="toolbar-section">
                 <div className="control-group">
-                    <button className="control-btn" onClick={handleResetZoom} title="Reset Zoom (Cmd/Ctrl + 0)">
-                        <HomeIcon />
+                        <div className="layout-toggle">
+                            <button 
+                                className={`toggle-btn ${layoutMode === 'grid' ? 'active' : ''}`}
+                                onClick={() => setLayoutMode('grid')}
+                                title="Grid Layout"
+                            >
+                                <ScaleIcon />
+                            </button>
+                            <button 
+                                className={`toggle-btn ${layoutMode === 'hierarchy' ? 'active' : ''}`}
+                                onClick={() => setLayoutMode('hierarchy')}
+                                title="Hierarchy Layout"
+                                disabled={!hierarchyTree || hierarchyTree.nodes.size === 0}
+                            >
+                                <TreeIcon />
                     </button>
-                    <button className="control-btn" onClick={handleResetPositions} title="Reset Frame Positions">
-                        <RefreshIcon />
+                        </div>
+                        {layoutMode === 'hierarchy' && (
+                            <button 
+                                className={`toolbar-btn connection-btn ${showConnections ? 'active' : ''}`}
+                                onClick={() => setShowConnections(!showConnections)}
+                                title="Toggle Connection Lines"
+                            >
+                                <LinkIcon />
                     </button>
+                        )}
+                    </div>
                 </div>
 
-                <div className="viewport-divider"></div>
-                
-                {/* Global Viewport Controls */}
+                {/* Viewport Section */}
+                <div className="toolbar-section">
                 <div className="control-group">
                     <button 
-                        className={`control-btn viewport-toggle ${useGlobalViewport ? 'active' : ''}`}
+                            className={`toolbar-btn viewport-mode-btn ${useGlobalViewport ? 'active' : ''}`}
                         onClick={toggleGlobalViewport}
                         title="Toggle Global Viewport Mode"
                     >
                         <GlobeIcon />
                     </button>
-                    <div className="viewport-controls">
+                        <div className="viewport-selector">
                         <button 
-                            className={`control-btn viewport-btn ${globalViewportMode === 'mobile' && useGlobalViewport ? 'active' : ''}`}
+                                className={`viewport-btn ${globalViewportMode === 'mobile' && useGlobalViewport ? 'active' : ''}`}
                             onClick={() => handleGlobalViewportChange('mobile')}
                             title="Mobile View (375×667)"
                             disabled={!useGlobalViewport}
@@ -423,7 +524,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                             <MobileIcon />
                         </button>
                         <button 
-                            className={`control-btn viewport-btn ${globalViewportMode === 'tablet' && useGlobalViewport ? 'active' : ''}`}
+                                className={`viewport-btn ${globalViewportMode === 'tablet' && useGlobalViewport ? 'active' : ''}`}
                             onClick={() => handleGlobalViewportChange('tablet')}
                             title="Tablet View (768×1024)"
                             disabled={!useGlobalViewport}
@@ -431,13 +532,14 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                             <TabletIcon />
                         </button>
                         <button 
-                            className={`control-btn viewport-btn ${globalViewportMode === 'desktop' && useGlobalViewport ? 'active' : ''}`}
+                                className={`viewport-btn ${globalViewportMode === 'desktop' && useGlobalViewport ? 'active' : ''}`}
                             onClick={() => handleGlobalViewportChange('desktop')}
                             title="Desktop View (1200×800)"
                             disabled={!useGlobalViewport}
                         >
                             <DesktopIcon />
                         </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -503,6 +605,15 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                             }
                         }}
                     >
+                        {/* Connection Lines (render behind frames) */}
+                        {layoutMode === 'hierarchy' && hierarchyTree && showConnections && (
+                            <ConnectionLines
+                                connections={hierarchyTree.connections}
+                                containerBounds={hierarchyTree.bounds}
+                                isVisible={showConnections}
+                                zoomLevel={currentZoom}
+                            />
+                        )}
                         {designFiles.map((file, index) => {
                             const frameViewport = getFrameViewport(file.name);
                             const viewportDimensions = currentConfig.viewports[frameViewport];

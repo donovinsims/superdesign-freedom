@@ -6,6 +6,12 @@ export interface DesignFile {
     content: string;
     size: number;
     modified: Date;
+    // New hierarchy properties
+    version?: string;          // e.g., "v1", "v2", "v3"
+    parentDesign?: string;     // Reference to parent design file name
+    children?: string[];       // Array of child design file names
+    generation?: number;       // 0 for root designs, 1 for first children, etc.
+    branchIndex?: number;      // Index within the same generation/branch
 }
 
 export interface CanvasState {
@@ -124,4 +130,41 @@ export interface CanvasConfig {
     };
     // Viewport configurations
     viewports: ViewportConfig;
+    // New hierarchy settings
+    hierarchy: {
+        horizontalSpacing: number;     // Space between generations (horizontal)
+        verticalSpacing: number;       // Space between siblings (vertical)
+        connectionLineWidth: number;   // Width of connection lines
+        connectionLineColor: string;   // Color of connection lines
+        showConnections: boolean;      // Toggle connection visibility
+    };
+}
+
+// New types for hierarchical layout
+export type LayoutMode = 'grid' | 'hierarchy';
+
+export interface ConnectionLine {
+    id: string;
+    fromFrame: string;
+    toFrame: string;
+    fromPosition: GridPosition;
+    toPosition: GridPosition;
+    color?: string;
+    width?: number;
+}
+
+export interface HierarchyNode {
+    fileName: string;
+    position: GridPosition;
+    generation: number;
+    branchIndex: number;
+    parent?: string;
+    children: string[];
+}
+
+export interface HierarchyTree {
+    roots: string[];
+    nodes: Map<string, HierarchyNode>;
+    connections: ConnectionLine[];
+    bounds: { width: number; height: number };
 } 
