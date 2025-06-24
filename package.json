@@ -46,6 +46,11 @@
         "title": "Clear Chat",
         "category": "Superdesign",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "superdesign.resetWelcome",
+        "title": "Reset Welcome Screen",
+        "category": "Superdesign"
       }
     ],
     "menus": {

@@ -53,6 +53,68 @@ async function saveImageToMoodboard(data: {
 	}
 }
 
+// Function to submit email to Supabase API
+async function submitEmailToSupabase(email: string, sidebarProvider: ChatSidebarProvider) {
+	try {
+		const https = require('https');
+		const postData = JSON.stringify({ email });
+
+		const options = {
+			hostname: 'uqofryalyuvdvlbbutvi.supabase.co',
+			port: 443,
+			path: '/rest/v1/forms',
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxb2ZyeWFseXV2ZHZsYmJ1dHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3NDUxMTUsImV4cCI6MjA2NjMyMTExNX0.xyIw5nMK_ltpU64Z95E5xsnl8Uw3P0Y0UZaJKiX65MI',
+				'Content-Length': Buffer.byteLength(postData)
+			}
+		};
+
+		const req = https.request(options, (res: any) => {
+			let data = '';
+
+			res.on('data', (chunk: string) => {
+				data += chunk;
+			});
+
+			res.on('end', () => {
+				if (res.statusCode >= 200 && res.statusCode < 300) {
+					console.log('✅ Email submitted successfully:', email);
+					sidebarProvider.sendMessage({
+						command: 'emailSubmitSuccess',
+						email: email
+					});
+				} else {
+					console.error('❌ Email submission failed:', res.statusCode, data);
+					sidebarProvider.sendMessage({
+						command: 'emailSubmitError',
+						error: 'Failed to submit email. Please try again.'
+					});
+				}
+			});
+		});
+
+		req.on('error', (error: any) => {
+			console.error('❌ Email submission request error:', error);
+			sidebarProvider.sendMessage({
+				command: 'emailSubmitError',
+				error: 'Failed to submit email. Please try again.'
+			});
+		});
+
+		req.write(postData);
+		req.end();
+
+	} catch (error) {
+		console.error('❌ Email submission error:', error);
+		sidebarProvider.sendMessage({
+			command: 'emailSubmitError',
+			error: 'Failed to submit email. Please try again.'
+		});
+	}
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	outputChannel.appendLine('Superdesign extension is now active!');
 	outputChannel.show(); // Show the output channel
@@ -107,6 +169,14 @@ export function activate(context: vscode.ExtensionContext) {
 		});
 	});
 
+	// Register reset welcome command
+	const resetWelcomeDisposable = vscode.commands.registerCommand('superdesign.resetWelcome', () => {
+		sidebarProvider.sendMessage({
+			command: 'resetWelcome'
+		});
+		vscode.window.showInformationMessage('Welcome screen has been reset. Refresh the sidebar to see the welcome screen again.');
+	});
+
 	// Set up message handler for auto-canvas functionality
 	sidebarProvider.setMessageHandler((message) => {
 		switch (message.command) {
@@ -141,6 +211,11 @@ export function activate(context: vscode.ExtensionContext) {
 				// Show error message to user
 				vscode.window.showErrorMessage(message.data);
 				break;
+
+			case 'submitEmail':
+				// Handle email submission from welcome screen
+				submitEmailToSupabase(message.email, sidebarProvider);
+				break;
 		}
 	});
 
@@ -150,7 +225,8 @@ export function activate(context: vscode.ExtensionContext) {
 		sidebarDisposable,
 		showSidebarDisposable,
 		openCanvasDisposable,
-		clearChatDisposable
+		clearChatDisposable,
+		resetWelcomeDisposable
 	);
 }
 

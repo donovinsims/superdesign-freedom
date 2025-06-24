@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useChat, ChatMessage } from '../../hooks/useChat';
+import { useFirstTimeUser } from '../../hooks/useFirstTimeUser';
 import { WebviewLayout } from '../../../types/context';
 import MarkdownRenderer from '../MarkdownRenderer';
 import { TaskIcon, ClockIcon, CheckIcon, LightBulbIcon, GroupIcon } from '../Icons';
+import Welcome from '../Welcome';
 import chatStyles from './ChatInterface.css';
+import welcomeStyles from '../Welcome/Welcome.css';
 
 interface ChatInterfaceProps {
     layout: WebviewLayout;
@@ -12,12 +15,14 @@ interface ChatInterfaceProps {
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const { chatHistory, isLoading, sendMessage, stopResponse, clearHistory } = useChat(vscode);
+    const { isFirstTime, isLoading: isCheckingFirstTime, markAsReturningUser, resetFirstTimeUser } = useFirstTimeUser();
     const [inputMessage, setInputMessage] = useState('');
     const [selectedAgent, setSelectedAgent] = useState('Agent #1');
     const [selectedModel, setSelectedModel] = useState('claude-4-sonnet');
     const [expandedTools, setExpandedTools] = useState<{[key: number]: boolean}>({});
     const [showFullContent, setShowFullContent] = useState<{[key: string]: boolean}>({});
     const [currentContext, setCurrentContext] = useState<{fileName: string; type: string} | null>(null);
+    const [showWelcome, setShowWelcome] = useState<boolean>(false);
 
     // Drag and drop state
     const [uploadingImages, setUploadingImages] = useState<string[]>([]);
@@ -33,6 +38,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             styleElement.id = styleId;
             styleElement.textContent = chatStyles;
             document.head.appendChild(styleElement);
+        }
+
+        // Inject Welcome CSS styles
+        const welcomeStyleId = 'welcome-styles';
+        let welcomeStyleElement = document.getElementById(welcomeStyleId) as HTMLStyleElement;
+        
+        if (!welcomeStyleElement) {
+            welcomeStyleElement = document.createElement('style');
+            welcomeStyleElement.id = welcomeStyleId;
+            welcomeStyleElement.textContent = welcomeStyles;
+            document.head.appendChild(welcomeStyleElement);
         }
 
         // Auto-open canvas if not already open
@@ -67,6 +83,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 } else if (message.command === 'clearChat') {
                     // Handle clear chat command from toolbar
                     handleNewConversation();
+                } else if (message.command === 'resetWelcome') {
+                    // Handle reset welcome command from command palette
+                    resetFirstTimeUser();
+                    setShowWelcome(true);
+                    console.log('👋 Welcome screen reset and shown');
                 }
             };
             
@@ -88,8 +109,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             if (existingStyle) {
                 document.head.removeChild(existingStyle);
             }
+            const existingWelcomeStyle = document.getElementById(welcomeStyleId);
+            if (existingWelcomeStyle) {
+                document.head.removeChild(existingWelcomeStyle);
+            }
         };
     }, [vscode]);
+
+    // Handle first-time user welcome display
+    useEffect(() => {
+        if (!isCheckingFirstTime && isFirstTime && chatHistory.length === 0) {
+            setShowWelcome(true);
+            console.log('👋 Showing welcome for first-time user');
+        }
+    }, [isCheckingFirstTime, isFirstTime, chatHistory.length]);
 
     // Auto-collapse tools when new messages arrive
     useEffect(() => {
@@ -175,6 +208,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const handleNewConversation = () => {
         clearHistory();
         setCurrentContext(null);
+    };
+
+    const handleWelcomeGetStarted = () => {
+        setShowWelcome(false);
+        markAsReturningUser();
+        console.log('👋 User clicked Get Started, welcome dismissed');
     };
 
     // Drag and drop handlers
@@ -946,7 +985,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
             <div className="chat-container">
                 <div className="chat-history">
-                    {chatHistory.length === 0 ? renderPlaceholder() : (
+                    {showWelcome ? (
+                        <Welcome 
+                            onGetStarted={handleWelcomeGetStarted}
+                            vscode={vscode}
+                        />
+                    ) : chatHistory.length === 0 ? renderPlaceholder() : (
                         <>
                             {chatHistory
                                 .filter(msg => {
@@ -962,9 +1006,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                     )}
                 </div>
 
-                <div className="chat-input-container">
-                    {/* Main Input Area */}
-                    <div className="chat-input-wrapper">
+                {!showWelcome && (
+                    <div className="chat-input-container">
+                        {/* Main Input Area */}
+                        <div className="chat-input-wrapper">
                         {/* Context Display */}
                         {currentContext ? (
                             <div className="context-display">
@@ -1025,7 +1070,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             value={inputMessage}
                             onChange={(e) => setInputMessage(e.target.value)}
                             onKeyPress={handleKeyPress}
-                            disabled={isLoading}
+                            disabled={isLoading || showWelcome}
                             className="message-input"
                                 rows={1}
                         />
@@ -1039,7 +1084,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                         className="agent-selector"
                                         value={selectedAgent}
                                         onChange={(e) => setSelectedAgent(e.target.value)}
-                                        disabled={isLoading}
+                                        disabled={isLoading || showWelcome}
                                     >
                                         <option value="Agent #1">Agent #1</option>
                                         <option value="Agent #2">Agent #2</option>
@@ -1054,7 +1099,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                         className="model-selector"
                                         value={selectedModel}
                                         onChange={(e) => setSelectedModel(e.target.value)}
-                                        disabled={isLoading}
+                                        disabled={isLoading || showWelcome}
                                     >
                                         <option value="claude-4-sonnet">claude-4-sonnet</option>
                                         <option value="claude-3-haiku">claude-3-haiku</option>
@@ -1089,7 +1134,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                         };
                                         fileInput.click();
                                     }}
-                                    disabled={isLoading}
+                                    disabled={isLoading || showWelcome}
                                     title="Attach images"
                                 >
                                     <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
@@ -1110,7 +1155,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 ) : (
                         <button 
                             onClick={handleSendMessage}
-                                        disabled={!inputMessage.trim()}
+                                        disabled={!inputMessage.trim() || showWelcome}
                             className="send-btn"
                                         title="Send message"
                         >
@@ -1123,6 +1168,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         </div>
                     </div>
                 </div>
+                )}
             </div>
         </div>
     );
