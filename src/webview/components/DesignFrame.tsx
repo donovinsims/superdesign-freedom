@@ -88,6 +88,69 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
     const renderContent = () => {
         switch (renderMode) {
             case 'iframe':
+                // Handle SVG files differently than HTML files
+                if (file.fileType === 'svg') {
+                    // For SVG files, wrap in HTML with proper viewport
+                    const svgHtml = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            ${viewportDimensions ? `<meta name="viewport" content="width=${viewportDimensions.width}, height=${viewportDimensions.height}, initial-scale=1.0">` : ''}
+                            <style>
+                                body { 
+                                    margin: 0; 
+                                    padding: 20px; 
+                                    display: flex; 
+                                    align-items: center; 
+                                    justify-content: center; 
+                                    min-height: 100vh; 
+                                    background: white;
+                                    box-sizing: border-box;
+                                }
+                                svg { 
+                                    max-width: 100%; 
+                                    max-height: 100%; 
+                                    height: auto; 
+                                    width: auto;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            ${file.content}
+                        </body>
+                        </html>
+                    `;
+                    
+                    return (
+                        <iframe
+                            srcDoc={svgHtml}
+                            title={`${file.name} - SVG`}
+                            style={{
+                                width: viewportDimensions ? `${viewportDimensions.width}px` : '100%',
+                                height: viewportDimensions ? `${viewportDimensions.height}px` : '100%',
+                                border: 'none',
+                                background: 'white',
+                                borderRadius: '0 0 6px 6px',
+                                pointerEvents: (isSelected && !dragPreventOverlay && !isDragging) ? 'auto' : 'none'
+                            }}
+                            referrerPolicy="no-referrer"
+                            loading="lazy"
+                            onLoad={() => {
+                                setIsLoading(false);
+                                setHasError(false);
+                                console.log(`SVG Frame loaded: ${file.name}`);
+                            }}
+                            onError={(e) => {
+                                setIsLoading(false);
+                                setHasError(true);
+                                console.error(`SVG Frame error for ${file.name}:`, e);
+                            }}
+                        />
+                    );
+                }
+
+                // HTML file handling (existing logic)
                 // Function to inject nonce into script tags
                 const injectNonce = (html: string, nonce: string | null) => {
                     if (!nonce) return html;
@@ -138,8 +201,30 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                 );
 
             case 'html':
-                // Direct HTML rendering - USE WITH CAUTION (security risk)
+                // Direct HTML/SVG rendering - USE WITH CAUTION (security risk)
                 // Only use for trusted content or when iframe fails
+                if (file.fileType === 'svg') {
+                    return (
+                        <div
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                overflow: 'hidden',
+                                background: 'white',
+                                border: '1px solid var(--vscode-errorForeground)',
+                                borderRadius: '0 0 6px 6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '20px',
+                                boxSizing: 'border-box'
+                            }}
+                            title="⚠️ Direct SVG rendering - potential security risk"
+                            dangerouslySetInnerHTML={{ __html: file.content }}
+                        />
+                    );
+                }
+                
                 return (
                     <div
                         dangerouslySetInnerHTML={{ __html: file.content }}
@@ -157,16 +242,20 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
 
             case 'placeholder':
             default:
+                const placeholderIcon = file.fileType === 'svg' ? '🎨' : '🌐';
+                const placeholderHint = file.fileType === 'svg' ? 'SVG Vector Graphics' : 'HTML Design';
+                
                 return (
                     <div className="frame-placeholder">
-                        <div className="placeholder-icon">🌐</div>
+                        <div className="placeholder-icon">{placeholderIcon}</div>
                         <p className="placeholder-name">{file.name}</p>
                         <div className="placeholder-meta">
                             <span>{(file.size / 1024).toFixed(1)} KB</span>
                             <span>{file.modified.toLocaleDateString()}</span>
+                            <span className="file-type">{file.fileType.toUpperCase()}</span>
                         </div>
                         {renderMode === 'placeholder' && (
-                            <small className="placeholder-hint">Zoom in to load content</small>
+                            <small className="placeholder-hint">{placeholderHint} - Zoom in to load</small>
                         )}
                     </div>
                 );

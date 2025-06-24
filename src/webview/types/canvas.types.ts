@@ -6,6 +6,7 @@ export interface DesignFile {
     content: string;
     size: number;
     modified: Date;
+    fileType: 'html' | 'svg';  // File type for proper rendering
     // New hierarchy properties
     version?: string;          // e.g., "v1", "v2", "v3"
     parentDesign?: string;     // Reference to parent design file name

@@ -109,22 +109,31 @@ export function generateResponsiveConfig(
     baseConfig: CanvasConfig,
     containerWidth: number
 ): CanvasConfig {
-    // Adjust frames per row based on container width
+    // Adjust frames per row based on container width (optimized for more frames)
     let framesPerRow = baseConfig.framesPerRow;
+    let gridSpacing = baseConfig.gridSpacing;
     
-    if (containerWidth < 800) {
+    if (containerWidth < 600) {
         framesPerRow = 1;
-    } else if (containerWidth < 1200) {
+        gridSpacing = 30; // Tight spacing on mobile
+    } else if (containerWidth < 900) {
         framesPerRow = 2;
-    } else if (containerWidth < 1600) {
+        gridSpacing = 40; // Moderate spacing on tablet
+    } else if (containerWidth < 1300) {
         framesPerRow = 3;
-    } else {
+        gridSpacing = 45; // Good spacing for medium screens
+    } else if (containerWidth < 1800) {
         framesPerRow = 4;
+        gridSpacing = 50; // Our default spacing
+    } else {
+        framesPerRow = 5; // Extra wide screens can fit 5 frames
+        gridSpacing = 60; // Slightly more breathing room
     }
     
     return {
         ...baseConfig,
-        framesPerRow
+        framesPerRow,
+        gridSpacing
     };
 }
 
@@ -315,7 +324,7 @@ function positionChildrenImproved(
         .map(childName => nodes.get(childName))
         .filter(child => child !== undefined) as HierarchyNode[];
     
-    if (children.length === 0) return startY + frameHeight;
+    if (children.length === 0) {return startY + frameHeight;}
     
     let currentY = startY;
     

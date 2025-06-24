@@ -153,16 +153,18 @@ Whenever there are UI implementation task, think deeply of the design style firs
 2. At default you should spin up 3 parallel sub agents concurrently to try implement the design, so it's faster for user to iterate
 
 ## When asked to design logo or icon:
-1. Similar process as normal design task, and each agent just create a single html page with one svg code
-2. you should focus on the the correctness of the svg code, and don't add any other elements or text
+1. Similar process as normal design task, but each agent just create a single svg file with svg code
+2. you should focus on the the correctness of the svg code
 
 ## When asked to design a component:
 1. Similar process as normal design task, and each agent just create a single html page with component inside;
-2. Focus just on the component itself, and don't add any other elements or text
+2. Focus just on just one component itself, and don't add any other elements or text
+3. Each HTML just have one component with mock data inside
 
 ## When asked to design wireframes:
 1. Focus on minimal line style black and white wireframes, no colors, and just use placeholder images like placehold.co.
-2. Focus on building out the flow of the wireframes
+2. Don't add any annotation of styles, just basic wireframes like Balsamiq style
+3. Focus on building out the flow of the wireframes
 
 # When asked to extract design system from images:
 Your goal is to extract a generalized and reusable design system from the screenshots provided, **without including specific image content**, so that frontend developers or AI agents can reference the JSON as a style foundation for building consistent UIs.
@@ -200,7 +202,7 @@ Your goal is to extract a generalized and reusable design system from the screen
     - If its a mobile app, also make sure you have responsive design OR make the center the mobile UI
 
 ## Technical Specifications
-1. **Images**: Must be sourced from **open-source image websites** and linked directly like pexels, unsplash, if you can't remember good urls, we can use placeholder images like placehold.co.
+1. **Images**: We just use placeholder images like placehold.co. (Don't use pexels, unsplash, it's outdated)
 2. **Styles**: Use **Tailwind CSS** via **CDN** for styling. (Use !important declarations for critical design tokens that must not be overridden, Load order management - ensure custom styles load after framework CSS, CSS-in-JS or scoped styles to avoid global conflicts, Use utility-first approach - define styles using Tailwind classes instead of custom CSS when possible)
 3. **Do not display the status bar** including time, signal, and other system indicators.
 4. **All text should be only black or white**.

@@ -37,25 +37,25 @@ interface CanvasViewProps {
 }
 
 const CANVAS_CONFIG: CanvasConfig = {
-    frameSize: { width: 400, height: 500 }, // Default frame size for grid spacing calculations
-    gridSpacing: 150,
-    framesPerRow: 3,
+    frameSize: { width: 320, height: 400 }, // Smaller default frame size for better density
+    gridSpacing: 50, // Much tighter spacing between frames
+    framesPerRow: 4, // Fit 4 frames per row by default
     minZoom: 0.1,
     maxZoom: 5,
     responsive: {
         enableScaling: true,
-        minFrameSize: { width: 200, height: 250 },
-        maxFrameSize: { width: 500, height: 650 },
+        minFrameSize: { width: 160, height: 200 }, // Reduced minimum size
+        maxFrameSize: { width: 400, height: 500 }, // Reduced maximum size
         scaleWithZoom: false
     },
     viewports: {
-        desktop: { width: 1200, height: 800 },
-        tablet: { width: 768, height: 1024 },
-        mobile: { width: 375, height: 667 }
+        desktop: { width: 1000, height: 600 }, // More compact desktop view
+        tablet: { width: 640, height: 800 }, // Smaller tablet view
+        mobile: { width: 320, height: 550 } // More compact mobile view
     },
     hierarchy: {
-        horizontalSpacing: 250,
-        verticalSpacing: 150,
+        horizontalSpacing: 180, // Reduced horizontal spacing for hierarchy
+        verticalSpacing: 120, // Reduced vertical spacing for hierarchy
         connectionLineWidth: 2,
         connectionLineColor: 'var(--vscode-textLink-foreground)',
         showConnections: true
@@ -72,7 +72,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
     const [error, setError] = useState<string | null>(null);
     const [currentZoom, setCurrentZoom] = useState(1);
     const [currentConfig, setCurrentConfig] = useState<CanvasConfig>(CANVAS_CONFIG);
-    const [globalViewportMode, setGlobalViewportMode] = useState<ViewportMode>('mobile');
+    const [globalViewportMode, setGlobalViewportMode] = useState<ViewportMode>('tablet');
     const [frameViewports, setFrameViewports] = useState<FrameViewportState>({});
     const [useGlobalViewport, setUseGlobalViewport] = useState(true);
     const [customPositions, setCustomPositions] = useState<FramePositionState>({});
@@ -83,7 +83,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
         currentPosition: { x: 0, y: 0 },
         offset: { x: 0, y: 0 }
     });
-    const [layoutMode, setLayoutMode] = useState<LayoutMode>('hierarchy');
+    const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
     const [hierarchyTree, setHierarchyTree] = useState<HierarchyTree | null>(null);
     const [showConnections, setShowConnections] = useState(true);
     const transformRef = useRef<ReactZoomPanPinchRef>(null);
@@ -257,7 +257,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
 
         window.addEventListener('message', messageHandler);
         return () => window.removeEventListener('message', messageHandler);
-    }, [vscode, currentConfig]);
+    }, [vscode]); // Removed currentConfig dependency to prevent constant re-renders
 
     const handleFrameSelect = (fileName: string) => {
         setSelectedFrames([fileName]); // Single selection for now
@@ -283,24 +283,100 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
     // Canvas control functions
     const handleZoomIn = () => {
         if (transformRef.current) {
-            transformRef.current.zoomIn(0.2);
+            const currentState = transformRef.current.instance?.transformState;
+            console.log('🔍 ZOOM IN - Before:', {
+                scale: currentState?.scale,
+                positionX: currentState?.positionX,
+                positionY: currentState?.positionY,
+                step: 0.05,
+                minScale: 0.1,
+                maxScale: 3,
+                smooth: false
+            });
+            
+            transformRef.current.zoomIn(0.05);
+            
+            // Log after zoom (with small delay to capture the change)
+            setTimeout(() => {
+                const newState = transformRef.current?.instance?.transformState;
+                console.log('🔍 ZOOM IN - After:', {
+                    scale: newState?.scale,
+                    positionX: newState?.positionX,
+                    positionY: newState?.positionY,
+                    scaleDiff: newState?.scale ? (newState.scale - (currentState?.scale || 1)) : 0,
+                    positionXDiff: newState?.positionX ? (newState.positionX - (currentState?.positionX || 0)) : 0,
+                    positionYDiff: newState?.positionY ? (newState.positionY - (currentState?.positionY || 0)) : 0
+                });
+            }, 50);
         }
     };
 
     const handleZoomOut = () => {
         if (transformRef.current) {
-            transformRef.current.zoomOut(0.2);
+            const currentState = transformRef.current.instance?.transformState;
+            console.log('🔍 ZOOM OUT - Before:', {
+                scale: currentState?.scale,
+                positionX: currentState?.positionX,
+                positionY: currentState?.positionY,
+                step: 0.05
+            });
+            
+            transformRef.current.zoomOut(0.05);
+            
+            // Log after zoom (with small delay to capture the change)
+            setTimeout(() => {
+                const newState = transformRef.current?.instance?.transformState;
+                console.log('🔍 ZOOM OUT - After:', {
+                    scale: newState?.scale,
+                    positionX: newState?.positionX,
+                    positionY: newState?.positionY,
+                    scaleDiff: newState?.scale ? (newState.scale - (currentState?.scale || 1)) : 0,
+                    positionXDiff: newState?.positionX ? (newState.positionX - (currentState?.positionX || 0)) : 0,
+                    positionYDiff: newState?.positionY ? (newState.positionY - (currentState?.positionY || 0)) : 0
+                });
+            }, 50);
         }
     };
 
     const handleResetZoom = () => {
         if (transformRef.current) {
+            const currentState = transformRef.current.instance?.transformState;
+            console.log('🔍 RESET ZOOM - Before:', {
+                scale: currentState?.scale,
+                positionX: currentState?.positionX,
+                positionY: currentState?.positionY
+            });
+            
             transformRef.current.resetTransform();
+            
+            setTimeout(() => {
+                const newState = transformRef.current?.instance?.transformState;
+                console.log('🔍 RESET ZOOM - After:', {
+                    scale: newState?.scale,
+                    positionX: newState?.positionX,
+                    positionY: newState?.positionY
+                });
+            }, 50);
         }
     };
 
     const handleTransformChange = (ref: ReactZoomPanPinchRef) => {
-        setCurrentZoom(ref.state.scale);
+        const state = ref.state;
+        
+        // Prevent negative or zero scales
+        if (state.scale <= 0) {
+            console.error('🚨 INVALID SCALE DETECTED:', state.scale, '- Resetting to minimum');
+            ref.setTransform(state.positionX, state.positionY, 0.1);
+            return;
+        }
+        
+        console.log('🔄 TRANSFORM CHANGE:', {
+            scale: state.scale,
+            positionX: state.positionX,
+            positionY: state.positionY,
+            previousScale: currentZoom
+        });
+        setCurrentZoom(state.scale);
     };
 
     // Get frame position (custom, hierarchy, or default grid position)
@@ -564,30 +640,74 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
             <TransformWrapper
                 ref={transformRef}
                 initialScale={1}
-                minScale={0.2}                  // Reasonable min scale
-                maxScale={2}                    // Reasonable max scale  
+                minScale={0.1}                  // Lower min scale to prevent negative values
+                maxScale={3}                    // Higher max scale for more zoom range
                 limitToBounds={false}
-                smooth={true}                   // Re-enable smoothing but keep it snappy
+                smooth={false}                  // Disable smooth for better performance
+                disablePadding={true}           // Disable padding to prevent position jumps
                 doubleClick={{
                     disabled: false,
                     mode: "zoomIn",
-                    step: 50                    // Moderate double-click zoom step
+                    step: 50,                   // Moderate double-click zoom step
+                    animationTime: 150          // Quick double-click zoom
                 }}
                 wheel={{
                     wheelDisabled: true,        // Disable wheel zoom
                     touchPadDisabled: false,    // Enable trackpad pan
-                    step: 0.3                   // Back to reasonable zoom button step
+                    step: 0.05                  // Even smaller zoom steps
                 }}
                 panning={{
                     disabled: dragState.isDragging,
-                    velocityDisabled: false,    // Enable smooth momentum
+                    velocityDisabled: true,     // Disable velocity for immediate response
                     wheelPanning: true          // Enable trackpad panning
                 }}
                 pinch={{
-                    disabled: false             // Keep pinch zoom enabled
+                    disabled: false,            // Keep pinch zoom enabled
+                    step: 1                     // Ultra-fine pinch steps
                 }}
                 centerOnInit={true}
                 onTransformed={(ref) => handleTransformChange(ref)}
+                onZoom={(ref) => {
+                    const state = ref.state;
+                    
+                    // Check for invalid scale and fix it
+                    if (state.scale <= 0) {
+                        console.error('🚨 ZOOM EVENT - Invalid scale:', state.scale, '- Fixing...');
+                        ref.setTransform(state.positionX, state.positionY, 0.1);
+                        return;
+                    }
+                    
+                    console.log('📏 ZOOM EVENT:', {
+                        scale: state.scale,
+                        positionX: state.positionX,
+                        positionY: state.positionY,
+                        event: 'onZoom'
+                    });
+                }}
+                onPanning={(ref) => {
+                    console.log('👆 PAN EVENT:', {
+                        scale: ref.state.scale,
+                        positionX: ref.state.positionX,
+                        positionY: ref.state.positionY,
+                        event: 'onPanning'
+                    });
+                }}
+                onZoomStart={(ref) => {
+                    console.log('🔍 ZOOM START:', {
+                        scale: ref.state.scale,
+                        positionX: ref.state.positionX,
+                        positionY: ref.state.positionY,
+                        event: 'onZoomStart'
+                    });
+                }}
+                onZoomStop={(ref) => {
+                    console.log('🔍 ZOOM STOP:', {
+                        scale: ref.state.scale,
+                        positionX: ref.state.positionX,
+                        positionY: ref.state.positionY,
+                        event: 'onZoomStop'
+                    });
+                }}
             >
                 <TransformComponent
                     wrapperClass="canvas-transform-wrapper"

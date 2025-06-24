@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="sparkleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#4ecdc4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#45b7d1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="url(#sparkleGradient)" opacity="0.1"/>
+  
+  <!-- Main sparkle shape -->
+  <g transform="translate(100,100)">
+    <!-- Vertical line -->
+    <rect x="-2" y="-40" width="4" height="80" fill="url(#sparkleGradient)" rx="2"/>
+    <!-- Horizontal line -->
+    <rect x="-40" y="-2" width="80" height="4" fill="url(#sparkleGradient)" rx="2"/>
+    <!-- Diagonal lines -->
+    <rect x="-1.5" y="-28" width="3" height="56" fill="url(#sparkleGradient)" rx="1.5" transform="rotate(45)"/>
+    <rect x="-1.5" y="-28" width="3" height="56" fill="url(#sparkleGradient)" rx="1.5" transform="rotate(-45)"/>
+  </g>
+  
+  <!-- Small sparkles around -->
+  <circle cx="50" cy="50" r="3" fill="#ff6b6b"/>
+  <circle cx="150" cy="40" r="2" fill="#4ecdc4"/>
+  <circle cx="160" cy="120" r="2.5" fill="#45b7d1"/>
+  <circle cx="40" cy="150" r="2" fill="#ff6b6b"/>
+  
+  <!-- Text -->
+  <text x="100" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="url(#sparkleGradient)">
+    Superdesign
+  </text>
+</svg> 

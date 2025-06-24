@@ -383,10 +383,10 @@ class SuperdesignCanvasPanel {
 			return;
 		}
 
-		// Watch for changes in .superdesign/design_iterations/*.html
+		// Watch for changes in .superdesign/design_iterations/*.html and *.svg
 		const pattern = new vscode.RelativePattern(
 			workspaceFolder, 
-			'.superdesign/design_iterations/**/*.html'
+			'.superdesign/design_iterations/**/*.{html,svg}'
 		);
 
 		this._fileWatcher = vscode.workspace.createFileSystemWatcher(
@@ -492,12 +492,15 @@ class SuperdesignCanvasPanel {
 
 			// Read all files in the directory
 			const files = await vscode.workspace.fs.readDirectory(designFolder);
-			const htmlFiles = files.filter(([name, type]) => 
-				type === vscode.FileType.File && name.toLowerCase().endsWith('.html')
+			const designFiles = files.filter(([name, type]) => 
+				type === vscode.FileType.File && (
+					name.toLowerCase().endsWith('.html') || 
+					name.toLowerCase().endsWith('.svg')
+				)
 			);
 
-			const designFiles = await Promise.all(
-				htmlFiles.map(async ([fileName, _]) => {
+			const loadedFiles = await Promise.all(
+				designFiles.map(async ([fileName, _]) => {
 					const filePath = vscode.Uri.joinPath(designFolder, fileName);
 					
 					try {
@@ -507,12 +510,15 @@ class SuperdesignCanvasPanel {
 							vscode.workspace.fs.readFile(filePath)
 						]);
 
+						const fileType = fileName.toLowerCase().endsWith('.svg') ? 'svg' : 'html';
+						
 						return {
 							name: fileName,
 							path: filePath.fsPath,
 							content: Buffer.from(content).toString('utf8'),
 							size: stat.size,
-							modified: new Date(stat.mtime)
+							modified: new Date(stat.mtime),
+							fileType
 						};
 					} catch (fileError) {
 						console.error(`Failed to read file ${fileName}:`, fileError);
@@ -522,9 +528,9 @@ class SuperdesignCanvasPanel {
 			);
 
 			// Filter out any failed file reads
-			const validFiles = designFiles.filter(file => file !== null);
+			const validFiles = loadedFiles.filter(file => file !== null);
 
-			console.log(`Loaded ${validFiles.length} HTML design files`);
+			console.log(`Loaded ${validFiles.length} design files (HTML & SVG)`);
 			
 			this._panel.webview.postMessage({
 				command: 'designFilesLoaded',

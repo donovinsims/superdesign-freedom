@@ -655,6 +655,16 @@
     color: var(--vscode-descriptionForeground);
 }
 
+.placeholder-meta .file-type {
+    font-size: 9px;
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
 .placeholder-hint {
     font-size: 10px;
     color: var(--vscode-descriptionForeground);
