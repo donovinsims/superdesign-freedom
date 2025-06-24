@@ -102,6 +102,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                     resetFirstTimeUser();
                     setShowWelcome(true);
                     console.log('👋 Welcome screen reset and shown');
+                } else if (message.command === 'setChatPrompt') {
+                    // Handle prompt from canvas floating buttons
+                    console.log('📝 Received prompt from canvas:', message.data.prompt);
+                    setInputMessage(message.data.prompt);
                 }
             };
             

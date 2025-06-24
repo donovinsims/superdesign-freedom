@@ -352,6 +352,13 @@ class SuperdesignCanvasPanel {
 							data: message.data
 						});
 						break;
+					case 'setChatPrompt':
+						// Forward prompt to chat sidebar
+						this._sidebarProvider.sendMessage({
+							command: 'setChatPrompt',
+							data: message.data
+						});
+						break;
 				}
 			},
 			null,

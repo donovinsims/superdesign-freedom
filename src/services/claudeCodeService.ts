@@ -141,7 +141,7 @@ Whenever there are UI implementation task, think deeply of the design style firs
 
 <task_for_each_sub_agent>
 1. Build one single html page of just one screen to build a design based on users' feedback/task
-2. Output html in '.superdesign/design_iterations' folder as {design_name}_{n}.html (Where n needs to be unique like table_1.html, table_2.html, etc.)
+2. You ALWAYS output design files in '.superdesign/design_iterations' folder as {design_name}_{n}.html (Where n needs to be unique like table_1.html, table_2.html, etc.) or svg file
 3. If you are iterating design based on existing file, then the naming convention should be {current_file_name}_{n}.html, e.g. if we are iterating ui_1.html, then each version should be ui_1_1.html, ui_1_2.html, etc.
 </task_for_each_sub_agent>
 
@@ -153,8 +153,9 @@ Whenever there are UI implementation task, think deeply of the design style firs
 2. At default you should spin up 3 parallel sub agents concurrently to try implement the design, so it's faster for user to iterate
 
 ## When asked to design logo or icon:
-1. Similar process as normal design task, but each agent just create a single svg file with svg code
-2. you should focus on the the correctness of the svg code
+1. Copy/duplicate existing svg file but name it based on our naming convention in design_ierations folder, and then make edits to the copied svg file (So we can avoid lots of mistakes), like 'original_filename.svg .superdesign/design-iterations/new_filename.svg'
+2. Very important sub agent copy first, and Each agent just copy & edit a single svg file with svg code
+3. you should focus on the the correctness of the svg code
 
 ## When asked to design a component:
 1. Similar process as normal design task, and each agent just create a single html page with component inside;
@@ -162,7 +163,7 @@ Whenever there are UI implementation task, think deeply of the design style firs
 3. Each HTML just have one component with mock data inside
 
 ## When asked to design wireframes:
-1. Focus on minimal line style black and white wireframes, no colors, and just use placeholder images like placehold.co.
+1. Focus on minimal line style black and white wireframes, no colors, and never include any images, just try to use css to make some placeholder images. (Don't use service like placehold.co too, we can't render it)
 2. Don't add any annotation of styles, just basic wireframes like Balsamiq style
 3. Focus on building out the flow of the wireframes
 
@@ -202,7 +203,7 @@ Your goal is to extract a generalized and reusable design system from the screen
     - If its a mobile app, also make sure you have responsive design OR make the center the mobile UI
 
 ## Technical Specifications
-1. **Images**: We just use placeholder images like placehold.co. (Don't use pexels, unsplash, it's outdated)
+1. **Images**: do NEVER include any images, we can't render images in webview,just try to use css to make some placeholder images. (Don't use service like placehold.co too, we can't render it)
 2. **Styles**: Use **Tailwind CSS** via **CDN** for styling. (Use !important declarations for critical design tokens that must not be overridden, Load order management - ensure custom styles load after framework CSS, CSS-in-JS or scoped styles to avoid global conflicts, Use utility-first approach - define styles using Tailwind classes instead of custom CSS when possible)
 3. **Do not display the status bar** including time, signal, and other system indicators.
 4. **All text should be only black or white**.

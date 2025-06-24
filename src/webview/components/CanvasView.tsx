@@ -280,6 +280,26 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
         vscode.postMessage(contextMessage);
     };
 
+    const handleSendToChat = (fileName: string, prompt: string) => {
+        // Find the selected file to get its full path
+        const selectedFile = designFiles.find(file => file.name === fileName);
+        const filePath = selectedFile ? selectedFile.path : fileName;
+        
+        // Set context first
+        const contextMessage: WebviewMessage = {
+            command: 'setContextFromCanvas',
+            data: { fileName: filePath, type: 'frame' }
+        };
+        vscode.postMessage(contextMessage);
+        
+        // Then send the prompt to the chat input
+        const promptMessage: WebviewMessage = {
+            command: 'setChatPrompt',
+            data: { prompt }
+        };
+        vscode.postMessage(promptMessage);
+    };
+
     // Canvas control functions
     const handleZoomIn = () => {
         if (transformRef.current) {
@@ -779,6 +799,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                                     onDragStart={handleDragStart}
                                     isDragging={dragState.isDragging && dragState.draggedFrame === file.name}
                                     nonce={nonce}
+                                    onSendToChat={handleSendToChat}
                                 />
                             );
                         })}

@@ -1345,3 +1345,123 @@
         padding: 0 8px;
     }
 }
+
+/* Floating Action Buttons */
+.floating-action-buttons {
+    position: absolute;
+    top: 8px;
+    right: -190px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 200;
+    animation: fadeInFromRight 0.3s ease forwards;
+}
+
+.floating-action-btn {
+    background: white;
+    color: #333;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    min-width: 150px;
+    justify-content: flex-start;
+}
+
+.floating-action-btn:hover {
+    background: #f8f9fa;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.floating-action-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.floating-action-btn .btn-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: #666;
+}
+
+.floating-action-btn:hover .btn-icon {
+    color: #333;
+}
+
+.floating-action-btn .btn-text {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #333;
+}
+
+@keyframes fadeInFromRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Copied Notification */
+.copied-notification {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--vscode-notifications-background);
+    color: var(--vscode-notifications-foreground);
+    border: 1px solid var(--vscode-notifications-border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 300;
+    animation: fadeInOut 2s ease forwards;
+    pointer-events: none;
+}
+
+.copied-notification .copied-icon {
+    font-size: 1rem;
+}
+
+.copied-notification .copied-text {
+    white-space: nowrap;
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    15% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    85% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+}

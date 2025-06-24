@@ -56,6 +56,13 @@ export interface SetContextFromCanvasMessage extends ExtensionMessage {
     };
 }
 
+export interface SetChatPromptMessage extends ExtensionMessage {
+    command: 'setChatPrompt';
+    data: {
+        prompt: string;
+    };
+}
+
 export interface ErrorMessage extends ExtensionMessage {
     command: 'error';
     data: {
@@ -74,7 +81,8 @@ export interface FileWatchMessage extends ExtensionMessage {
 export type WebviewMessage = 
     | LoadDesignFilesMessage 
     | SelectFrameMessage
-    | SetContextFromCanvasMessage;
+    | SetContextFromCanvasMessage
+    | SetChatPromptMessage;
 
 export type ExtensionToWebviewMessage = 
     | DesignFilesLoadedMessage 
