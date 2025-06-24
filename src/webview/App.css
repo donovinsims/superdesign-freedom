@@ -1465,3 +1465,122 @@
         transform: translate(-50%, -50%) scale(0.8);
     }
 }
+
+/* Copy Prompt Dropdown */
+.copy-prompt-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.copy-prompt-main-btn {
+    position: relative;
+    padding-right: 40px !important; /* Make room for dropdown arrow */
+}
+
+.copy-prompt-main-btn.success {
+    background: #1a1a1a !important;
+    color: white !important;
+    border-color: #1a1a1a !important;
+}
+
+.copy-prompt-main-btn.success .btn-icon,
+.copy-prompt-main-btn.success .dropdown-arrow {
+    color: white !important;
+}
+
+.copy-prompt-main-btn.success .btn-text {
+    color: white !important;
+}
+
+.copy-prompt-main-btn.success .btn-icon {
+    display: none;
+}
+
+.copy-prompt-main-btn.success::before {
+    content: "✓";
+    font-size: 16px;
+    margin-right: 8px;
+    color: white !important;
+}
+
+.dropdown-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    color: #666;
+    transition: transform 0.2s ease;
+}
+
+.copy-prompt-main-btn:hover .dropdown-arrow {
+    color: #333;
+}
+
+.copy-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    z-index: 300;
+    margin-top: 4px;
+    overflow: hidden;
+    animation: dropdownFadeIn 0.2s ease forwards;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.copy-dropdown-item {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #333;
+    text-align: left;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.copy-dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.copy-dropdown-item:hover {
+    background: #f8f9fa;
+}
+
+.copy-dropdown-item:active {
+    background: #e9ecef;
+}
+
+.platform-logo {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.copy-dropdown-item span {
+    flex: 1;
+    white-space: nowrap;
+}

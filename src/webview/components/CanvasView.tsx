@@ -14,7 +14,8 @@ import {
     DragState,
     GridPosition,
     LayoutMode,
-    HierarchyTree
+    HierarchyTree,
+    ConnectionLine
 } from '../types/canvas.types';
 import ConnectionLines from './ConnectionLines';
 import {
@@ -496,6 +497,45 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
         setCustomPositions({});
     };
 
+    // Update connection positions based on current frame positions
+    const updateConnectionPositions = (connections: ConnectionLine[], files: DesignFile[]): ConnectionLine[] => {
+        return connections.map(connection => {
+            const fromIndex = files.findIndex(f => f.name === connection.fromFrame);
+            const toIndex = files.findIndex(f => f.name === connection.toFrame);
+            
+            if (fromIndex === -1 || toIndex === -1) {
+                return connection; // Keep original if frame not found
+            }
+            
+            // Get current positions (custom or calculated)
+            const fromPosition = getFramePosition(connection.fromFrame, fromIndex);
+            const toPosition = getFramePosition(connection.toFrame, toIndex);
+            
+            // Get frame dimensions for connection point calculation
+            const fromViewport = getFrameViewport(connection.fromFrame);
+            const toViewport = getFrameViewport(connection.toFrame);
+            const fromDimensions = currentConfig.viewports[fromViewport];
+            const toDimensions = currentConfig.viewports[toViewport];
+            
+            // Calculate connection points (center-right of from frame to center-left of to frame)
+            const fromConnectionPoint = {
+                x: fromPosition.x + fromDimensions.width,
+                y: fromPosition.y + (fromDimensions.height + 50) / 2 // +50 for header
+            };
+            
+            const toConnectionPoint = {
+                x: toPosition.x,
+                y: toPosition.y + (toDimensions.height + 50) / 2 // +50 for header
+            };
+            
+            return {
+                ...connection,
+                fromPosition: fromConnectionPoint,
+                toPosition: toConnectionPoint
+            };
+        });
+    };
+
     // Keyboard shortcuts for zoom
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -761,7 +801,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                         {/* Connection Lines (render behind frames) */}
                         {layoutMode === 'hierarchy' && hierarchyTree && showConnections && (
                             <ConnectionLines
-                                connections={hierarchyTree.connections}
+                                connections={updateConnectionPositions(hierarchyTree.connections, designFiles)}
                                 containerBounds={hierarchyTree.bounds}
                                 isVisible={showConnections}
                                 zoomLevel={currentZoom}

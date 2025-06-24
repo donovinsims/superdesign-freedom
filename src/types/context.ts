@@ -3,6 +3,13 @@ export type WebviewLayout = 'sidebar' | 'panel';
 export interface WebviewContext {
     layout: WebviewLayout;
     extensionUri: string;
+    logoUris?: {
+        cursor: string;
+        windsurf: string;
+        claudeCode: string;
+        lovable: string;
+        bolt: string;
+    };
 }
 
 export interface WebviewMessage {

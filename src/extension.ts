@@ -319,7 +319,10 @@ class SuperdesignCanvasPanel {
 			column || vscode.ViewColumn.One,
 			{
 				enableScripts: true,
-				localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')]
+				localResourceRoots: [
+					vscode.Uri.joinPath(extensionUri, 'dist'),
+					vscode.Uri.joinPath(extensionUri, 'src', 'assets')
+				]
 			}
 		);
 
@@ -450,18 +453,46 @@ class SuperdesignCanvasPanel {
 			vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js')
 		);
 
+		// Generate webview URIs for logo images
+		const logoUris = {
+			cursor: webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'assets', 'cursor_logo.png')).toString(),
+			windsurf: webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'assets', 'windsurf_logo.png')).toString(),
+			claudeCode: webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'assets', 'claude_code_logo.png')).toString(),
+			lovable: webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'assets', 'lovable_logo.png')).toString(),
+			bolt: webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'assets', 'bolt_logo.jpg')).toString(),
+		};
+
+		// Debug logging
+		console.log('Canvas Panel - Extension URI:', this._extensionUri.toString());
+		console.log('Canvas Panel - Generated logo URIs:', logoUris);
+
 		const nonce = getNonce();
 
 		return `<!DOCTYPE html>
 			<html lang="en">
 			<head>
 				<meta charset="UTF-8">
-				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; frame-src ${webview.cspSource};">
+				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data: https:; script-src 'nonce-${nonce}'; frame-src ${webview.cspSource};">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<title>Superdesign Canvas</title>
 			</head>
 			<body>
 				<div id="root" data-view="canvas" data-nonce="${nonce}"></div>
+				<script nonce="${nonce}">
+					// Debug: Check if context data is being generated
+					console.log('Canvas Panel - About to set webview context. Logo URIs:', ${JSON.stringify(logoUris)});
+					
+					// Initialize context for React app
+					window.__WEBVIEW_CONTEXT__ = {
+						layout: 'panel',
+						extensionUri: '${this._extensionUri.toString()}',
+						logoUris: ${JSON.stringify(logoUris)}
+					};
+					
+					// Debug logging in webview
+					console.log('Canvas Panel - Webview context set:', window.__WEBVIEW_CONTEXT__);
+					console.log('Canvas Panel - Logo URIs received in webview:', window.__WEBVIEW_CONTEXT__?.logoUris);
+				</script>
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
 			</html>`;

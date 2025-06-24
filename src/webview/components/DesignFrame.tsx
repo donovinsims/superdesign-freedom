@@ -1,6 +1,13 @@
 import React from 'react';
-import { DesignFile, GridPosition, FrameDimensions, ViewportMode } from '../types/canvas.types';
+import { DesignFile, GridPosition, FrameDimensions, ViewportMode, WebviewMessage } from '../types/canvas.types';
 import { MobileIcon, TabletIcon, DesktopIcon, GlobeIcon } from './Icons';
+
+// Import logo images
+import cursorLogo from '../../assets/cursor_logo.png';
+import windsurfLogo from '../../assets/windsurf_logo.png';
+import claudeCodeLogo from '../../assets/claude_code_logo.png';
+import lovableLogo from '../../assets/lovable_logo.png';
+import boltLogo from '../../assets/bolt_logo.jpg';
 
 interface DesignFrameProps {
     file: DesignFile;
@@ -40,7 +47,8 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
     const [isLoading, setIsLoading] = React.useState(renderMode === 'iframe');
     const [hasError, setHasError] = React.useState(false);
     const [dragPreventOverlay, setDragPreventOverlay] = React.useState(false);
-    const [showCopiedNotification, setShowCopiedNotification] = React.useState(false);
+    const [showCopyDropdown, setShowCopyDropdown] = React.useState(false);
+    const [copyButtonState, setCopyButtonState] = React.useState<{ text: string; isSuccess: boolean }>({ text: 'Copy prompt', isSuccess: false });
 
     const handleClick = () => {
         onSelect(file.name);
@@ -65,25 +73,77 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
         }
     }, [isDragging]);
 
+    // Close dropdown when clicking outside
+    React.useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (showCopyDropdown) {
+                const target = event.target as Element;
+                const dropdownElement = target.closest('.copy-prompt-dropdown');
+                if (!dropdownElement) {
+                    setShowCopyDropdown(false);
+                }
+            }
+        };
+
+        if (showCopyDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => {
+                document.removeEventListener('mousedown', handleClickOutside);
+            };
+        }
+    }, [showCopyDropdown]);
+
     const handleViewportToggle = (newViewport: ViewportMode) => {
         if (onViewportChange && !useGlobalViewport) {
             onViewportChange(file.name, newViewport);
         }
     };
 
-    const handleCopyPrompt = async (e: React.MouseEvent) => {
+    const handleCopyPrompt = async (e: React.MouseEvent, platform?: string) => {
         e.preventDefault();
         e.stopPropagation();
         
-        const promptText = `${file.content}\n\nAbove is the design implementation, please use that as a reference`;
+        let promptText = '';
+        let platformName = '';
+        
+        switch (platform) {
+            case 'cursor':
+                promptText = `${file.content}\n\nAbove is the design implementation, please use that as a reference to build a similar UI component. Make sure to follow modern React and TypeScript best practices.`;
+                platformName = 'Cursor';
+                break;
+            case 'windsurf':
+                promptText = `${file.content}\n\nAbove is the design implementation. Please analyze this design and create a similar UI component using modern web technologies and best practices.`;
+                platformName = 'Windsurf';
+                break;
+            case 'claude-code':
+                promptText = `${file.content}\n\nAbove is the design implementation. Please use this as a reference to create a similar component. Focus on clean, maintainable code structure.`;
+                platformName = 'Claude Code';
+                break;
+            case 'lovable':
+                promptText = `${file.content}\n\nAbove is the design implementation. Please recreate this design as a responsive React component with modern styling.`;
+                platformName = 'Lovable';
+                break;
+            case 'bolt':
+                promptText = `${file.content}\n\nAbove is the design implementation. Please create a similar UI using this as reference. Make it production-ready with proper styling.`;
+                platformName = 'Bolt';
+                break;
+            default:
+                promptText = `${file.content}\n\nAbove is the design implementation, please use that as a reference`;
+                platformName = '';
+        }
         
         try {
             await navigator.clipboard.writeText(promptText);
-            console.log('✅ Copied prompt to clipboard for:', file.name);
+            console.log(`✅ Copied ${platformName} prompt to clipboard for:`, file.name);
             
-            // Show notification
-            setShowCopiedNotification(true);
-            setTimeout(() => setShowCopiedNotification(false), 2000);
+            // Show success state on button
+            setCopyButtonState({ text: `Copied for ${platformName}!`, isSuccess: true });
+            setTimeout(() => {
+                setCopyButtonState({ text: 'Copy prompt', isSuccess: false });
+            }, 2000);
+            
+            // Hide dropdown
+            setShowCopyDropdown(false);
         } catch (err) {
             console.error('❌ Failed to copy to clipboard:', err);
             
@@ -95,12 +155,25 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
             document.execCommand('copy');
             document.body.removeChild(textarea);
             
-            console.log('✅ Copied prompt using fallback method for:', file.name);
+            console.log(`✅ Copied ${platformName} prompt using fallback method for:`, file.name);
             
-            // Show notification for fallback too
-            setShowCopiedNotification(true);
-            setTimeout(() => setShowCopiedNotification(false), 2000);
+            // Show success state on button
+            setCopyButtonState({ text: `Copied for ${platformName}!`, isSuccess: true });
+            setTimeout(() => {
+                setCopyButtonState({ text: 'Copy prompt', isSuccess: false });
+            }, 2000);
+            
+            // Hide dropdown
+            setShowCopyDropdown(false);
         }
+    };
+
+    const handleCopyDropdownToggle = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Dropdown toggle clicked. Current context:', (window as any).__WEBVIEW_CONTEXT__);
+        console.log('Logo URIs available:', (window as any).__WEBVIEW_CONTEXT__?.logoUris);
+        setShowCopyDropdown(!showCopyDropdown);
     };
 
     const handleCreateVariations = (e: React.MouseEvent) => {
@@ -588,26 +661,117 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                         </svg>
                         <span className="btn-text">Iterate with feedback</span>
                     </button>
-                    <button
-                        className="floating-action-btn"
-                        onClick={handleCopyPrompt}
-                        title="Copy file content with reference prompt"
-                    >
-                        <svg className="btn-icon" viewBox="0 0 24 24" fill="none">
-                            <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
-                        </svg>
-                        <span className="btn-text">Copy prompt</span>
-                    </button>
+                    
+                    {/* Copy Prompt Dropdown */}
+                    <div className="copy-prompt-dropdown">
+                        <button
+                            className={`floating-action-btn copy-prompt-main-btn ${copyButtonState.isSuccess ? 'success' : ''}`}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Dropdown toggle clicked. Current context:', (window as any).__WEBVIEW_CONTEXT__);
+                                console.log('Logo URIs available:', (window as any).__WEBVIEW_CONTEXT__?.logoUris);
+                                setShowCopyDropdown(!showCopyDropdown);
+                            }}
+                            title="Copy file content with reference prompt"
+                        >
+                            <svg className="btn-icon" viewBox="0 0 24 24" fill="none">
+                                <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
+                            </svg>
+                            <span className="btn-text">{copyButtonState.text}</span>
+                            <svg className="dropdown-arrow" viewBox="0 0 24 24" fill="none">
+                                <path d="M7 10L12 15L17 10H7Z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        
+                        {showCopyDropdown && (
+                            <div className="copy-dropdown-menu">
+                                <button
+                                    className="copy-dropdown-item"
+                                    onClick={(e) => handleCopyPrompt(e, 'cursor')}
+                                >
+                                    <img 
+                                        src={(window as any).__WEBVIEW_CONTEXT__?.logoUris?.cursor} 
+                                        alt="Cursor" 
+                                        className="platform-logo"
+                                        onError={(e) => {
+                                            console.error('Failed to load Cursor logo:', (window as any).__WEBVIEW_CONTEXT__?.logoUris?.cursor);
+                                            console.error('Image error event:', e);
+                                        }}
+                                        onLoad={() => console.log('Cursor logo loaded successfully')}
+                                    />
+                                    <span>Cursor</span>
+                                </button>
+                                <button
+                                    className="copy-dropdown-item"
+                                    onClick={(e) => handleCopyPrompt(e, 'windsurf')}
+                                >
+                                    <img 
+                                        src={(window as any).__WEBVIEW_CONTEXT__?.logoUris?.windsurf} 
+                                        alt="Windsurf" 
+                                        className="platform-logo"
+                                        onError={(e) => {
+                                            console.error('Failed to load Windsurf logo:', (window as any).__WEBVIEW_CONTEXT__?.logoUris?.windsurf);
+                                            console.error('Image error event:', e);
+                                        }}
+                                        onLoad={() => console.log('Windsurf logo loaded successfully')}
+                                    />
+                                    <span>Windsurf</span>
+                                </button>
+                                <button
+                                    className="copy-dropdown-item"
+                                    onClick={(e) => handleCopyPrompt(e, 'claude-code')}
+                                >
+                                    <img 
+                                        src={(window as any).__WEBVIEW_CONTEXT__?.logoUris?.claudeCode} 
+                                        alt="Claude Code" 
+                                        className="platform-logo"
+                                        onError={(e) => {
+                                            console.error('Failed to load Claude Code logo:', (window as any).__WEBVIEW_CONTEXT__?.logoUris?.claudeCode);
+                                            console.error('Image error event:', e);
+                                        }}
+                                        onLoad={() => console.log('Claude Code logo loaded successfully')}
+                                    />
+                                    <span>Claude Code</span>
+                                </button>
+                                <button
+                                    className="copy-dropdown-item"
+                                    onClick={(e) => handleCopyPrompt(e, 'lovable')}
+                                >
+                                    <img 
+                                        src={(window as any).__WEBVIEW_CONTEXT__?.logoUris?.lovable} 
+                                        alt="Lovable" 
+                                        className="platform-logo"
+                                        onError={(e) => {
+                                            console.error('Failed to load Lovable logo:', (window as any).__WEBVIEW_CONTEXT__?.logoUris?.lovable);
+                                            console.error('Image error event:', e);
+                                        }}
+                                        onLoad={() => console.log('Lovable logo loaded successfully')}
+                                    />
+                                    <span>Lovable</span>
+                                </button>
+                                <button
+                                    className="copy-dropdown-item"
+                                    onClick={(e) => handleCopyPrompt(e, 'bolt')}
+                                >
+                                    <img 
+                                        src={(window as any).__WEBVIEW_CONTEXT__?.logoUris?.bolt} 
+                                        alt="Bolt" 
+                                        className="platform-logo"
+                                        onError={(e) => {
+                                            console.error('Failed to load Bolt logo:', (window as any).__WEBVIEW_CONTEXT__?.logoUris?.bolt);
+                                            console.error('Image error event:', e);
+                                        }}
+                                        onLoad={() => console.log('Bolt logo loaded successfully')}
+                                    />
+                                    <span>Bolt</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
-            
-            {/* Copied Notification */}
-            {showCopiedNotification && (
-                <div className="copied-notification">
-                    <span className="copied-icon">✅</span>
-                    <span className="copied-text">Prompt copied!</span>
-                </div>
-            )}
+
         </div>
     );
 };

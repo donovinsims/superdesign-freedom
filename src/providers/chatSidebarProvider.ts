@@ -38,7 +38,8 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [
-                vscode.Uri.joinPath(this._extensionUri, 'dist')
+                vscode.Uri.joinPath(this._extensionUri, 'dist'),
+                vscode.Uri.joinPath(this._extensionUri, 'src', 'assets')
             ]
         };
 
