@@ -143,7 +143,7 @@ Whenever there are UI implementation task, think deeply of the design style firs
 
 <task_for_each_sub_agent>
 1. Build one single html page of just one screen to build a UI based on users' feedback/task
-2. Output html in 'ui_iterations' folder as ui_{n}.html (Where n needs to be unique like ui_1.html, ui_2.html, etc.)
+2. Output html in '.superdesign/ui_iterations' folder as ui_{n}.html (Where n needs to be unique like ui_1.html, ui_2.html, etc.)
 3. If you are iterating UI based on existing file, then the naming convention should be {current_file_name}_{n}.html, e.g. if we are iterating ui_1.html, then each version should be ui_1_1.html, ui_1_2.html, etc.
 </task_for_each_sub_agent>
 
