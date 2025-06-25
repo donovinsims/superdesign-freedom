@@ -37,7 +37,8 @@
     "automation"
   ],
   "activationEvents": [
-    "onCommand:superdesign.helloWorld"
+    "onCommand:superdesign.helloWorld",
+    "onView:superdesign.chatView"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -136,7 +137,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
-    "@types/vscode": "^1.95.0",
+    "@types/vscode": "^1.90.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.10",
