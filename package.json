@@ -4,7 +4,7 @@
   "description": "The 1st Design Agent lives inside your IDE",
   "version": "0.0.1",
   "publisher": "iganbold",
-  "icon": "src/assets/icon.png",
+  "icon": "icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/superdesigndev/superdesign"
@@ -104,7 +104,7 @@
         {
           "id": "superdesign-sidebar",
           "title": "Superdesign",
-          "icon": "src/assets/icon.svg"
+          "icon": "icon.svg"
         }
       ]
     },
