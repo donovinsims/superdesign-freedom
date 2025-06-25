@@ -3,6 +3,11 @@
 All notable changes to the "superdesign" extension will be documented in this file.
 
 
+## [0.0.2] - 2025-06-25
+
+### Added
+- Publish to Open VSX Registry
+
 ## [0.0.1] - 2025-06-24
 
 ### Added
