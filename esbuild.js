@@ -104,6 +104,17 @@ async function main() {
 		copyDir(srcPath, destPath);
 		console.log('Claude Code SDK copied to dist/');
 		
+		// Copy assets to dist folder
+		const assetsSrcPath = path.join(__dirname, 'src', 'assets');
+		const assetsDestPath = path.join(__dirname, 'dist', 'src', 'assets');
+		
+		if (fs.existsSync(assetsSrcPath)) {
+			copyDir(assetsSrcPath, assetsDestPath);
+			console.log('Assets copied to dist/src/assets/');
+		} else {
+			console.log('Assets directory not found at:', assetsSrcPath);
+		}
+		
 		console.log('Build complete!');
 	}
 }
