@@ -65,11 +65,70 @@ export class ClaudeCodeService {
             this.outputChannel.appendLine('Setting environment variable for Claude Code SDK');
             process.env.ANTHROPIC_API_KEY = apiKey;
 
-            // Dynamically import Claude Code SDK
+                        // Dynamically import Claude Code SDK
             this.outputChannel.appendLine('Dynamically importing Claude Code SDK...');
-            const claudeCodeModule = await import('@anthropic-ai/claude-code');
-            this.claudeCodeQuery = claudeCodeModule.query;
-            this.outputChannel.appendLine('Claude Code SDK dynamically imported successfully');
+            try {
+                this.outputChannel.appendLine(`Current working directory: ${process.cwd()}`);
+                this.outputChannel.appendLine(`__dirname: ${__dirname}`);
+                
+                // Try importing from the copied module location first
+                let claudeCodeModule;
+                try {
+                    // Try multiple possible paths for the extension location
+                    const possiblePaths = [
+                        path.resolve(__dirname, '..', 'node_modules', '@anthropic-ai', 'claude-code', 'sdk.mjs'),
+                        path.resolve(__dirname, 'node_modules', '@anthropic-ai', 'claude-code', 'sdk.mjs'),
+                        path.join(__dirname, '..', 'node_modules', '@anthropic-ai', 'claude-code', 'sdk.mjs')
+                    ];
+                    
+                    let importSucceeded = false;
+                    for (const modulePath of possiblePaths) {
+                        try {
+                            this.outputChannel.appendLine(`Trying to import from: ${modulePath}`);
+                            if (fs.existsSync(modulePath)) {
+                                this.outputChannel.appendLine(`File exists at: ${modulePath}`);
+                                claudeCodeModule = await import(`file://${modulePath}`);
+                                this.outputChannel.appendLine('Imported from copied module location');
+                                importSucceeded = true;
+                                break;
+                            } else {
+                                this.outputChannel.appendLine(`File does not exist at: ${modulePath}`);
+                            }
+                        } catch (pathError) {
+                            this.outputChannel.appendLine(`Failed to import from ${modulePath}: ${pathError}`);
+                            continue;
+                        }
+                    }
+                    
+                    if (!importSucceeded) {
+                        throw new Error('All local import paths failed');
+                    }
+                } catch (localImportError) {
+                    this.outputChannel.appendLine(`Local import failed: ${localImportError}`);
+                    // Fallback to standard import
+                    try {
+                        claudeCodeModule = await import('@anthropic-ai/claude-code');
+                        this.outputChannel.appendLine('Imported from standard location');
+                    } catch (standardImportError) {
+                        this.outputChannel.appendLine(`Standard import also failed: ${standardImportError}`);
+                        throw standardImportError;
+                    }
+                }
+                
+                this.outputChannel.appendLine(`Claude Code module imported: ${typeof claudeCodeModule}`);
+                this.outputChannel.appendLine(`Available exports: ${Object.keys(claudeCodeModule)}`);
+                this.claudeCodeQuery = claudeCodeModule.query;
+                
+                if (!this.claudeCodeQuery) {
+                    throw new Error('Query function not found in Claude Code module');
+                }
+                
+                this.outputChannel.appendLine('Claude Code SDK dynamically imported successfully');
+            } catch (importError) {
+                this.outputChannel.appendLine(`Failed to import Claude Code SDK: ${importError}`);
+                this.outputChannel.appendLine(`Import error stack: ${importError instanceof Error ? importError.stack : 'No stack trace'}`);
+                throw new Error(`Claude Code SDK import failed: ${importError}`);
+            }
 
             this.isInitialized = true;
             

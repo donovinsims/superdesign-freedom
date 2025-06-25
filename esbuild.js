@@ -35,12 +35,12 @@ async function main() {
 		sourcesContent: false,
 		platform: 'node',
 		outfile: 'dist/extension.js',
-		external: ['vscode', '@anthropic-ai/claude-code'],
+		external: ['vscode'],
 		logLevel: 'silent',
 		plugins: [
 			/* add to the end of plugins array */
 			esbuildProblemMatcherPlugin,
-		],
+		]
 	});
 
 	// Webview build context
@@ -80,6 +80,30 @@ async function main() {
 		]);
 		await ctx.dispose();
 		await webviewCtx.dispose();
+		
+		// Copy Claude Code SDK to dist for runtime access
+		const fs = require('fs');
+		const path = require('path');
+		const srcPath = path.join(__dirname, 'node_modules', '@anthropic-ai', 'claude-code');
+		const destPath = path.join(__dirname, 'dist', 'node_modules', '@anthropic-ai', 'claude-code');
+		
+		// Create directory structure
+		fs.mkdirSync(path.dirname(destPath), { recursive: true });
+		
+		// Copy files
+		function copyDir(src, dest) {
+			fs.mkdirSync(dest, { recursive: true });
+			const entries = fs.readdirSync(src, { withFileTypes: true });
+			for (let entry of entries) {
+				const srcPath = path.join(src, entry.name);
+				const destPath = path.join(dest, entry.name);
+				entry.isDirectory() ? copyDir(srcPath, destPath) : fs.copyFileSync(srcPath, destPath);
+			}
+		}
+		
+		copyDir(srcPath, destPath);
+		console.log('Claude Code SDK copied to dist/');
+		
 		console.log('Build complete!');
 	}
 }
