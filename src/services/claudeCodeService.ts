@@ -2,7 +2,15 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { query, type SDKMessage, type Options as ClaudeCodeOptions } from "@anthropic-ai/claude-code";
+
+// Dynamic import types for Claude Code
+type SDKMessage = any; // Will be properly typed when imported
+type ClaudeCodeOptions = any; // Will be properly typed when imported  
+type QueryFunction = (params: {
+    prompt: string;
+    abortController?: AbortController;
+    options?: any;
+}) => AsyncGenerator<SDKMessage>;
 
 export class ClaudeCodeService {
     private isInitialized = false;
@@ -10,6 +18,7 @@ export class ClaudeCodeService {
     private workingDirectory: string = '';
     private outputChannel: vscode.OutputChannel;
     private currentSessionId: string | null = null;
+    private claudeCodeQuery: QueryFunction | null = null;
 
     constructor(outputChannel: vscode.OutputChannel) {
         this.outputChannel = outputChannel;
@@ -55,6 +64,12 @@ export class ClaudeCodeService {
             // Set the environment variable for Claude Code SDK
             this.outputChannel.appendLine('Setting environment variable for Claude Code SDK');
             process.env.ANTHROPIC_API_KEY = apiKey;
+
+            // Dynamically import Claude Code SDK
+            this.outputChannel.appendLine('Dynamically importing Claude Code SDK...');
+            const claudeCodeModule = await import('@anthropic-ai/claude-code');
+            this.claudeCodeQuery = claudeCodeModule.query;
+            this.outputChannel.appendLine('Claude Code SDK dynamically imported successfully');
 
             this.isInitialized = true;
             
@@ -116,7 +131,7 @@ export class ClaudeCodeService {
         if (this.initializationPromise) {
             await this.initializationPromise;
         }
-        if (!this.isInitialized) {
+        if (!this.isInitialized || !this.claudeCodeQuery) {
             throw new Error('Claude Code SDK not initialized');
         }
     }
@@ -271,8 +286,12 @@ Your goal is to extract a generalized and reusable design system from the screen
             
             this.outputChannel.appendLine('Starting Claude Code SDK query...');
 
+            if (!this.claudeCodeQuery) {
+                throw new Error('Claude Code SDK not properly initialized - query function not available');
+            }
+
             let messageCount = 0;
-            for await (const message of query(queryParams)) {
+            for await (const message of this.claudeCodeQuery(queryParams)) {
                 messageCount++;
                 const subtype = 'subtype' in message ? message.subtype : undefined;
                 this.outputChannel.appendLine(`Received message ${messageCount}: type=${message}`);
