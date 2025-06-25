@@ -1,9 +1,10 @@
 {
   "name": "superdesign",
   "displayName": "superdesign",
-  "description": "Cursor for Figma",
+  "description": "The 1st Design Agent lives inside your IDE",
   "version": "0.0.1",
-  "publisher": "superdesign",
+  "publisher": "iganbold",
+  "icon": "src/assets/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/superdesigndev/superdesign"
@@ -12,7 +13,28 @@
     "vscode": "^1.95.0"
   },
   "categories": [
+    "AI",
     "Other"
+  ],
+  "keywords": [
+    "design",
+    "ui",
+    "mockup",
+    "wireframe",
+    "component",
+    "ai",
+    "agent",
+    "figma",
+    "prototype",
+    "layout",
+    "frontend",
+    "react",
+    "html",
+    "css",
+    "claude",
+    "anthropic",
+    "generator",
+    "automation"
   ],
   "activationEvents": [
     "onCommand:superdesign.helloWorld"
@@ -82,7 +104,7 @@
         {
           "id": "superdesign-sidebar",
           "title": "Superdesign",
-          "icon": "$(sparkle)"
+          "icon": "src/assets/icon.svg"
         }
       ]
     },

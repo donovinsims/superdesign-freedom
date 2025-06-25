@@ -137,7 +137,7 @@ async function submitEmailToSupabase(email: string, sidebarProvider: ChatSidebar
 
 export function activate(context: vscode.ExtensionContext) {
 	outputChannel.appendLine('Superdesign extension is now active!');
-	outputChannel.show(); // Show the output channel
+	// Note: Users can manually open output via View → Output → Select "Superdesign" if needed
 
 	// Initialize Claude Code service
 	outputChannel.appendLine('Creating ClaudeCodeService...');

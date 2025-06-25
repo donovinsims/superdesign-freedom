@@ -1,10 +1,12 @@
 # 🧠 SuperDesign — AI Design Agent for Your IDE
 
+### **By:** [AI Jason](https://x.com/jasonzhou1993) & [JackJack](https://x.com/jackjack_eth)
+
 SuperDesign is the first **open-source design agent** that lives right inside your IDE.  
 Generate UI mockups, components, and wireframes directly from natural language prompts.  
 Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
 
-> ✨ “Why design one option when you can explore ten?” — SuperDesign
+> ✨ "Why design one option when you can explore ten?" — SuperDesign
 
 ---
 
@@ -31,7 +33,7 @@ Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
 
 1. **Install the Extension** from the Cursor/VS Code Marketplace
 2. Open the `SuperDesign` sidebar panel
-3. Type a prompt (e.g., _“Design a modern login screen”_)
+3. Type a prompt (e.g., _"Design a modern login screen"_)
 4. View generated mockups, components, and wireframes
 5. Fork, tweak, and paste into your project
 
@@ -70,4 +72,4 @@ Pull requests are welcome. Star the repo and join us on [Discord](https://discor
 
 ## 🪪 License
 
-MIT — Built with ❤️ by [AI Jason](https://x.com/jasonzhou1993) & [JackJack](https://x.com/jackjack_eth)
+MIT — Built with ❤️ by the SuperDesign team
