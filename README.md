@@ -9,7 +9,10 @@ Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
 > ✨ "Why design one option when you can explore ten?" — SuperDesign
 
 [Join discord](https://discord.gg/FYr49d6cQ9)
+
 [Upvote on Hackernews](https://news.ycombinator.com/item?id=44376003)
+
+[Install guide](https://www.superdesign.dev/)
 
 ---
 
@@ -25,10 +28,13 @@ Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
 
 ## 🧠 Works Great With
 
-- [Cursor](cursor:extension/iganbold.superdesign)
-- [Windsurf](windsurf:extension/iganbold.superdesign)
+- [Cursor](https://marketplace.visualstudio.com/items?itemName=iganbold.superdesign)
+- [Windsurf](https://marketplace.visualstudio.com/items?itemName=iganbold.superdesign)
 - [Claude Code](https://marketplace.visualstudio.com/items?itemName=iganbold.superdesign)
-- [Visual Studio Code](vscode:extension/iganbold.superdesign)
+- [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=iganbold.superdesign)
+
+
+👉 [Install here](https://www.superdesign.dev/)
 
 ---
 
