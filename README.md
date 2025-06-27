@@ -73,7 +73,7 @@ Pull requests are welcome. Star the repo and join us on [Discord](https://discor
 ## 🔗 Links
 
 - 🌐 Website: [https://superdesign.dev](https://superdesign.dev)
-- 📦 GitHub: [https://github.com/your-org/superdesign](https://github.com/your-org/superdesign)
+- 📦 GitHub: [https://github.com/superdesigndev/superdesign](https://github.com/superdesigndev/superdesign)
 - 💬 Discord: [Join the Community](https://discord.gg/XYZ)
 - 🐦 Twitter / X: [@SuperDesignDev](https://x.com/SuperDesignDev)
 
