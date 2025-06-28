@@ -393,10 +393,10 @@ class SuperdesignCanvasPanel {
 			return;
 		}
 
-		// Watch for changes in .superdesign/design_iterations/*.html and *.svg
+		// Watch for changes in .superdesign/design_iterations/*.html, *.svg, and *.css
 		const pattern = new vscode.RelativePattern(
 			workspaceFolder, 
-			'.superdesign/design_iterations/**/*.{html,svg}'
+			'.superdesign/design_iterations/**/*.{html,svg,css}'
 		);
 
 		this._fileWatcher = vscode.workspace.createFileSystemWatcher(
@@ -549,11 +549,17 @@ class SuperdesignCanvasPanel {
 						]);
 
 						const fileType = fileName.toLowerCase().endsWith('.svg') ? 'svg' : 'html';
+						let htmlContent = Buffer.from(content).toString('utf8');
+						
+						// For HTML files, inline any external CSS files
+						if (fileType === 'html') {
+							htmlContent = await this._inlineExternalCSS(htmlContent, designFolder);
+						}
 						
 						return {
 							name: fileName,
 							path: filePath.fsPath,
-							content: Buffer.from(content).toString('utf8'),
+							content: htmlContent,
 							size: stat.size,
 							modified: new Date(stat.mtime),
 							fileType
@@ -582,6 +588,44 @@ class SuperdesignCanvasPanel {
 				data: { error: `Failed to load design files: ${error}` }
 			});
 		}
+	}
+
+	private async _inlineExternalCSS(htmlContent: string, designFolder: vscode.Uri): Promise<string> {
+		// Match link tags that reference CSS files
+		const linkRegex = /<link\s+[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+		let modifiedContent = htmlContent;
+		const matches = Array.from(htmlContent.matchAll(linkRegex));
+		
+		for (const match of matches) {
+			const fullLinkTag = match[0];
+			const cssFileName = match[1];
+			
+			try {
+				// Only process relative paths (not absolute URLs)
+				if (!cssFileName.startsWith('http') && !cssFileName.startsWith('//')) {
+					const cssFilePath = vscode.Uri.joinPath(designFolder, cssFileName);
+					
+					// Check if CSS file exists
+					try {
+						const cssContent = await vscode.workspace.fs.readFile(cssFilePath);
+						const cssText = Buffer.from(cssContent).toString('utf8');
+						
+						// Replace the link tag with a style tag containing the CSS content
+						const styleTag = `<style>\n${cssText}\n</style>`;
+						modifiedContent = modifiedContent.replace(fullLinkTag, styleTag);
+						
+						console.log(`Inlined CSS file: ${cssFileName}`);
+					} catch (cssError) {
+						console.warn(`Could not read CSS file ${cssFileName}:`, cssError);
+						// Leave the original link tag in place if CSS file can't be read
+					}
+				}
+			} catch (error) {
+				console.warn(`Error processing CSS link ${cssFileName}:`, error);
+			}
+		}
+		
+		return modifiedContent;
 	}
 }
 
