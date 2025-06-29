@@ -74,6 +74,11 @@
         "command": "superdesign.resetWelcome",
         "title": "Reset Welcome Screen",
         "category": "Superdesign"
+      },
+      {
+        "command": "superdesign.initializeProject",
+        "title": "Initialize Superdesign",
+        "category": "Superdesign"
       }
     ],
     "menus": {

@@ -135,6 +135,102 @@ async function submitEmailToSupabase(email: string, sidebarProvider: ChatSidebar
 	}
 }
 
+// Function to initialize Superdesign project structure
+async function initializeSuperdesignProject() {
+	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+	if (!workspaceFolder) {
+		vscode.window.showErrorMessage('No workspace folder found. Please open a workspace first.');
+		return;
+	}
+
+	const workspaceRoot = workspaceFolder.uri;
+	const superdesignFolder = vscode.Uri.joinPath(workspaceRoot, '.superdesign');
+
+	// Detect OS for correct keyboard shortcut
+	const isWindows = process.platform === 'win32';
+	const shortcut = isWindows ? 'Ctrl+Shift+P' : 'Command+Shift+P';
+
+	const designRuleContent = `When asked to design UI & frontend interface
+
+Create a single html page inside .superdesign/design_iterations (Can create separate css for style if needed)
+
+Name the html like \`xxx_n.html\`, e.g. todo_app_1.html, todo_app_2.html
+
+No need to reference existing html pages unless user specifically prompted you to do so
+
+UI has to look awesome, feel like shadcn style possibly
+
+After finished creating, prompt users to use ${shortcut} to search for \`superdesign: Open Canvas View\` to preview design`;
+
+	const designRuleMdcContent = `---
+description: Use this rule when asked to do any frontend or UI design
+globs: 
+alwaysApply: false
+---
+${designRuleContent}`;
+
+	try {
+		// Create .superdesign/design_iterations directory
+		const designIterationsFolder = vscode.Uri.joinPath(superdesignFolder, 'design_iterations');
+		await vscode.workspace.fs.createDirectory(designIterationsFolder);
+
+		// Create .cursor/rules directory if it doesn't exist
+		const cursorRulesFolder = vscode.Uri.joinPath(workspaceRoot, '.cursor', 'rules');
+		try {
+			await vscode.workspace.fs.stat(cursorRulesFolder);
+		} catch {
+			await vscode.workspace.fs.createDirectory(cursorRulesFolder);
+		}
+
+		// Create or append to design.mdc
+		const designMdcPath = vscode.Uri.joinPath(cursorRulesFolder, 'design.mdc');
+		try {
+			const existingContent = await vscode.workspace.fs.readFile(designMdcPath);
+			const currentContent = Buffer.from(existingContent).toString('utf8');
+			if (!currentContent.includes('superdesign: Open Canvas View')) {
+				const updatedContent = currentContent + '\n\n' + designRuleMdcContent;
+				await vscode.workspace.fs.writeFile(designMdcPath, Buffer.from(updatedContent, 'utf8'));
+			}
+		} catch {
+			// File doesn't exist, create it
+			await vscode.workspace.fs.writeFile(designMdcPath, Buffer.from(designRuleMdcContent, 'utf8'));
+		}
+
+		// Create or append to CLAUDE.md
+		const claudeMdPath = vscode.Uri.joinPath(workspaceRoot, 'CLAUDE.md');
+		try {
+			const existingContent = await vscode.workspace.fs.readFile(claudeMdPath);
+			const currentContent = Buffer.from(existingContent).toString('utf8');
+			if (!currentContent.includes('superdesign: Open Canvas View')) {
+				const updatedContent = currentContent + '\n\n' + designRuleContent;
+				await vscode.workspace.fs.writeFile(claudeMdPath, Buffer.from(updatedContent, 'utf8'));
+			}
+		} catch {
+			// File doesn't exist, create it
+			await vscode.workspace.fs.writeFile(claudeMdPath, Buffer.from(designRuleContent, 'utf8'));
+		}
+
+		// Create or append to .windsurfrules
+		const windsurfRulesPath = vscode.Uri.joinPath(workspaceRoot, '.windsurfrules');
+		try {
+			const existingContent = await vscode.workspace.fs.readFile(windsurfRulesPath);
+			const currentContent = Buffer.from(existingContent).toString('utf8');
+			if (!currentContent.includes('superdesign: Open Canvas View')) {
+				const updatedContent = currentContent + '\n\n' + designRuleContent;
+				await vscode.workspace.fs.writeFile(windsurfRulesPath, Buffer.from(updatedContent, 'utf8'));
+			}
+		} catch {
+			// File doesn't exist, create it
+			await vscode.workspace.fs.writeFile(windsurfRulesPath, Buffer.from(designRuleContent, 'utf8'));
+		}
+
+		vscode.window.showInformationMessage('✅ Superdesign project initialized successfully! Created .superdesign folder and design rules for Cursor, Claude, and Windsurf.');
+		
+	} catch (error) {
+		vscode.window.showErrorMessage(`Failed to initialize Superdesign project: ${error}`);
+	}
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	outputChannel.appendLine('Superdesign extension is now active!');
 	// Note: Users can manually open output via View → Output → Select "Superdesign" if needed
@@ -197,6 +293,11 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Welcome screen has been reset. Refresh the sidebar to see the welcome screen again.');
 	});
 
+	// Register initialize project command
+	const initializeProjectDisposable = vscode.commands.registerCommand('superdesign.initializeProject', async () => {
+		await initializeSuperdesignProject();
+	});
+
 	// Set up message handler for auto-canvas functionality
 	sidebarProvider.setMessageHandler((message) => {
 		switch (message.command) {
@@ -246,7 +347,8 @@ export function activate(context: vscode.ExtensionContext) {
 		showSidebarDisposable,
 		openCanvasDisposable,
 		clearChatDisposable,
-		resetWelcomeDisposable
+		resetWelcomeDisposable,
+		initializeProjectDisposable
 	);
 }
 
