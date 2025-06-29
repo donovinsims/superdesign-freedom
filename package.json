@@ -161,7 +161,9 @@
     "test:llm": "tsc --project tsconfig.test.json && node dist-test/test/llm-service.test.js",
     "test:core": "tsc --project tsconfig.test.json && node dist-test/test/core-components.test.js",
     "test:read": "tsc --project tsconfig.test.json && node dist-test/test/read-tool.test.js",
-    "test:agent": "tsc --project tsconfig.test.json && node dist-test/test/llm-service.test.js && node dist-test/test/core-components.test.js"
+    "test:write-edit": "tsc --project tsconfig.test.json && node dist-test/test/write-edit-tools.test.js",
+    "test:agent": "tsc --project tsconfig.test.json && node dist-test/test/llm-service.test.js && node dist-test/test/core-components.test.js",
+    "test:tools": "tsc --project tsconfig.test.json && node dist-test/test/read-tool.test.js && node dist-test/test/write-edit-tools.test.js"
   },
   "devDependencies": {
     "@types/mime-types": "^3.0.1",

@@ -1,5 +1,8 @@
 import { DefaultToolRegistry, ToolRegistry, Tool } from './base-tool';
 import { ReadTool } from './read-tool';
+import { WriteTool } from './write-tool';
+import { EditTool } from './edit-tool';
+import { MultiEditTool } from './multiedit-tool';
 
 /**
  * SuperDesign Tool Registry
@@ -18,11 +21,9 @@ export class SuperDesignToolRegistry extends DefaultToolRegistry {
   private registerSuperDesignTools(): void {
     // File Operations
     this.registerTool(new ReadTool());
-    
-    // TODO: Register additional tools as they're implemented
-    // this.registerTool(new WriteTool());
-    // this.registerTool(new EditTool());
-    // this.registerTool(new MultiEditTool());
+    this.registerTool(new WriteTool());
+    this.registerTool(new EditTool());
+    this.registerTool(new MultiEditTool());
     
     // TODO: Directory Operations
     // this.registerTool(new LSTool());
@@ -64,8 +65,8 @@ export class SuperDesignToolRegistry extends DefaultToolRegistry {
   validateSupport(): { isValid: boolean; missingTools: string[] } {
     const requiredTools = [
       'read',   // ReadTool - ✅ Implemented
-      'write',  // WriteTool - TODO
-      'edit',   // EditTool - TODO
+      'write',  // WriteTool - ✅ Implemented
+      'edit',   // EditTool - ✅ Implemented
       'ls'      // LSTool - TODO
     ];
 
