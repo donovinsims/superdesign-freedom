@@ -1,0 +1,432 @@
+import * as vscode from 'vscode';
+import { ToolRegistry, ToolResult } from '../tools/base-tool';
+
+/**
+ * Message types for SuperDesign compatibility
+ */
+export interface SDKMessage {
+  type: 'user' | 'assistant' | 'system' | 'result';
+  subtype?: string;
+  message?: any;
+  content?: string;
+  session_id?: string;
+  parent_tool_use_id?: string;
+  duration_ms?: number;
+  total_cost_usd?: number;
+}
+
+/**
+ * Agent options for task execution
+ */
+export interface AgentOptions {
+  maxTurns?: number;
+  temperature?: number;
+  maxTokens?: number;
+  systemPrompt?: string;
+  abortController?: AbortController;
+  onMessage?: (message: SDKMessage) => void;
+  sessionId?: string;
+}
+
+/**
+ * Task execution result
+ */
+export interface TaskResult {
+  success: boolean;
+  messages: SDKMessage[];
+  finalMessage?: string;
+  toolsUsed: string[];
+  duration: number;
+  totalCost?: number;
+  error?: string;
+}
+
+/**
+ * Project analysis result
+ */
+export interface ProjectAnalysis {
+  projectType: string;
+  techStack: string[];
+  structure: {
+    directories: string[];
+    files: string[];
+    entryPoints: string[];
+  };
+  dependencies: {
+    [key: string]: string;
+  };
+  scripts: {
+    [key: string]: string;
+  };
+  supportsTypeScript: boolean;
+  hasTests: boolean;
+  buildSystem: string;
+}
+
+/**
+ * Agent response for conversation
+ */
+export interface AgentResponse {
+  messages: SDKMessage[];
+  isComplete: boolean;
+  suggestedActions?: string[];
+  context?: any;
+}
+
+/**
+ * Conversation turn for maintaining context
+ */
+export interface ConversationTurn {
+  id: string;
+  timestamp: Date;
+  userMessage: string;
+  agentResponse: AgentResponse;
+  toolResults: ToolResult[];
+}
+
+/**
+ * Agent session for maintaining conversation context
+ */
+export interface AgentSession {
+  id: string;
+  startTime: Date;
+  lastActivity: Date;
+  projectPath: string;
+  turns: ConversationTurn[];
+  context: Map<string, any>;
+}
+
+/**
+ * Core coding agent interface
+ */
+export interface CodingAgent {
+  /**
+   * Execute a coding task with streaming support
+   */
+  executeTaskWithStreaming(
+    request: string,
+    options?: AgentOptions
+  ): Promise<TaskResult>;
+
+  /**
+   * Execute a simple coding task
+   */
+  executeTask(
+    request: string,
+    projectPath: string,
+    options?: AgentOptions
+  ): Promise<TaskResult>;
+
+  /**
+   * Analyze a codebase and return project information
+   */
+  analyzeCodbase(projectPath: string): Promise<ProjectAnalysis>;
+
+  /**
+   * Continue an existing conversation
+   */
+  continueConversation(
+    message: string,
+    conversationId: string,
+    options?: AgentOptions
+  ): Promise<AgentResponse>;
+
+  /**
+   * Get or create a session
+   */
+  getSession(sessionId: string, projectPath: string): AgentSession;
+
+  /**
+   * Clean up old sessions
+   */
+  cleanupSessions(maxAge?: number): void;
+
+  /**
+   * Get available tools
+   */
+  getAvailableTools(): string[];
+
+  /**
+   * Check if agent is ready
+   */
+  isReady(): boolean;
+}
+
+/**
+ * SuperDesign specific agent interface extending CodingAgent
+ * This matches the ClaudeCodeService interface for drop-in replacement
+ */
+export interface SuperDesignAgent extends CodingAgent {
+  /**
+   * Main query method matching ClaudeCodeService interface
+   */
+  query(
+    prompt: string,
+    options?: Partial<AgentOptions>,
+    abortController?: AbortController,
+    onMessage?: (message: SDKMessage) => void
+  ): Promise<SDKMessage[]>;
+
+  /**
+   * Wait for agent initialization
+   */
+  waitForInitialization(): Promise<boolean>;
+
+  /**
+   * Get the current working directory
+   */
+  getWorkingDirectory(): string;
+
+  /**
+   * Set the working directory
+   */
+  setWorkingDirectory(path: string): void;
+
+  /**
+   * Check if agent is initialized
+   */
+  readonly isInitialized: boolean;
+}
+
+/**
+ * Agent configuration
+ */
+export interface AgentConfig {
+  workingDirectory: string;
+  outputChannel: vscode.OutputChannel;
+  toolRegistry: ToolRegistry;
+  llmConfig: {
+    provider: string;
+    model: string;
+    apiKey: string;
+    maxTokens?: number;
+    temperature?: number;
+  };
+  systemPrompts: {
+    default: string;
+    design: string;
+    coding: string;
+  };
+  security: {
+    allowedPaths: string[];
+    restrictToWorkspace: boolean;
+  };
+}
+
+/**
+ * Tool execution context for agents
+ */
+export interface AgentExecutionContext {
+  sessionId: string;
+  workingDirectory: string;
+  outputChannel: vscode.OutputChannel;
+  abortController?: AbortController;
+  currentTurn: number;
+  maxTurns: number;
+  toolRegistry: ToolRegistry;
+}
+
+/**
+ * Agent factory interface for creating different types of agents
+ */
+export interface AgentFactory {
+  /**
+   * Create a custom coding agent
+   */
+  createCustomAgent(config: AgentConfig): Promise<SuperDesignAgent>;
+
+  /**
+   * Create a Claude Code agent wrapper for compatibility
+   */
+  createClaudeCodeAgent(outputChannel: vscode.OutputChannel): Promise<SuperDesignAgent>;
+
+  /**
+   * Get the appropriate agent based on configuration
+   */
+  getAgent(type: 'custom' | 'claude-code', config?: AgentConfig): Promise<SuperDesignAgent>;
+}
+
+/**
+ * Events that agents can emit
+ */
+export interface AgentEvents {
+  'task-started': { sessionId: string; task: string };
+  'task-completed': { sessionId: string; result: TaskResult };
+  'task-failed': { sessionId: string; error: string };
+  'tool-executed': { sessionId: string; tool: string; result: ToolResult };
+  'message-received': { sessionId: string; message: SDKMessage };
+}
+
+/**
+ * Agent event emitter interface
+ */
+export interface AgentEventEmitter {
+  on<K extends keyof AgentEvents>(event: K, listener: (data: AgentEvents[K]) => void): void;
+  off<K extends keyof AgentEvents>(event: K, listener: (data: AgentEvents[K]) => void): void;
+  emit<K extends keyof AgentEvents>(event: K, data: AgentEvents[K]): void;
+}
+
+/**
+ * Base agent implementation class
+ */
+export abstract class BaseAgent implements SuperDesignAgent {
+  protected config: AgentConfig;
+  protected sessions = new Map<string, AgentSession>();
+  protected isInitializedFlag = false;
+
+  constructor(config: AgentConfig) {
+    this.config = config;
+  }
+
+  // Abstract methods that must be implemented
+  abstract executeTaskWithStreaming(request: string, options?: AgentOptions): Promise<TaskResult>;
+  abstract executeTask(request: string, projectPath: string, options?: AgentOptions): Promise<TaskResult>;
+  abstract query(prompt: string, options?: Partial<AgentOptions>, abortController?: AbortController, onMessage?: (message: SDKMessage) => void): Promise<SDKMessage[]>;
+
+  // Concrete implementations
+  async analyzeCodbase(projectPath: string): Promise<ProjectAnalysis> {
+    // Default implementation - can be overridden
+    const fs = require('fs');
+    const path = require('path');
+
+    const analysis: ProjectAnalysis = {
+      projectType: 'unknown',
+      techStack: [],
+      structure: { directories: [], files: [], entryPoints: [] },
+      dependencies: {},
+      scripts: {},
+      supportsTypeScript: false,
+      hasTests: false,
+      buildSystem: 'unknown'
+    };
+
+    try {
+      // Check for package.json
+      const packageJsonPath = path.join(projectPath, 'package.json');
+      if (fs.existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+        analysis.dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
+        analysis.scripts = packageJson.scripts || {};
+        analysis.projectType = 'node';
+        
+        // Detect tech stack
+        if (analysis.dependencies['react']) {
+          analysis.techStack.push('React');
+        }
+        if (analysis.dependencies['vue']) {
+          analysis.techStack.push('Vue');
+        }
+        if (analysis.dependencies['angular']) {
+          analysis.techStack.push('Angular');
+        }
+        if (analysis.dependencies['typescript']) {
+          analysis.techStack.push('TypeScript');
+          analysis.supportsTypeScript = true;
+        }
+      }
+
+      // Check for tests
+      analysis.hasTests = fs.existsSync(path.join(projectPath, 'test')) ||
+                        fs.existsSync(path.join(projectPath, 'tests')) ||
+                        fs.existsSync(path.join(projectPath, '__tests__'));
+
+    } catch (error) {
+      this.config.outputChannel.appendLine(`[Agent] Error analyzing project: ${error}`);
+    }
+
+    return analysis;
+  }
+
+  async continueConversation(message: string, conversationId: string, options?: AgentOptions): Promise<AgentResponse> {
+    const session = this.sessions.get(conversationId);
+    if (!session) {
+      throw new Error(`Session ${conversationId} not found`);
+    }
+
+    // Update session activity
+    session.lastActivity = new Date();
+
+    // Execute the task and convert to AgentResponse
+    const result = await this.executeTaskWithStreaming(message, {
+      ...options,
+      sessionId: conversationId
+    });
+
+    const response: AgentResponse = {
+      messages: result.messages,
+      isComplete: result.success,
+      suggestedActions: result.success ? [] : ['retry', 'clarify'],
+      context: session.context
+    };
+
+    // Add turn to session
+    const turn: ConversationTurn = {
+      id: `turn-${Date.now()}`,
+      timestamp: new Date(),
+      userMessage: message,
+      agentResponse: response,
+      toolResults: []
+    };
+
+    session.turns.push(turn);
+
+    return response;
+  }
+
+  getSession(sessionId: string, projectPath: string): AgentSession {
+    let session = this.sessions.get(sessionId);
+    
+    if (!session) {
+      session = {
+        id: sessionId,
+        startTime: new Date(),
+        lastActivity: new Date(),
+        projectPath,
+        turns: [],
+        context: new Map()
+      };
+      this.sessions.set(sessionId, session);
+    }
+
+    return session;
+  }
+
+  cleanupSessions(maxAge: number = 24 * 60 * 60 * 1000): void {
+    const now = Date.now();
+    
+    for (const [sessionId, session] of this.sessions.entries()) {
+      if (now - session.lastActivity.getTime() > maxAge) {
+        this.sessions.delete(sessionId);
+      }
+    }
+  }
+
+  getAvailableTools(): string[] {
+    return this.config.toolRegistry.getAllTools().map(tool => tool.name);
+  }
+
+  isReady(): boolean {
+    return this.isInitializedFlag;
+  }
+
+  async waitForInitialization(): Promise<boolean> {
+    // Simple implementation - can be enhanced with proper Promise-based waiting
+    return this.isInitializedFlag;
+  }
+
+  getWorkingDirectory(): string {
+    return this.config.workingDirectory;
+  }
+
+  setWorkingDirectory(path: string): void {
+    this.config.workingDirectory = path;
+  }
+
+  get isInitialized(): boolean {
+    return this.isInitializedFlag;
+  }
+
+  protected setInitialized(value: boolean): void {
+    this.isInitializedFlag = value;
+  }
+} 
