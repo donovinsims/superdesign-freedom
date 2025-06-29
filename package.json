@@ -160,9 +160,11 @@
     "test": "vscode-test",
     "test:llm": "tsc --project tsconfig.test.json && node dist-test/test/llm-service.test.js",
     "test:core": "tsc --project tsconfig.test.json && node dist-test/test/core-components.test.js",
+    "test:read": "tsc --project tsconfig.test.json && node dist-test/test/read-tool.test.js",
     "test:agent": "tsc --project tsconfig.test.json && node dist-test/test/llm-service.test.js && node dist-test/test/core-components.test.js"
   },
   "devDependencies": {
+    "@types/mime-types": "^3.0.1",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.90.0",
