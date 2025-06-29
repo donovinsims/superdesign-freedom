@@ -49,6 +49,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
     const [dragPreventOverlay, setDragPreventOverlay] = React.useState(false);
     const [showCopyDropdown, setShowCopyDropdown] = React.useState(false);
     const [copyButtonState, setCopyButtonState] = React.useState<{ text: string; isSuccess: boolean }>({ text: 'Copy prompt', isSuccess: false });
+    const [copyPathButtonState, setCopyPathButtonState] = React.useState<{ text: string; isSuccess: boolean }>({ text: 'Copy design path', isSuccess: false });
 
     const handleClick = () => {
         onSelect(file.name);
@@ -174,6 +175,43 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
         console.log('Dropdown toggle clicked. Current context:', (window as any).__WEBVIEW_CONTEXT__);
         console.log('Logo URIs available:', (window as any).__WEBVIEW_CONTEXT__?.logoUris);
         setShowCopyDropdown(!showCopyDropdown);
+    };
+
+    const handleCopyDesignPath = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const designPath = `Design file: ${file.path}`;
+        
+        try {
+            await navigator.clipboard.writeText(designPath);
+            console.log(`✅ Copied design path to clipboard:`, designPath);
+            
+            // Show success state on button
+            setCopyPathButtonState({ text: 'Copied!', isSuccess: true });
+            setTimeout(() => {
+                setCopyPathButtonState({ text: 'Copy design path', isSuccess: false });
+            }, 2000);
+            
+        } catch (err) {
+            console.error('❌ Failed to copy design path to clipboard:', err);
+            
+            // Fallback: create a temporary textarea and copy
+            const textarea = document.createElement('textarea');
+            textarea.value = designPath;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            console.log(`✅ Copied design path using fallback method:`, designPath);
+            
+            // Show success state on button
+            setCopyPathButtonState({ text: 'Copied!', isSuccess: true });
+            setTimeout(() => {
+                setCopyPathButtonState({ text: 'Copy design path', isSuccess: false });
+            }, 2000);
+        }
     };
 
     const handleCreateVariations = (e: React.MouseEvent) => {
@@ -646,8 +684,12 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                         onClick={handleCreateVariations}
                         title="Create more variations based on this style"
                     >
-                        <svg className="btn-icon" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" fill="currentColor"/>
+                        <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="6" cy="6" r="3"/>
+                            <circle cx="18" cy="18" r="3"/>
+                            <circle cx="18" cy="6" r="3"/>
+                            <path d="M18 9v6"/>
+                            <path d="M9 6h6"/>
                         </svg>
                         <span className="btn-text">Create variations</span>
                     </button>
@@ -675,8 +717,12 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                             }}
                             title="Copy file content with reference prompt"
                         >
-                            <svg className="btn-icon" viewBox="0 0 24 24" fill="none">
-                                <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
+                            <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .962L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+                                <path d="M20 3v4"/>
+                                <path d="M22 5h-4"/>
+                                <path d="M4 17v2"/>
+                                <path d="M5 18H3"/>
                             </svg>
                             <span className="btn-text">{copyButtonState.text}</span>
                             <svg className="dropdown-arrow" viewBox="0 0 24 24" fill="none">
@@ -769,6 +815,19 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                             </div>
                         )}
                     </div>
+                    
+                    {/* Copy Design Path Button */}
+                    <button
+                        className={`floating-action-btn copy-path-btn ${copyPathButtonState.isSuccess ? 'success' : ''}`}
+                        onClick={handleCopyDesignPath}
+                        title="Copy absolute path of design file"
+                    >
+                        <svg className="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+                        </svg>
+                        <span className="btn-text">{copyPathButtonState.text}</span>
+                    </button>
                 </div>
             )}
 
