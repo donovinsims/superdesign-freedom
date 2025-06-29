@@ -3,6 +3,10 @@ import { ReadTool } from './read-tool';
 import { WriteTool } from './write-tool';
 import { EditTool } from './edit-tool';
 import { MultiEditTool } from './multiedit-tool';
+import { LSTool } from './ls-tool';
+import { GrepTool } from './grep-tool';
+import { GlobTool } from './glob-tool';
+import { BashTool } from './bash-tool';
 
 /**
  * SuperDesign Tool Registry
@@ -25,15 +29,13 @@ export class SuperDesignToolRegistry extends DefaultToolRegistry {
     this.registerTool(new EditTool());
     this.registerTool(new MultiEditTool());
     
-    // TODO: Directory Operations
-    // this.registerTool(new LSTool());
+    // Directory & Search Operations
+    this.registerTool(new LSTool());
+    this.registerTool(new GrepTool());
+    this.registerTool(new GlobTool());
     
-    // TODO: Search Operations
-    // this.registerTool(new GrepTool());
-    // this.registerTool(new GlobTool());
-    
-    // TODO: Command Execution
-    // this.registerTool(new BashTool());
+    // Command Execution
+    this.registerTool(new BashTool());
   }
 
   /**
@@ -67,7 +69,10 @@ export class SuperDesignToolRegistry extends DefaultToolRegistry {
       'read',   // ReadTool - ✅ Implemented
       'write',  // WriteTool - ✅ Implemented
       'edit',   // EditTool - ✅ Implemented
-      'ls'      // LSTool - TODO
+      'ls',     // LSTool - ✅ Implemented
+      'grep',   // GrepTool - ✅ Implemented
+      'glob',   // GlobTool - ✅ Implemented
+      'bash'    // BashTool - ✅ Implemented
     ];
 
     const missingTools = requiredTools.filter(toolName => !this.hasTool(toolName));
