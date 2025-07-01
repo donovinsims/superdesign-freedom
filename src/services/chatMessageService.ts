@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import { ClaudeCodeService } from './claudeCodeService';
+import { AgentService } from '../types/agent';
 
 export class ChatMessageService {
     private currentRequestController?: AbortController;
 
     constructor(
-        private claudeService: ClaudeCodeService,
+        private agentService: AgentService,
         private outputChannel: vscode.OutputChannel
     ) {}
 
@@ -22,11 +23,11 @@ export class ChatMessageService {
             });
             
             // Use the enhanced file tools method with streaming callback
-            const response = await this.claudeService.query(
+            const response = await this.agentService.query(
                 message.message, 
                 undefined, 
                 this.currentRequestController,
-                (streamMessage) => {
+                (streamMessage: any) => {
                     // Process and send each message as it arrives
                     this.handleStreamMessage(streamMessage, webview);
                 }

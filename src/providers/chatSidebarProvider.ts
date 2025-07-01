@@ -3,6 +3,7 @@ import { ClaudeCodeService } from '../services/claudeCodeService';
 import { ChatMessageService } from '../services/chatMessageService';
 import { generateWebviewHtml } from '../templates/webviewTemplate';
 import { WebviewContext } from '../types/context';
+import { AgentService } from '../types/agent';
 
 export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     public static readonly VIEW_TYPE = 'superdesign.chatView';
@@ -12,10 +13,10 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly claudeService: ClaudeCodeService,
+        private readonly agentService: AgentService,
         private readonly outputChannel: vscode.OutputChannel
     ) {
-        this.messageHandler = new ChatMessageService(claudeService, outputChannel);
+        this.messageHandler = new ChatMessageService(agentService, outputChannel);
     }
 
     public setMessageHandler(handler: (message: any) => void) {

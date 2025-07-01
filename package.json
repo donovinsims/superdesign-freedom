@@ -54,6 +54,16 @@
         "category": "Superdesign"
       },
       {
+        "command": "superdesign.configureOpenAIApiKey",
+        "title": "Configure OpenAI API Key",
+        "category": "Superdesign"
+      },
+      {
+        "command": "superdesign.selectAIProvider",
+        "title": "Select AI Model Provider",
+        "category": "Superdesign"
+      },
+      {
         "command": "superdesign.showChatSidebar",
         "title": "Show Chat Sidebar",
         "category": "Superdesign"
@@ -141,6 +151,16 @@
           "default": "claude-code",
           "description": "Choose between Claude Code agent or custom coding agent",
           "scope": "application"
+        },
+        "superdesign.aiModelProvider": {
+          "type": "string",
+          "enum": [
+            "openai",
+            "anthropic"
+          ],
+          "default": "openai",
+          "description": "AI model provider for custom agent (OpenAI or Anthropic)",
+          "scope": "application"
         }
       }
     }
@@ -200,6 +220,7 @@
     "react-markdown": "^10.1.0",
     "react-zoom-pan-pinch": "^3.7.0",
     "rehype-highlight": "^7.0.2",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "zod": "^3.25.67"
   }
 }

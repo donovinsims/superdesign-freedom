@@ -2,6 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { ClaudeCodeService } from './services/claudeCodeService';
+import { CustomAgentService } from './services/customAgentService';
 import { ChatSidebarProvider } from './providers/chatSidebarProvider';
 import { ChatMessageService } from './services/chatMessageService';
 import { generateWebviewHtml } from './templates/webviewTemplate';
@@ -843,10 +844,10 @@ export function activate(context: vscode.ExtensionContext) {
 	outputChannel.appendLine('Superdesign extension is now active!');
 	// Note: Users can manually open output via View → Output → Select "Superdesign" if needed
 
-	// Initialize Claude Code service
-	outputChannel.appendLine('Creating ClaudeCodeService...');
-	const claudeService = new ClaudeCodeService(outputChannel);
-	outputChannel.appendLine('ClaudeCodeService created');
+	// Initialize Custom Agent service
+	outputChannel.appendLine('Creating CustomAgentService...');
+	const customAgent = new CustomAgentService(outputChannel);
+	outputChannel.appendLine('CustomAgentService created');
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
@@ -857,13 +858,21 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Hello World from superdesign!');
 	});
 
-	// Register API key configuration command
+	// Register API key configuration commands
 	const configureApiKeyDisposable = vscode.commands.registerCommand('superdesign.configureApiKey', async () => {
 		await configureAnthropicApiKey();
 	});
 
+	const configureOpenAIApiKeyDisposable = vscode.commands.registerCommand('superdesign.configureOpenAIApiKey', async () => {
+		await configureOpenAIApiKey();
+	});
+
+	const selectAIProviderDisposable = vscode.commands.registerCommand('superdesign.selectAIProvider', async () => {
+		await selectAIProvider();
+	});
+
 	// Create the chat sidebar provider
-	const sidebarProvider = new ChatSidebarProvider(context.extensionUri, claudeService, outputChannel);
+	const sidebarProvider = new ChatSidebarProvider(context.extensionUri, customAgent, outputChannel);
 	
 	// Register the webview view provider for sidebar
 	const sidebarDisposable = vscode.window.registerWebviewViewProvider(
@@ -951,6 +960,8 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		helloWorldDisposable, 
 		configureApiKeyDisposable,
+		configureOpenAIApiKeyDisposable,
+		selectAIProviderDisposable,
 		sidebarDisposable,
 		showSidebarDisposable,
 		openCanvasDisposable,
@@ -1001,6 +1012,108 @@ async function configureAnthropicApiKey() {
 			vscode.window.showInformationMessage('API key unchanged (already configured)');
 		} else {
 			vscode.window.showWarningMessage('No API key was set');
+		}
+	}
+}
+
+// Function to configure OpenAI API key
+async function configureOpenAIApiKey() {
+	const currentKey = vscode.workspace.getConfiguration('superdesign').get<string>('openaiApiKey');
+
+	const input = await vscode.window.showInputBox({
+		title: 'Configure OpenAI API Key',
+		prompt: 'Enter your OpenAI API key (get one from https://platform.openai.com/api-keys)',
+		value: currentKey ? '••••••••••••••••' : '',
+		password: true,
+		placeHolder: 'sk-...',
+		validateInput: (value) => {
+			if (!value || value.trim().length === 0) {
+				return 'API key cannot be empty';
+			}
+			if (value === '••••••••••••••••') {
+				return null; // User didn't change the masked value, that's OK
+			}
+			if (!value.startsWith('sk-')) {
+				return 'OpenAI API keys should start with "sk-"';
+			}
+			return null;
+		}
+	});
+
+	if (input !== undefined) {
+		// Only update if user didn't just keep the masked value
+		if (input !== '••••••••••••••••') {
+			try {
+				await vscode.workspace.getConfiguration('superdesign').update(
+					'openaiApiKey', 
+					input.trim(), 
+					vscode.ConfigurationTarget.Global
+				);
+				vscode.window.showInformationMessage('✅ OpenAI API key configured successfully!');
+			} catch (error) {
+				vscode.window.showErrorMessage(`Failed to save API key: ${error}`);
+			}
+		} else if (currentKey) {
+			vscode.window.showInformationMessage('API key unchanged (already configured)');
+		} else {
+			vscode.window.showWarningMessage('No API key was set');
+		}
+	}
+}
+
+// Function to select AI model provider
+async function selectAIProvider() {
+	const config = vscode.workspace.getConfiguration('superdesign');
+	const currentProvider = config.get<string>('aiModelProvider', 'openai');
+
+	const options = [
+		{
+			label: 'OpenAI (GPT-4o)',
+			detail: 'Use OpenAI GPT-4o model',
+			value: 'openai',
+			picked: currentProvider === 'openai'
+		},
+		{
+			label: 'Anthropic (Claude 3.5 Sonnet)',
+			detail: 'Use Anthropic Claude 3.5 Sonnet model',
+			value: 'anthropic',
+			picked: currentProvider === 'anthropic'
+		}
+	];
+
+	const selected = await vscode.window.showQuickPick(options, {
+		title: 'Select AI Model Provider',
+		placeHolder: `Current: ${currentProvider}`,
+		ignoreFocusOut: true
+	});
+
+	if (selected && selected.value !== currentProvider) {
+		try {
+			await config.update('aiModelProvider', selected.value, vscode.ConfigurationTarget.Global);
+			
+			// Check if the API key is configured for the selected provider
+			const apiKeyKey = selected.value === 'openai' ? 'openaiApiKey' : 'anthropicApiKey';
+			const apiKey = config.get<string>(apiKeyKey);
+			
+			if (!apiKey) {
+				const configureCommand = selected.value === 'openai' ? 
+					'superdesign.configureOpenAIApiKey' : 
+					'superdesign.configureApiKey';
+				
+				const result = await vscode.window.showWarningMessage(
+					`${selected.label} selected, but API key is not configured. Would you like to configure it now?`,
+					'Configure API Key',
+					'Later'
+				);
+				
+				if (result === 'Configure API Key') {
+					await vscode.commands.executeCommand(configureCommand);
+				}
+			} else {
+				vscode.window.showInformationMessage(`✅ AI provider switched to ${selected.label}`);
+			}
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to update AI provider: ${error}`);
 		}
 	}
 }
