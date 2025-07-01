@@ -279,11 +279,35 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                         const delta = chunk as any;
                         if (currentToolCall && delta.argsTextDelta) {
                             toolCallBuffer += delta.argsTextDelta;
-                            this.outputChannel.appendLine(`Tool call delta: +${delta.argsTextDelta.length} chars`);
+                            this.outputChannel.appendLine(`Tool call delta: +${delta.argsTextDelta.length} chars (total: ${toolCallBuffer.length})`);
                             
-                            // Optionally send progress updates (every 50 chars or so)
-                            if (toolCallBuffer.length % 50 === 0) {
-                                this.outputChannel.appendLine(`Tool call progress: ${toolCallBuffer.length} characters received`);
+                            // Try to parse current buffer as JSON and send parameter update
+                            try {
+                                const parsedArgs = JSON.parse(toolCallBuffer);
+                                
+                                // Send parameter update to frontend via ChatMessageService
+                                const parameterUpdateMessage = {
+                                    type: 'user',
+                                    message: {
+                                        content: [{
+                                            type: 'tool_parameter_update',
+                                            tool_use_id: currentToolCall.toolCallId,
+                                            parameters: parsedArgs
+                                        }]
+                                    },
+                                    session_id: sessionId,
+                                    parent_tool_use_id: null
+                                };
+                                
+                                onMessage?.(parameterUpdateMessage);
+                                
+                                this.outputChannel.appendLine(`Sent parameter update: ${JSON.stringify(parsedArgs).substring(0, 100)}...`);
+                            } catch (parseError) {
+                                // JSON not complete yet, continue buffering
+                                // Only log every 100 characters to avoid spam
+                                if (toolCallBuffer.length % 100 === 0) {
+                                    this.outputChannel.appendLine(`Tool call progress: ${toolCallBuffer.length} characters received (parsing...)`);
+                                }
                             }
                         }
                         break;

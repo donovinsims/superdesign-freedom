@@ -274,6 +274,49 @@ export function useChat(vscode: any): ChatHookResult {
                         });
                         break;
                         
+                    case 'chatToolUpdate':
+                        // Update existing tool message with streaming parameters
+                        console.log('Received tool parameter update for:', message.tool_use_id);
+                        setChatHistory(prev => {
+                            const newHistory = [...prev];
+                            
+                            // Helper function to find and update tool parameters in nested structure
+                            const findAndUpdateToolParams = (messages: ChatMessage[], toolId: string): boolean => {
+                                for (let i = 0; i < messages.length; i++) {
+                                    const msg = messages[i];
+                                    
+                                    if (msg.type === 'tool' && msg.metadata?.tool_id === toolId) {
+                                        // Found the tool - update parameters only, keep loading state
+                                        messages[i] = {
+                                            ...msg,
+                                            metadata: {
+                                                ...msg.metadata,
+                                                tool_input: message.tool_input || {}
+                                            }
+                                        };
+                                        return true;
+                                    } else if (msg.type === 'tool-group' && msg.metadata?.child_tools) {
+                                        // Search in child tools
+                                        if (findAndUpdateToolParams(msg.metadata.child_tools, toolId)) {
+                                            return true;
+                                        }
+                                    }
+                                }
+                                return false;
+                            };
+                            
+                            const found = findAndUpdateToolParams(newHistory, message.tool_use_id);
+                            
+                            if (found) {
+                                console.log('Updated tool parameters');
+                            } else {
+                                console.warn('Could not find tool for parameter update, ID:', message.tool_use_id);
+                            }
+                            
+                            return newHistory;
+                        });
+                        break;
+
                     case 'chatToolResult':
                         // Update existing tool message with its result
                         console.log('Received tool result for:', message.tool_use_id);

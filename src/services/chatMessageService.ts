@@ -120,6 +120,15 @@ export class ChatMessageService {
                                 parent_tool_use_id: message.parent_tool_use_id
                             }
                         });
+                    } else if (item.type === 'tool_parameter_update' && item.tool_use_id) {
+                        // This is a tool parameter update - send it to update the tool's parameters
+                        this.outputChannel.appendLine(`Tool parameter update for ${item.tool_use_id}: ${JSON.stringify(item.parameters).substring(0, 200)}...`);
+                        
+                        webview.postMessage({
+                            command: 'chatToolUpdate',
+                            tool_use_id: item.tool_use_id,
+                            tool_input: item.parameters
+                        });
                     } else if (item.type === 'text' && item.text) {
                         // Regular text content in user message
                         webview.postMessage({
