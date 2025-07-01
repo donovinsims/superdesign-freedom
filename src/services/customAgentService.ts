@@ -5,7 +5,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { AgentService } from '../types/agent';
+import { AgentService, ExecutionContext } from '../types/agent';
+import { createReadTool } from '../tools/read-tool';
 
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
@@ -118,11 +119,14 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
 - Working directory: ${this.workingDirectory}
 - You can help with general questions, conversations, and coding assistance
 
+# Available Tools
+- **read**: Read file contents within the workspace (supports text files, images, with line range options)
+
 # Instructions
 - Be helpful, friendly, and concise
 - Provide relevant and practical advice
-- If asked about design or HTML generation, explain that advanced tool capabilities will be added soon
-- Focus on being a useful coding assistant for now`;
+- Use the available tools when needed to help with file operations and code analysis
+- Focus on being a useful coding assistant`;
     }
 
     async query(
@@ -147,11 +151,25 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
         try {
             this.outputChannel.appendLine('Starting AI SDK streamText...');
 
+            // Create execution context for tools
+            const executionContext: ExecutionContext = {
+                workingDirectory: this.workingDirectory,
+                sessionId: sessionId,
+                outputChannel: this.outputChannel,
+                abortController: abortController
+            };
+
+            // Create tools with context
+            const tools = {
+                read: createReadTool(executionContext)
+            };
+
             const result = streamText({
                 model: this.getModel(),
                 system: this.getSystemPrompt(),
                 prompt: prompt,
-                maxSteps: 1 // Simple chat, no multi-step for now
+                tools: tools,
+                maxSteps: 5 // Enable multi-step reasoning with tools
             });
 
             this.outputChannel.appendLine('AI SDK streamText created, starting to process chunks...');
@@ -218,8 +236,55 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                         break;
 
                     case 'tool-call':
-                        // We'll handle tools later, for now just log
-                        this.outputChannel.appendLine(`Tool call detected: ${(chunk as any).toolName} (tools not implemented yet)`);
+                        // Handle tool call - transform to Claude Code format
+                        const toolCall = chunk as any;
+                        this.outputChannel.appendLine(`Tool call: ${toolCall.toolName} with args: ${JSON.stringify(toolCall.args)}`);
+                        
+                        const toolCallMessage = {
+                            type: 'assistant',
+                            message: {
+                                content: [{
+                                    type: 'tool_use',
+                                    id: toolCall.toolCallId,
+                                    name: toolCall.toolName,
+                                    input: toolCall.args
+                                }]
+                            },
+                            session_id: sessionId,
+                            parent_tool_use_id: null
+                        };
+                        
+                        onMessage?.(toolCallMessage);
+                        messages.push(toolCallMessage);
+                        break;
+
+                    case 'tool-result':
+                        // Handle tool result - transform to Claude Code format
+                        const toolResult = chunk as any;
+                        this.outputChannel.appendLine(`Tool result for ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result).substring(0, 200)}...`);
+                        
+                        const toolResultMessage = {
+                            type: 'user',
+                            message: {
+                                content: [{
+                                    type: 'tool_result',
+                                    tool_use_id: toolResult.toolCallId,
+                                    content: JSON.stringify(toolResult.result, null, 2),
+                                    is_error: false
+                                }]
+                            },
+                            session_id: sessionId,
+                            parent_tool_use_id: null
+                        };
+                        
+                        onMessage?.(toolResultMessage);
+                        messages.push(toolResultMessage);
+                        break;
+
+                    case 'step-start':
+                    case 'step-finish':
+                        // Log step boundaries but don't send to frontend
+                        this.outputChannel.appendLine(`Step ${chunk.type}: step ${(chunk as any).stepType || 'unknown'}`);
                         break;
 
                     default:
