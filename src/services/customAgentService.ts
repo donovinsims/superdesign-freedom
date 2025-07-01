@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { AgentService, ExecutionContext } from '../types/agent';
 import { createReadTool } from '../tools/read-tool';
+import { createWriteTool } from '../tools/write-tool';
 
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
@@ -121,6 +122,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
 
 # Available Tools
 - **read**: Read file contents within the workspace (supports text files, images, with line range options)
+- **write**: Write content to files in the workspace (creates parent directories automatically)
 
 # Instructions
 - Be helpful, friendly, and concise
@@ -147,6 +149,10 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
         const messages: any[] = [];
         const sessionId = `session_${Date.now()}`;
         let messageBuffer = '';
+        
+        // Tool call streaming state
+        let currentToolCall: any = null;
+        let toolCallBuffer = '';
 
         try {
             this.outputChannel.appendLine('Starting AI SDK streamText...');
@@ -161,7 +167,8 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
 
             // Create tools with context
             const tools = {
-                read: createReadTool(executionContext)
+                read: createReadTool(executionContext),
+                write: createWriteTool(executionContext)
             };
 
             const result = streamText({
@@ -169,6 +176,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                 system: this.getSystemPrompt(),
                 prompt: prompt,
                 tools: tools,
+                toolCallStreaming: true,
                 maxSteps: 5 // Enable multi-step reasoning with tools
             });
 
@@ -235,33 +243,88 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                         messages.push(errorMessage);
                         break;
 
-                    case 'tool-call':
-                        // Handle tool call - transform to Claude Code format
-                        const toolCall = chunk as any;
-                        this.outputChannel.appendLine(`Tool call: ${toolCall.toolName} with args: ${JSON.stringify(toolCall.args)}`);
+                    case 'tool-call-streaming-start':
+                        // Tool call streaming started
+                        const streamStart = chunk as any;
+                        currentToolCall = {
+                            toolCallId: streamStart.toolCallId,
+                            toolName: streamStart.toolName,
+                            args: {}
+                        };
+                        toolCallBuffer = '';
                         
-                        const toolCallMessage = {
+                        this.outputChannel.appendLine(`Tool call streaming started: ${streamStart.toolName} (ID: ${streamStart.toolCallId})`);
+                        
+                        // Send initial tool call message to frontend in Claude Code format
+                        const toolCallStartMessage = {
                             type: 'assistant',
                             message: {
                                 content: [{
                                     type: 'tool_use',
-                                    id: toolCall.toolCallId,
-                                    name: toolCall.toolName,
-                                    input: toolCall.args
+                                    id: streamStart.toolCallId,
+                                    name: streamStart.toolName,
+                                    input: {} // Empty initially, will be updated with deltas
                                 }]
                             },
                             session_id: sessionId,
                             parent_tool_use_id: null
                         };
                         
-                        onMessage?.(toolCallMessage);
-                        messages.push(toolCallMessage);
+                        onMessage?.(toolCallStartMessage);
+                        messages.push(toolCallStartMessage);
+                        break;
+
+                    case 'tool-call-delta':
+                        // Streaming tool call parameters
+                        const delta = chunk as any;
+                        if (currentToolCall && delta.argsTextDelta) {
+                            toolCallBuffer += delta.argsTextDelta;
+                            this.outputChannel.appendLine(`Tool call delta: +${delta.argsTextDelta.length} chars`);
+                            
+                            // Optionally send progress updates (every 50 chars or so)
+                            if (toolCallBuffer.length % 50 === 0) {
+                                this.outputChannel.appendLine(`Tool call progress: ${toolCallBuffer.length} characters received`);
+                            }
+                        }
+                        break;
+
+                    case 'tool-call':
+                        // Handle final complete tool call - transform to Claude Code format
+                        const toolCall = chunk as any;
+                        this.outputChannel.appendLine(`Tool call complete: ${toolCall.toolName} (ID: ${toolCall.toolCallId}) with args: ${JSON.stringify(toolCall.args)}`);
+                        
+                        // Skip sending duplicate tool call message if we already sent streaming start
+                        if (!currentToolCall) {
+                            // Only send if we didn't already send a streaming start message
+                            const toolCallMessage = {
+                                type: 'assistant',
+                                message: {
+                                    content: [{
+                                        type: 'tool_use',
+                                        id: toolCall.toolCallId,
+                                        name: toolCall.toolName,
+                                        input: toolCall.args
+                                    }]
+                                },
+                                session_id: sessionId,
+                                parent_tool_use_id: null
+                            };
+                            
+                            onMessage?.(toolCallMessage);
+                            messages.push(toolCallMessage);
+                        } else {
+                            this.outputChannel.appendLine(`Skipping duplicate tool call message - already sent streaming start for ID: ${toolCall.toolCallId}`);
+                        }
+                        
+                        // Reset tool call streaming state
+                        currentToolCall = null;
+                        toolCallBuffer = '';
                         break;
 
                     case 'tool-result':
                         // Handle tool result - transform to Claude Code format
                         const toolResult = chunk as any;
-                        this.outputChannel.appendLine(`Tool result for ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result).substring(0, 200)}...`);
+                        this.outputChannel.appendLine(`Tool result for ID: ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result).substring(0, 200)}...`);
                         
                         const toolResultMessage = {
                             type: 'user',
@@ -282,9 +345,15 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                         break;
 
                     case 'step-start':
+                        // Log step start with details
+                        const stepStart = chunk as any;
+                        this.outputChannel.appendLine(`Step ${stepStart.step || 'unknown'} started: ${stepStart.stepType || 'reasoning'}`);
+                        break;
+
                     case 'step-finish':
-                        // Log step boundaries but don't send to frontend
-                        this.outputChannel.appendLine(`Step ${chunk.type}: step ${(chunk as any).stepType || 'unknown'}`);
+                        // Log step completion with details
+                        const stepFinish = chunk as any;
+                        this.outputChannel.appendLine(`Step ${stepFinish.step || 'unknown'} finished: ${stepFinish.stepType || 'reasoning'} (${stepFinish.finishReason || 'completed'})`);
                         break;
 
                     default:
