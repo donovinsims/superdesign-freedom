@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ClaudeCodeService } from './claudeCodeService';
+import { Logger } from './logger';
 
 export class ChatMessageService {
     private currentRequestController?: AbortController;
@@ -11,7 +12,7 @@ export class ChatMessageService {
 
     async handleChatMessage(message: any, webview: vscode.Webview): Promise<void> {
         try {
-            this.outputChannel.appendLine(`Chat message received: ${message.message}`);
+            Logger.info(`Chat message received: ${message.message}`);
             
             // Create new AbortController for this request
             this.currentRequestController = new AbortController();
@@ -34,11 +35,11 @@ export class ChatMessageService {
 
             // Check if request was aborted
             if (this.currentRequestController.signal.aborted) {
-                this.outputChannel.appendLine('Request was aborted');
+                Logger.warn('Request was aborted');
                 return;
             }
 
-            this.outputChannel.appendLine(`Claude response completed with ${response.length} total messages`);
+            Logger.info(`Claude response completed with ${response.length} total messages`);
 
             // Send stream end message
             webview.postMessage({
@@ -48,14 +49,14 @@ export class ChatMessageService {
         } catch (error) {
             // Check if the error is due to abort
             if (this.currentRequestController?.signal.aborted) {
-                this.outputChannel.appendLine('Request was stopped by user');
+                Logger.info('Request was stopped by user');
                 webview.postMessage({
                     command: 'chatStopped'
                 });
                 return;
             }
 
-            this.outputChannel.appendLine(`Chat message failed: ${error}`);
+            Logger.error(`Chat message failed: ${error}`);
             vscode.window.showErrorMessage(`Chat failed: ${error}`);
             
             // Send error response back to webview
@@ -71,22 +72,22 @@ export class ChatMessageService {
 
     private handleStreamMessage(message: any, webview: vscode.Webview): void {
         const subtype = 'subtype' in message ? message.subtype : undefined;
-        this.outputChannel.appendLine(`Processing stream message type: ${message.type}${subtype ? `, subtype: ${subtype}` : ''}`);
-        this.outputChannel.appendLine(`Full message structure: ${JSON.stringify(message, null, 2)}`);
+        Logger.debug(`Processing stream message type: ${message.type}${subtype ? `, subtype: ${subtype}` : ''}`);
+        Logger.debug(`Full message structure: ${JSON.stringify(message, null, 2)}`);
         
         // Skip system messages
         if (message.type === 'system') {
-            this.outputChannel.appendLine('Skipping system message');
+            Logger.debug('Skipping system message');
             return;
         }
         
         // Handle user messages (which can contain tool results)
         if (message.type === 'user' && message.message) {
-            this.outputChannel.appendLine(`User message structure: ${JSON.stringify(message.message, null, 2)}`);
+            Logger.debug(`User message structure: ${JSON.stringify(message.message, null, 2)}`);
             
             if (typeof message.message === 'string') {
                 const content = message.message;
-                this.outputChannel.appendLine(`Extracted user content: "${content}"`);
+                Logger.debug(`Extracted user content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
@@ -107,7 +108,7 @@ export class ChatMessageService {
                         // This is a tool result - send it as an update to the corresponding tool
                         const resultContent = typeof item.content === 'string' ? item.content : JSON.stringify(item.content);
                         
-                        this.outputChannel.appendLine(`Tool result for ${item.tool_use_id}: "${resultContent.substring(0, 200)}..."`);
+                        Logger.debug(`Tool result for ${item.tool_use_id}: "${resultContent.substring(0, 200)}..."`);
                         
                         webview.postMessage({
                             command: 'chatToolResult',
@@ -135,7 +136,7 @@ export class ChatMessageService {
                 }
             } else if (message.message.content && typeof message.message.content === 'string') {
                 const content = message.message.content;
-                this.outputChannel.appendLine(`Extracted user content: "${content}"`);
+                Logger.debug(`Extracted user content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
@@ -151,7 +152,7 @@ export class ChatMessageService {
                 }
             } else if (message.message.text) {
                 const content = message.message.text;
-                this.outputChannel.appendLine(`Extracted user content: "${content}"`);
+                Logger.debug(`Extracted user content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
@@ -166,17 +167,17 @@ export class ChatMessageService {
                     });
                 }
             } else {
-                this.outputChannel.appendLine('No content found in user message');
+                Logger.debug('No content found in user message');
             }
         }
         
         // Handle assistant messages
         if (message.type === 'assistant' && message.message) {
-            this.outputChannel.appendLine(`Assistant message structure: ${JSON.stringify(message.message, null, 2)}`);
+            Logger.debug(`Assistant message structure: ${JSON.stringify(message.message, null, 2)}`);
             
             if (typeof message.message === 'string') {
                 const content = message.message;
-                this.outputChannel.appendLine(`Extracted assistant content: "${content}"`);
+                Logger.debug(`Extracted assistant content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
@@ -224,7 +225,7 @@ export class ChatMessageService {
                 }
             } else if (message.message.content && typeof message.message.content === 'string') {
                 const content = message.message.content;
-                this.outputChannel.appendLine(`Extracted assistant content: "${content}"`);
+                Logger.debug(`Extracted assistant content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
@@ -240,7 +241,7 @@ export class ChatMessageService {
                 }
             } else if (message.message.text) {
                 const content = message.message.text;
-                this.outputChannel.appendLine(`Extracted assistant content: "${content}"`);
+                Logger.debug(`Extracted assistant content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
@@ -255,13 +256,13 @@ export class ChatMessageService {
                     });
                 }
             } else {
-                this.outputChannel.appendLine('No content found in assistant message');
+                Logger.debug('No content found in assistant message');
             }
         }
         
         // Handle result messages (tool results)
         if (message.type === 'result') {
-            this.outputChannel.appendLine(`Result message structure: ${JSON.stringify(message, null, 2)}`);
+            Logger.debug(`Result message structure: ${JSON.stringify(message, null, 2)}`);
             
             // Skip final success result messages that are just summaries
             if (message.subtype === 'success' && message.result && typeof message.result === 'string') {
@@ -269,7 +270,7 @@ export class ChatMessageService {
                 // Skip if it looks like a final summary (contains phrases like "successfully created", "perfect", etc.)
                 if (resultText.includes('successfully') || resultText.includes('perfect') || 
                     resultText.includes('created') || resultText.includes('variations')) {
-                    this.outputChannel.appendLine('Skipping final summary result message');
+                    Logger.debug('Skipping final summary result message');
                     return;
                 }
             }
@@ -298,7 +299,7 @@ export class ChatMessageService {
                 }
             }
             
-            this.outputChannel.appendLine(`Extracted result content: "${content.substring(0, 200)}..."`);
+            Logger.debug(`Extracted result content: "${content.substring(0, 200)}..."`);
             
             if (content.trim()) {
                 webview.postMessage({
@@ -320,13 +321,13 @@ export class ChatMessageService {
         
         // Log tool activity
         if ((message.type === 'assistant' || message.type === 'user') && ('subtype' in message) && (message.subtype === 'tool_use' || message.subtype === 'tool_result')) {
-            this.outputChannel.appendLine(`Tool activity detected: ${message.subtype}`);
+            Logger.debug(`Tool activity detected: ${message.subtype}`);
         }
     }
 
     async stopCurrentChat(webview: vscode.Webview): Promise<void> {
         if (this.currentRequestController) {
-            this.outputChannel.appendLine('Stopping current chat request');
+            Logger.info('Stopping current chat request');
             this.currentRequestController.abort();
             
             // Send stopped message back to webview
@@ -334,7 +335,7 @@ export class ChatMessageService {
                 command: 'chatStopped'
             });
         } else {
-            this.outputChannel.appendLine('No active chat request to stop');
+            Logger.info('No active chat request to stop');
         }
     }
 
@@ -345,7 +346,7 @@ export class ChatMessageService {
         
         for (const msg of response) {
             const subtype = 'subtype' in msg ? msg.subtype : undefined;
-            this.outputChannel.appendLine(`Processing message type: ${msg.type}${subtype ? `, subtype: ${subtype}` : ''}`);
+            Logger.debug(`Processing message type: ${msg.type}${subtype ? `, subtype: ${subtype}` : ''}`);
             
             // Collect assistant messages
             if (msg.type === 'assistant' && msg.message) {
@@ -375,7 +376,7 @@ export class ChatMessageService {
             
             // Handle tool usage messages
             if ((msg.type === 'assistant' || msg.type === 'user') && ('subtype' in msg) && (msg.subtype === 'tool_use' || msg.subtype === 'tool_result')) {
-                this.outputChannel.appendLine(`Tool activity detected: ${msg.subtype}`);
+                Logger.debug(`Tool activity detected: ${msg.subtype}`);
             }
         }
 

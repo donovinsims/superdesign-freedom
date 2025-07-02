@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import { Logger } from './logger';
 
 // Dynamic import types for Claude Code
 type SDKMessage = any; // Will be properly typed when imported
@@ -22,35 +23,27 @@ export class ClaudeCodeService {
 
     constructor(outputChannel: vscode.OutputChannel) {
         this.outputChannel = outputChannel;
-        this.outputChannel.appendLine('ClaudeCodeService constructor called');
         // Initialize on construction
         this.initializationPromise = this.initialize();
     }
 
     private async initialize(): Promise<void> {
-        this.outputChannel.appendLine(`ClaudeCodeService initialize() called, isInitialized: ${this.isInitialized}`);
-        
         if (this.isInitialized) {
-            this.outputChannel.appendLine('Already initialized, returning early');
             return;
         }
 
         try {
-            this.outputChannel.appendLine('Starting initialization process...');
+            Logger.info('Starting Claude Code initialization...');
             
             // Setup working directory first
-            this.outputChannel.appendLine('About to call setupWorkingDirectory()');
             await this.setupWorkingDirectory();
-            this.outputChannel.appendLine('setupWorkingDirectory() completed');
 
             // Check if API key is configured
-            this.outputChannel.appendLine('Checking API key configuration...');
             const config = vscode.workspace.getConfiguration('superdesign');
             const apiKey = config.get<string>('anthropicApiKey');
-            this.outputChannel.appendLine(`API key configured: ${!!apiKey}`);
             
             if (!apiKey) {
-                this.outputChannel.appendLine('No API key found, showing error message');
+                Logger.warn('No API key found');
                 const action = await vscode.window.showErrorMessage(
                     'Anthropic API key is required for Claude Code integration.',
                     'Open Settings'
@@ -62,15 +55,11 @@ export class ClaudeCodeService {
             }
 
             // Set the environment variable for Claude Code SDK
-            this.outputChannel.appendLine('Setting environment variable for Claude Code SDK');
             process.env.ANTHROPIC_API_KEY = apiKey;
 
-                        // Dynamically import Claude Code SDK
-            this.outputChannel.appendLine('Dynamically importing Claude Code SDK...');
+            // Dynamically import Claude Code SDK
+            Logger.info('Importing Claude Code SDK...');
             try {
-                this.outputChannel.appendLine(`Current working directory: ${process.cwd()}`);
-                this.outputChannel.appendLine(`__dirname: ${__dirname}`);
-                
                 // Try importing from the copied module location first
                 let claudeCodeModule;
                 try {
@@ -84,18 +73,12 @@ export class ClaudeCodeService {
                     let importSucceeded = false;
                     for (const modulePath of possiblePaths) {
                         try {
-                            this.outputChannel.appendLine(`Trying to import from: ${modulePath}`);
                             if (fs.existsSync(modulePath)) {
-                                this.outputChannel.appendLine(`File exists at: ${modulePath}`);
                                 claudeCodeModule = await import(`file://${modulePath}`);
-                                this.outputChannel.appendLine('Imported from copied module location');
                                 importSucceeded = true;
                                 break;
-                            } else {
-                                this.outputChannel.appendLine(`File does not exist at: ${modulePath}`);
                             }
                         } catch (pathError) {
-                            this.outputChannel.appendLine(`Failed to import from ${modulePath}: ${pathError}`);
                             continue;
                         }
                     }
@@ -104,37 +87,31 @@ export class ClaudeCodeService {
                         throw new Error('All local import paths failed');
                     }
                 } catch (localImportError) {
-                    this.outputChannel.appendLine(`Local import failed: ${localImportError}`);
                     // Fallback to standard import
                     try {
                         claudeCodeModule = await import('@anthropic-ai/claude-code');
-                        this.outputChannel.appendLine('Imported from standard location');
                     } catch (standardImportError) {
-                        this.outputChannel.appendLine(`Standard import also failed: ${standardImportError}`);
+                        Logger.error(`Claude Code SDK import failed: ${standardImportError}`);
                         throw standardImportError;
                     }
                 }
                 
-                this.outputChannel.appendLine(`Claude Code module imported: ${typeof claudeCodeModule}`);
-                this.outputChannel.appendLine(`Available exports: ${Object.keys(claudeCodeModule)}`);
                 this.claudeCodeQuery = claudeCodeModule.query;
                 
                 if (!this.claudeCodeQuery) {
                     throw new Error('Query function not found in Claude Code module');
                 }
                 
-                this.outputChannel.appendLine('Claude Code SDK dynamically imported successfully');
+                Logger.info('Claude Code SDK imported successfully');
             } catch (importError) {
-                this.outputChannel.appendLine(`Failed to import Claude Code SDK: ${importError}`);
-                this.outputChannel.appendLine(`Import error stack: ${importError instanceof Error ? importError.stack : 'No stack trace'}`);
+                Logger.error(`Failed to import Claude Code SDK: ${importError}`);
                 throw new Error(`Claude Code SDK import failed: ${importError}`);
             }
 
             this.isInitialized = true;
-            
-            this.outputChannel.appendLine(`Claude Code SDK initialized successfully with working directory: ${this.workingDirectory}`);
+            Logger.info('Claude Code SDK initialized successfully');
         } catch (error) {
-            this.outputChannel.appendLine(`Failed to initialize Claude Code SDK: ${error}`);
+            Logger.error(`Failed to initialize Claude Code SDK: ${error}`);
             vscode.window.showErrorMessage(`Failed to initialize Claude Code: ${error}`);
             throw error;
         }
@@ -144,45 +121,39 @@ export class ClaudeCodeService {
         try {
             // Try to get workspace root first
             const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-            this.outputChannel.appendLine(`Workspace root detected: ${workspaceRoot}`);
             
             if (workspaceRoot) {
                 // Create .superdesign folder in workspace root
                 const superdesignDir = path.join(workspaceRoot, '.superdesign');
-                this.outputChannel.appendLine(`Setting up .superdesign directory at: ${superdesignDir}`);
                 
                 // Create directory if it doesn't exist
                 if (!fs.existsSync(superdesignDir)) {
                     fs.mkdirSync(superdesignDir, { recursive: true });
-                    this.outputChannel.appendLine(`Created .superdesign directory: ${superdesignDir}`);
-                } else {
-                    this.outputChannel.appendLine(`.superdesign directory already exists: ${superdesignDir}`);
+                    Logger.info(`Created .superdesign directory: ${superdesignDir}`);
                 }
                 
                 this.workingDirectory = superdesignDir;
-                this.outputChannel.appendLine(`Working directory set to: ${this.workingDirectory}`);
             } else {
-                this.outputChannel.appendLine('No workspace root found, using fallback');
+                Logger.warn('No workspace root found, using temporary directory');
                 // Fallback to OS temp directory if no workspace
                 const tempDir = path.join(os.tmpdir(), 'superdesign-claude');
                 
                 if (!fs.existsSync(tempDir)) {
                     fs.mkdirSync(tempDir, { recursive: true });
-                    this.outputChannel.appendLine(`Created temporary superdesign directory: ${tempDir}`);
+                    Logger.info(`Created temporary directory: ${tempDir}`);
                 }
                 
                 this.workingDirectory = tempDir;
-                this.outputChannel.appendLine(`Working directory set to (fallback): ${this.workingDirectory}`);
                 
                 vscode.window.showWarningMessage(
                     'No workspace folder found. Using temporary directory for Claude Code operations.'
                 );
             }
         } catch (error) {
-            this.outputChannel.appendLine(`Failed to setup working directory: ${error}`);
+            Logger.error(`Failed to setup working directory: ${error}`);
             // Final fallback to current working directory
             this.workingDirectory = process.cwd();
-            this.outputChannel.appendLine(`Working directory set to (final fallback): ${this.workingDirectory}`);
+            Logger.warn(`Using current working directory as fallback: ${this.workingDirectory}`);
         }
     }
 
@@ -195,14 +166,10 @@ export class ClaudeCodeService {
         }
     }
 
-    async query(prompt: string, options?: Partial<ClaudeCodeOptions>, abortController?: AbortController, onMessage?: (message: SDKMessage) => void): Promise<SDKMessage[]> {
-        this.outputChannel.appendLine('=== QUERY FUNCTION CALLED ===');
-        this.outputChannel.appendLine(`Query prompt: ${prompt.substring(0, 200)}...`);
-        this.outputChannel.appendLine(`Query options: ${JSON.stringify(options, null, 2)}`);
-        this.outputChannel.appendLine(`Streaming enabled: ${!!onMessage}`);
-
+        async query(prompt: string, options?: Partial<ClaudeCodeOptions>, abortController?: AbortController, onMessage?: (message: SDKMessage) => void): Promise<SDKMessage[]> {
+        Logger.info('Starting Claude Code query');
+        
         await this.ensureInitialized();
-        this.outputChannel.appendLine('Initialization check completed');
 
         const messages: SDKMessage[] = [];
         const systemPrompt = `# Role
@@ -329,7 +296,6 @@ Your goal is to extract a generalized and reusable design system from the screen
 
             if (this.currentSessionId) {
                 finalOptions.resume = this.currentSessionId;
-                this.outputChannel.appendLine(`Resuming session with ID: ${this.currentSessionId}`);
             }
 
             const queryParams = {
@@ -337,26 +303,12 @@ Your goal is to extract a generalized and reusable design system from the screen
                 abortController: abortController || new AbortController(),
                 options: finalOptions
             };
-            
-            this.outputChannel.appendLine(`Final query params: ${JSON.stringify({
-                prompt: queryParams.prompt.substring(0, 100) + '...',
-                options: queryParams.options
-            }, null, 2)}`);
-            
-            this.outputChannel.appendLine('Starting Claude Code SDK query...');
 
             if (!this.claudeCodeQuery) {
                 throw new Error('Claude Code SDK not properly initialized - query function not available');
             }
 
-            let messageCount = 0;
             for await (const message of this.claudeCodeQuery(queryParams)) {
-                messageCount++;
-                const subtype = 'subtype' in message ? message.subtype : undefined;
-                this.outputChannel.appendLine(`Received message ${messageCount}: type=${message}`);
-                if (message.type === 'result') {
-                    this.outputChannel.appendLine(`Result message: ${JSON.stringify(message, null, 2)}`);
-                }
                 messages.push(message as SDKMessage);
                 
                 // Call the streaming callback if provided
@@ -364,7 +316,7 @@ Your goal is to extract a generalized and reusable design system from the screen
                     try {
                         onMessage(message as SDKMessage);
                     } catch (callbackError) {
-                        this.outputChannel.appendLine(`Streaming callback error: ${callbackError}`);
+                        Logger.error(`Streaming callback error: ${callbackError}`);
                         // Don't break the loop if callback fails
                     }
                 }
@@ -373,14 +325,12 @@ Your goal is to extract a generalized and reusable design system from the screen
             const lastMessageWithSessionId = [...messages].reverse().find(m => 'session_id' in m && m.session_id);
             if (lastMessageWithSessionId && 'session_id' in lastMessageWithSessionId && lastMessageWithSessionId.session_id) {
                 this.currentSessionId = lastMessageWithSessionId.session_id;
-                this.outputChannel.appendLine(`Updated session ID to: ${this.currentSessionId}`);
             }
 
-            this.outputChannel.appendLine(`Query completed successfully. Total messages: ${messages.length}`);
+            Logger.info(`Query completed successfully. Received ${messages.length} messages`);
             return messages;
         } catch (error) {
-            this.outputChannel.appendLine(`Claude Code query failed: ${error}`);
-            this.outputChannel.appendLine(`Error stack: ${error instanceof Error ? error.stack : 'No stack trace'}`);
+            Logger.error(`Claude Code query failed: ${error}`);
             vscode.window.showErrorMessage(`Claude Code query failed: ${error}`);
             throw error;
         }
@@ -395,7 +345,7 @@ Your goal is to extract a generalized and reusable design system from the screen
             await this.ensureInitialized();
             return true;
         } catch (error) {
-            this.outputChannel.appendLine(`Initialization failed: ${error}`);
+            Logger.error(`Initialization failed: ${error}`);
             return false;
         }
     }

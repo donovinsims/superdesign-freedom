@@ -6,11 +6,10 @@ import { ChatSidebarProvider } from './providers/chatSidebarProvider';
 import { ChatMessageService } from './services/chatMessageService';
 import { generateWebviewHtml } from './templates/webviewTemplate';
 import { WebviewContext } from './types/context';
+import { Logger, LogLevel } from './services/logger';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
-// Create output channel for logging
-const outputChannel = vscode.window.createOutputChannel('Superdesign');
 
 // Function to save uploaded images to moodboard directory
 async function saveImageToMoodboard(data: {
@@ -22,7 +21,7 @@ async function saveImageToMoodboard(data: {
 }, sidebarProvider: ChatSidebarProvider) {
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 	if (!workspaceFolder) {
-		console.error('No workspace folder found for saving image');
+		Logger.error('No workspace folder found for saving image');
 		return;
 	}
 
@@ -35,7 +34,7 @@ async function saveImageToMoodboard(data: {
 		} catch {
 			// Directory doesn't exist, create it
 			await vscode.workspace.fs.createDirectory(moodboardDir);
-			console.log('Created .superdesign/moodboard directory');
+			Logger.info('Created .superdesign/moodboard directory');
 		}
 
 		// Convert base64 to buffer and save file
@@ -45,7 +44,7 @@ async function saveImageToMoodboard(data: {
 		
 		await vscode.workspace.fs.writeFile(filePath, buffer);
 		
-		console.log(`Image saved to moodboard: ${data.fileName} (${(data.size / 1024).toFixed(1)} KB)`);
+		Logger.info(`Image saved to moodboard: ${data.fileName} (${(data.size / 1024).toFixed(1)} KB)`);
 		
 		// Send back the full absolute path to the webview
 		sidebarProvider.sendMessage({
@@ -58,7 +57,7 @@ async function saveImageToMoodboard(data: {
 		});
 		
 	} catch (error) {
-		console.error('Error saving image to moodboard:', error);
+		Logger.error(`Error saving image to moodboard: ${error}`);
 		vscode.window.showErrorMessage(`Failed to save image: ${error}`);
 		
 		// Send error back to webview
@@ -100,13 +99,13 @@ async function submitEmailToSupabase(email: string, sidebarProvider: ChatSidebar
 
 			res.on('end', () => {
 				if (res.statusCode >= 200 && res.statusCode < 300) {
-					console.log('✅ Email submitted successfully:', email);
+					Logger.info(`Email submitted successfully: ${email}`);
 					sidebarProvider.sendMessage({
 						command: 'emailSubmitSuccess',
 						email: email
 					});
 				} else {
-					console.error('❌ Email submission failed:', res.statusCode, data);
+					Logger.error(`Email submission failed: ${res.statusCode} ${data}`);
 					sidebarProvider.sendMessage({
 						command: 'emailSubmitError',
 						error: 'Failed to submit email. Please try again.'
@@ -116,7 +115,7 @@ async function submitEmailToSupabase(email: string, sidebarProvider: ChatSidebar
 		});
 
 		req.on('error', (error: any) => {
-			console.error('❌ Email submission request error:', error);
+			Logger.error(`Email submission request error: ${error}`);
 			sidebarProvider.sendMessage({
 				command: 'emailSubmitError',
 				error: 'Failed to submit email. Please try again.'
@@ -127,7 +126,7 @@ async function submitEmailToSupabase(email: string, sidebarProvider: ChatSidebar
 		req.end();
 
 	} catch (error) {
-		console.error('❌ Email submission error:', error);
+		Logger.error(`Email submission error: ${error}`);
 		sidebarProvider.sendMessage({
 			command: 'emailSubmitError',
 			error: 'Failed to submit email. Please try again.'
@@ -775,11 +774,11 @@ html.dark {
 		try {
 			// Check if file already exists
 			await vscode.workspace.fs.stat(defaultCssPath);
-			console.log('default_ui_darkmode.css already exists, skipping creation');
+			Logger.debug('default_ui_darkmode.css already exists, skipping creation');
 		} catch {
 			// File doesn't exist, create it
 			await vscode.workspace.fs.writeFile(defaultCssPath, Buffer.from(defaultCssContent, 'utf8'));
-			console.log('Created default_ui_darkmode.css file');
+			Logger.info('Created default_ui_darkmode.css file');
 		}
 
 		// Create .cursor/rules directory if it doesn't exist
@@ -840,13 +839,15 @@ html.dark {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-	outputChannel.appendLine('Superdesign extension is now active!');
+	// Initialize the centralized logger
+	Logger.initialize();
+	Logger.info('Superdesign extension is now active!');
 	// Note: Users can manually open output via View → Output → Select "Superdesign" if needed
 
 	// Initialize Claude Code service
-	outputChannel.appendLine('Creating ClaudeCodeService...');
-	const claudeService = new ClaudeCodeService(outputChannel);
-	outputChannel.appendLine('ClaudeCodeService created');
+	Logger.info('Creating ClaudeCodeService...');
+	const claudeService = new ClaudeCodeService(Logger.getOutputChannel());
+	Logger.info('ClaudeCodeService created');
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
@@ -863,7 +864,7 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	// Create the chat sidebar provider
-	const sidebarProvider = new ChatSidebarProvider(context.extensionUri, claudeService, outputChannel);
+	const sidebarProvider = new ChatSidebarProvider(context.extensionUri, claudeService, Logger.getOutputChannel());
 	
 	// Register the webview view provider for sidebar
 	const sidebarDisposable = vscode.window.registerWebviewViewProvider(
@@ -1056,7 +1057,7 @@ class SuperdesignCanvasPanel {
 						this._loadDesignFiles();
 						break;
 					case 'selectFrame':
-						console.log('Frame selected:', message.data?.fileName);
+						Logger.debug(`Frame selected: ${message.data?.fileName}`);
 						break;
 					case 'setContextFromCanvas':
 						// Forward context to chat sidebar
@@ -1118,7 +1119,7 @@ class SuperdesignCanvasPanel {
 
 		// Handle file creation
 		this._fileWatcher.onDidCreate((uri) => {
-			console.log('Design file created:', uri.fsPath);
+			Logger.debug(`Design file created: ${uri.fsPath}`);
 			this._panel.webview.postMessage({
 				command: 'fileChanged',
 				data: {
@@ -1130,7 +1131,7 @@ class SuperdesignCanvasPanel {
 
 		// Handle file modification
 		this._fileWatcher.onDidChange((uri) => {
-			console.log('Design file modified:', uri.fsPath);
+			Logger.debug(`Design file modified: ${uri.fsPath}`);
 			this._panel.webview.postMessage({
 				command: 'fileChanged',
 				data: {
@@ -1142,7 +1143,7 @@ class SuperdesignCanvasPanel {
 
 		// Handle file deletion
 		this._fileWatcher.onDidDelete((uri) => {
-			console.log('Design file deleted:', uri.fsPath);
+			Logger.debug(`Design file deleted: ${uri.fsPath}`);
 			this._panel.webview.postMessage({
 				command: 'fileChanged',
 				data: {
@@ -1173,8 +1174,8 @@ class SuperdesignCanvasPanel {
 		};
 
 		// Debug logging
-		console.log('Canvas Panel - Extension URI:', this._extensionUri.toString());
-		console.log('Canvas Panel - Generated logo URIs:', logoUris);
+		Logger.debug(`Canvas Panel - Extension URI: ${this._extensionUri.toString()}`);
+		Logger.debug(`Canvas Panel - Generated logo URIs: ${JSON.stringify(logoUris)}`);
 
 		const nonce = getNonce();
 
@@ -1228,7 +1229,7 @@ class SuperdesignCanvasPanel {
 				// Folder doesn't exist, create it
 				try {
 					await vscode.workspace.fs.createDirectory(designFolder);
-					console.log('Created .superdesign/design_iterations directory');
+					Logger.info('Created .superdesign/design_iterations directory');
 				} catch (createError) {
 					this._panel.webview.postMessage({
 						command: 'error',
@@ -1275,7 +1276,7 @@ class SuperdesignCanvasPanel {
 							fileType
 						};
 					} catch (fileError) {
-						console.error(`Failed to read file ${fileName}:`, fileError);
+						Logger.error(`Failed to read file ${fileName}: ${fileError}`);
 						return null;
 					}
 				})
@@ -1284,7 +1285,7 @@ class SuperdesignCanvasPanel {
 			// Filter out any failed file reads
 			const validFiles = loadedFiles.filter(file => file !== null);
 
-			console.log(`Loaded ${validFiles.length} design files (HTML & SVG)`);
+			Logger.info(`Loaded ${validFiles.length} design files (HTML & SVG)`);
 			
 			this._panel.webview.postMessage({
 				command: 'designFilesLoaded',
@@ -1292,7 +1293,7 @@ class SuperdesignCanvasPanel {
 			});
 
 		} catch (error) {
-			console.error('Error loading design files:', error);
+			Logger.error(`Error loading design files: ${error}`);
 			this._panel.webview.postMessage({
 				command: 'error',
 				data: { error: `Failed to load design files: ${error}` }
@@ -1324,14 +1325,14 @@ class SuperdesignCanvasPanel {
 						const styleTag = `<style>\n${cssText}\n</style>`;
 						modifiedContent = modifiedContent.replace(fullLinkTag, styleTag);
 						
-						console.log(`Inlined CSS file: ${cssFileName}`);
+						Logger.debug(`Inlined CSS file: ${cssFileName}`);
 					} catch (cssError) {
-						console.warn(`Could not read CSS file ${cssFileName}:`, cssError);
+						Logger.warn(`Could not read CSS file ${cssFileName}: ${cssError}`);
 						// Leave the original link tag in place if CSS file can't be read
 					}
 				}
 			} catch (error) {
-				console.warn(`Error processing CSS link ${cssFileName}:`, error);
+				Logger.warn(`Error processing CSS link ${cssFileName}: ${error}`);
 			}
 		}
 		
@@ -1349,5 +1350,7 @@ function getNonce() {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() {
+	Logger.dispose();
+}
 
