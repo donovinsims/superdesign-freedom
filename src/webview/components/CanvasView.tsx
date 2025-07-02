@@ -240,6 +240,13 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                     setHierarchyTree(positionedTree);
                     
                     setIsLoading(false);
+                    
+                    // Auto-center view after files are loaded
+                    setTimeout(() => {
+                        if (transformRef.current) {
+                            transformRef.current.resetTransform();
+                        }
+                    }, 100);
                     break;
                     
                 case 'error':
