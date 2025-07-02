@@ -907,6 +907,16 @@ export function activate(context: vscode.ExtensionContext) {
 		await initializeSuperdesignProject();
 	});
 
+	// Register open settings command
+	const openSettingsDisposable = vscode.commands.registerCommand('superdesign.openSettings', () => {
+		vscode.commands.executeCommand('workbench.action.openSettings', '@ext:iganbold.superdesign');
+	});
+
+	// Register configure API key command (alternative to the existing one)
+	const configureApiKeyQuickDisposable = vscode.commands.registerCommand('superdesign.configureApiKeyQuick', async () => {
+		await configureAnthropicApiKey();
+	});
+
 	// Set up message handler for auto-canvas functionality
 	sidebarProvider.setMessageHandler((message) => {
 		switch (message.command) {
@@ -957,7 +967,9 @@ export function activate(context: vscode.ExtensionContext) {
 		openCanvasDisposable,
 		clearChatDisposable,
 		resetWelcomeDisposable,
-		initializeProjectDisposable
+		initializeProjectDisposable,
+		openSettingsDisposable,
+		configureApiKeyQuickDisposable
 	);
 }
 

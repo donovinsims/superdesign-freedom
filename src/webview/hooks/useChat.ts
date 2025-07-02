@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export interface ChatMessage {
-    type: 'user' | 'assistant' | 'result' | 'user-input' | 'tool' | 'tool-result' | 'tool-group';
+    type: 'user' | 'assistant' | 'result' | 'user-input' | 'tool' | 'tool-result' | 'tool-group' | 'error';
     message: string;
     timestamp?: number;
     subtype?: string;
+    actions?: Array<{
+        text: string;
+        command: string;
+        args?: string;
+    }>;
     metadata?: {
         duration_ms?: number;
         total_cost_usd?: number;
@@ -348,6 +353,19 @@ export function useChat(vscode: any): ChatHookResult {
                             message: `Error: ${message.error}`,
                             timestamp: Date.now(),
                             subtype: 'error',
+                            metadata: { is_error: true }
+                        }]);
+                        break;
+                        
+                    case 'chatErrorWithActions':
+                        console.error('Chat error with actions received:', message.error);
+                        setIsLoading(false);
+                        setChatHistory(prev => [...prev, {
+                            type: 'error',
+                            message: message.error,
+                            timestamp: Date.now(),
+                            subtype: 'error',
+                            actions: message.actions,
                             metadata: { is_error: true }
                         }]);
                         break;

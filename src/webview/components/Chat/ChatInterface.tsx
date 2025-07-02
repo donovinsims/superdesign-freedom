@@ -462,6 +462,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             return renderToolGroup(msg, index);
         }
         
+        // Handle error messages with actions specially
+        if (msg.type === 'error') {
+            return renderErrorMessage(msg, index);
+        }
+        
         // Determine message label and styling
         let messageLabel = '';
         let messageClass = '';
@@ -1003,6 +1008,45 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 </div>
             );
         }
+    };
+
+    const renderErrorMessage = (msg: ChatMessage, index: number) => {
+        const handleActionClick = (action: { text: string; command: string; args?: string }) => {
+            console.log('Action clicked:', action);
+            vscode.postMessage({
+                command: 'executeAction',
+                actionCommand: action.command,
+                actionArgs: action.args
+            });
+        };
+
+        return (
+            <div key={index} className={`chat-message chat-message--result-error chat-message--${layout}`}>
+                {layout === 'panel' && (
+                    <div className="chat-message__header">
+                        <span className="chat-message__label">Error</span>
+                    </div>
+                )}
+                <div className="chat-message__content">
+                    <div className="error-message-content">
+                        {msg.message}
+                    </div>
+                    {msg.actions && msg.actions.length > 0 && (
+                        <div className="error-actions">
+                            {msg.actions.map((action, actionIndex) => (
+                                <button
+                                    key={actionIndex}
+                                    onClick={() => handleActionClick(action)}
+                                    className="error-action-btn"
+                                >
+                                    {action.text}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
     };
 
     const renderPlaceholder = () => (

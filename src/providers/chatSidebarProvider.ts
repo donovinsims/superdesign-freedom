@@ -70,6 +70,15 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     case 'stopChat':
                         await this.messageHandler.stopCurrentChat(webviewView.webview);
                         break;
+                    case 'executeAction':
+                        // Execute command from error action buttons
+                        console.log('Executing action:', message.actionCommand, message.actionArgs);
+                        if (message.actionArgs) {
+                            await vscode.commands.executeCommand(message.actionCommand, message.actionArgs);
+                        } else {
+                            await vscode.commands.executeCommand(message.actionCommand);
+                        }
+                        break;
                 }
             }
         );

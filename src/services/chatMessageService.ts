@@ -12,7 +12,36 @@ export class ChatMessageService {
 
     async handleChatMessage(message: any, webview: vscode.Webview): Promise<void> {
         try {
-            Logger.info(`Chat message received: ${message.message}`);
+            Logger.info(`Processing chat message: ${message.message?.substring(0, 100)}...`);
+            
+            // Check if API key is configured at the start
+            if (!this.claudeService.hasApiKey()) {
+                Logger.error('Anthropic API key not configured');
+                webview.postMessage({
+                    command: 'chatErrorWithActions',
+                    error: 'Anthropic API key required · Configure Anthropic API key',
+                    actions: [
+                        { text: 'Configure API Key', command: 'superdesign.configureApiKey' },
+                        { text: 'Open Settings', command: 'workbench.action.openSettings', args: '@ext:iganbold.superdesign' }
+                    ]
+                });
+                return;
+            }
+            
+            // Refresh API key to ensure it's up to date
+            const apiKeyRefreshed = await this.claudeService.refreshApiKey();
+            if (!apiKeyRefreshed) {
+                Logger.error('Failed to refresh API key');
+                webview.postMessage({
+                    command: 'chatErrorWithActions',
+                    error: 'Invalid Anthropic API key · Fix Anthropic API key',
+                    actions: [
+                        { text: 'Configure API Key', command: 'superdesign.configureApiKey' },
+                        { text: 'Open Settings', command: 'workbench.action.openSettings', args: '@ext:iganbold.superdesign' }
+                    ]
+                });
+                return;
+            }
             
             // Create new AbortController for this request
             this.currentRequestController = new AbortController();
@@ -57,13 +86,33 @@ export class ChatMessageService {
             }
 
             Logger.error(`Chat message failed: ${error}`);
-            vscode.window.showErrorMessage(`Chat failed: ${error}`);
+            Logger.error(`Error type: ${typeof error}, constructor: ${error?.constructor?.name}`);
             
-            // Send error response back to webview
-            webview.postMessage({
-                command: 'chatError',
-                error: error instanceof Error ? error.message : String(error)
-            });
+            // Check if this is an API key authentication error or process failure
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            Logger.error(`Processing error message: "${errorMessage}"`);
+            if (this.claudeService.isApiKeyAuthError(errorMessage) || !this.claudeService.hasApiKey()) {
+                // Send API key error with action buttons
+                const displayMessage = this.claudeService.hasApiKey() ? 
+                    'Invalid Anthropic API key · Fix Anthropic API key' : 
+                    'Anthropic API key required · Configure Anthropic API key';
+                    
+                webview.postMessage({
+                    command: 'chatErrorWithActions',
+                    error: displayMessage,
+                    actions: [
+                        { text: 'Configure API Key', command: 'superdesign.configureApiKey' },
+                        { text: 'Open Settings', command: 'workbench.action.openSettings', args: '@ext:iganbold.superdesign' }
+                    ]
+                });
+            } else {
+                // Regular error - show standard error message
+                vscode.window.showErrorMessage(`Chat failed: ${error}`);
+                webview.postMessage({
+                    command: 'chatError',
+                    error: errorMessage
+                });
+            }
         } finally {
             // Clear the controller when done
             this.currentRequestController = undefined;
@@ -264,6 +313,18 @@ export class ChatMessageService {
         if (message.type === 'result') {
             Logger.debug(`Result message structure: ${JSON.stringify(message, null, 2)}`);
             
+            // Skip error result messages that contain raw API key errors - these are handled by our custom error handler
+            if (message.is_error) {
+                // Check if this is an API key related error in any field
+                const messageStr = JSON.stringify(message).toLowerCase();
+                if (messageStr.includes('api key') || messageStr.includes('authentication') || 
+                    messageStr.includes('unauthorized') || messageStr.includes('anthropic') ||
+                    messageStr.includes('process exited') || messageStr.includes('exit code')) {
+                    Logger.debug('Skipping raw API key error result message - handled by custom error handler');
+                    return;
+                }
+            }
+            
             // Skip final success result messages that are just summaries
             if (message.subtype === 'success' && message.result && typeof message.result === 'string') {
                 const resultText = message.result.toLowerCase();
@@ -285,8 +346,12 @@ export class ChatMessageService {
                 content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
             } else if (message.text) {
                 content = message.text;
+            } else if (message.result && typeof message.result === 'string') {
+                content = message.result;
             } else {
-                content = JSON.stringify(message);
+                // Skip messages that would result in raw JSON dump
+                Logger.debug('Skipping result message with no readable content');
+                return;
             }
             
             // Determine result type and error status

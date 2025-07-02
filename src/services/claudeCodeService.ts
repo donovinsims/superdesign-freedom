@@ -44,13 +44,6 @@ export class ClaudeCodeService {
             
             if (!apiKey) {
                 Logger.warn('No API key found');
-                const action = await vscode.window.showErrorMessage(
-                    'Anthropic API key is required for Claude Code integration.',
-                    'Open Settings'
-                );
-                if (action === 'Open Settings') {
-                    vscode.commands.executeCommand('workbench.action.openSettings', 'superdesign.anthropicApiKey');
-                }
                 throw new Error('Missing API key');
             }
 
@@ -112,7 +105,16 @@ export class ClaudeCodeService {
             Logger.info('Claude Code SDK initialized successfully');
         } catch (error) {
             Logger.error(`Failed to initialize Claude Code SDK: ${error}`);
-            vscode.window.showErrorMessage(`Failed to initialize Claude Code: ${error}`);
+            
+            // Check if this is an API key related error (no UI popup needed here as error will be handled in chat)
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (!this.isApiKeyAuthError(errorMessage)) {
+                vscode.window.showErrorMessage(`Failed to initialize Claude Code: ${error}`);
+            }
+            
+            // Reset initialization promise so it can be retried
+            this.initializationPromise = null;
+            this.isInitialized = false;
             throw error;
         }
     }
@@ -162,7 +164,13 @@ export class ClaudeCodeService {
             await this.initializationPromise;
         }
         if (!this.isInitialized || !this.claudeCodeQuery) {
-            throw new Error('Claude Code SDK not initialized');
+            // Try to initialize if not already done
+            if (!this.initializationPromise) {
+                this.initializationPromise = this.initialize();
+                await this.initializationPromise;
+            } else {
+                throw new Error('Claude Code SDK not initialized');
+            }
         }
     }
 
@@ -331,7 +339,12 @@ Your goal is to extract a generalized and reusable design system from the screen
             return messages;
         } catch (error) {
             Logger.error(`Claude Code query failed: ${error}`);
-            vscode.window.showErrorMessage(`Claude Code query failed: ${error}`);
+            
+            // Check if this is an API key authentication error (handled in chat interface)
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (!this.isApiKeyAuthError(errorMessage)) {
+                vscode.window.showErrorMessage(`Claude Code query failed: ${error}`);
+            }
             throw error;
         }
     }
@@ -352,5 +365,74 @@ Your goal is to extract a generalized and reusable design system from the screen
 
     getWorkingDirectory(): string {
         return this.workingDirectory;
+    }
+
+    // Method to refresh API key from settings and reinitialize if needed
+    async refreshApiKey(): Promise<boolean> {
+        try {
+            const config = vscode.workspace.getConfiguration('superdesign');
+            const apiKey = config.get<string>('anthropicApiKey');
+            
+            if (!apiKey) {
+                Logger.warn('No API key found during refresh');
+                return false;
+            }
+
+            // Update environment variable
+            process.env.ANTHROPIC_API_KEY = apiKey;
+            Logger.info('API key refreshed from settings');
+            
+            // If not initialized yet, try to initialize
+            if (!this.isInitialized) {
+                try {
+                    await this.initialize();
+                    return true;
+                } catch (error) {
+                    Logger.error(`Failed to initialize after API key refresh: ${error}`);
+                    return false;
+                }
+            }
+            
+            return true;
+        } catch (error) {
+            Logger.error(`Failed to refresh API key: ${error}`);
+            return false;
+        }
+    }
+
+    // Method to check if API key is configured
+    hasApiKey(): boolean {
+        const config = vscode.workspace.getConfiguration('superdesign');
+        const apiKey = config.get<string>('anthropicApiKey');
+        return !!apiKey && apiKey.trim().length > 0;
+    }
+
+    // Method to detect if an error is related to API key authentication
+    public isApiKeyAuthError(errorMessage: string): boolean {
+        const authErrorPatterns = [
+            'authentication failed',
+            'invalid api key',
+            'unauthorized',
+            'api key',
+            'authentication error',
+            'invalid token',
+            'access denied',
+            '401',
+            'ANTHROPIC_API_KEY',
+            'process exited with code 1',
+            'claude code process exited',
+            'exit code 1'
+        ];
+        
+        const lowercaseMessage = errorMessage.toLowerCase();
+        const isAuthError = authErrorPatterns.some(pattern => lowercaseMessage.includes(pattern));
+        
+        Logger.info(`Checking if error is auth-related: "${errorMessage}" -> ${isAuthError}`);
+        if (isAuthError) {
+            const matchedPattern = authErrorPatterns.find(pattern => lowercaseMessage.includes(pattern));
+            Logger.info(`Matched pattern: "${matchedPattern}"`);
+        }
+        
+        return isAuthError;
     }
 } 

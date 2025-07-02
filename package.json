@@ -79,12 +79,23 @@
         "command": "superdesign.initializeProject",
         "title": "Initialize Superdesign",
         "category": "Superdesign"
+      },
+      {
+        "command": "superdesign.openSettings",
+        "title": "Open Settings",
+        "category": "Superdesign",
+        "icon": "$(settings-gear)"
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "superdesign.openCanvas",
+          "when": "view == superdesign.chatView",
+          "group": "navigation"
+        },
+        {
+          "command": "superdesign.openSettings",
           "when": "view == superdesign.chatView",
           "group": "navigation"
         },
