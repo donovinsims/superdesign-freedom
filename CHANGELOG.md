@@ -3,6 +3,31 @@
 All notable changes to the "superdesign" extension will be documented in this file.
 
 
+## [0.0.8] - 2025-07-01
+
+### Added
+- Settings icon in chat sidebar for easy access to extension configuration
+- In-chat action buttons for API key configuration and settings access
+- Enhanced error handling with user-friendly action options
+
+### Improved
+- Error messages now specifically mention "Anthropic API key" for clarity
+- API key validation and authentication error detection
+- User experience with cleaner error handling workflow
+- Settings integration with direct commands for API key configuration
+
+### Fixed
+- Raw JSON error messages no longer display in chat interface
+- Notification popups replaced with cleaner in-chat error messages
+- Error message filtering to prevent duplicate or confusing displays
+- Process exit errors now properly handled with action buttons
+
+### Technical
+- Enhanced `ClaudeCodeService` error detection patterns
+- Improved `ChatMessageService` error filtering and handling
+- Better error message routing between extension and webview
+- Streamlined API key refresh and validation logic
+
 ## [0.0.7] - 2025-07-01
 
 ### Added
