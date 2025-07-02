@@ -3,6 +3,51 @@
 All notable changes to the "superdesign" extension will be documented in this file.
 
 
+## [0.0.7] - 2025-07-01
+
+### Added
+- Default style sheet integration for enhanced design consistency
+- Project initialization command (`superdesign.initializeProject`)
+- CSS file loading support for custom styling
+- Copy file path functionality in Design Frame component
+
+### Improved
+- Updated icon design and visual elements
+- Enhanced Design Frame component with better user interactions
+- Extended file handling capabilities
+
+### Documentation
+- Updated README with improved instructions and examples
+
+## [0.0.6] - 2025-06-26
+
+### Added
+- Centralized logging system with configurable log levels
+- Enhanced error handling and debugging capabilities
+- Improved Claude Code service integration
+
+### Fixed
+- Performance optimizations and stability improvements
+- Better error messages and user feedback
+
+## [0.0.5] - 2025-06-26
+
+### Added
+- Enhanced chat interface functionality
+- Improved AI provider integrations
+
+## [0.0.4] - 2025-06-26
+
+### Added
+- Additional design tools and utilities
+- Better canvas interaction features
+
+## [0.0.3] - 2025-06-25
+
+### Added
+- Enhanced design frame capabilities
+- Improved user experience features
+
 ## [0.0.2] - 2025-06-25
 
 ### Added
