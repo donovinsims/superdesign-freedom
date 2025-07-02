@@ -12,6 +12,7 @@ import { createBashTool } from '../tools/bash-tool';
 import { createEditTool } from '../tools/edit-tool';
 import { createGlobTool } from '../tools/glob-tool';
 import { createGrepTool } from '../tools/grep-tool';
+import { createLsTool } from '../tools/ls-tool';
 
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
@@ -130,6 +131,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
 - **edit**: Replace text within files using exact string matching (requires precise text matching including whitespace and indentation)
 - **glob**: Find files and directories matching glob patterns (e.g., "*.js", "src/**/*.ts") - efficient for locating files by name or path structure
 - **grep**: Search for text patterns within file contents using regular expressions (can filter by file types and paths)
+- **ls**: List directory contents with optional filtering, sorting, and detailed information (shows files and subdirectories)
 - **bash**: Execute shell/bash commands within the workspace (secure execution with timeouts and output capture)
 
 # Instructions
@@ -180,6 +182,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                 edit: createEditTool(executionContext),
                 glob: createGlobTool(executionContext),
                 grep: createGrepTool(executionContext),
+                ls: createLsTool(executionContext),
                 bash: createBashTool(executionContext)
             };
 
