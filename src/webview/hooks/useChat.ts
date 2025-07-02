@@ -432,18 +432,25 @@ export function useChat(vscode: any): ChatHookResult {
             return;
         }
         
-        // Add user message to history
-        setChatHistory(prev => [...prev, {
+        // Add user message to history first
+        const newUserMessage: ChatMessage = {
             type: 'user-input',
             message: message.trim(),
             timestamp: Date.now()
-        }]);
+        };
         
-        // Send to extension
-        setIsLoading(true);
-        vscode.postMessage({
-            command: 'chatWithClaude',
-            message: message.trim()
+        setChatHistory(prev => {
+            const updatedHistory = [...prev, newUserMessage];
+            
+            // Send full conversation history to extension
+            setIsLoading(true);
+            vscode.postMessage({
+                command: 'chatWithClaude',
+                message: message.trim(), // Keep for backward compatibility
+                chatHistory: updatedHistory // Send full conversation history
+            });
+            
+            return updatedHistory;
         });
     }, [vscode, isLoading]);
 

@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { ClaudeCodeService } from './claudeCodeService';
 import { AgentService } from '../types/agent';
+import { convertChatHistoryToAISDK, debugConversion } from './messageConverter';
+import { ChatMessage } from '../webview/hooks/useChat';
+import { CoreMessage } from 'ai';
 
 export class ChatMessageService {
     private currentRequestController?: AbortController;
@@ -12,7 +15,11 @@ export class ChatMessageService {
 
     async handleChatMessage(message: any, webview: vscode.Webview): Promise<void> {
         try {
-            this.outputChannel.appendLine(`Chat message received: ${message.message}`);
+            const chatHistory: ChatMessage[] = message.chatHistory || [];
+            const latestMessage = message.message || '';
+            
+            this.outputChannel.appendLine(`Chat message received with ${chatHistory.length} history messages`);
+            this.outputChannel.appendLine(`Latest message: ${latestMessage}`);
             
             // Create new AbortController for this request
             this.currentRequestController = new AbortController();
@@ -22,16 +29,61 @@ export class ChatMessageService {
                 command: 'chatStreamStart'
             });
             
-            // Use the enhanced file tools method with streaming callback
-            const response = await this.agentService.query(
-                message.message, 
-                undefined, 
-                this.currentRequestController,
-                (streamMessage: any) => {
-                    // Process and send each message as it arrives
-                    this.handleStreamMessage(streamMessage, webview);
-                }
-            );
+            // Convert chat history to AI SDK format
+            const convertedMessages = convertChatHistoryToAISDK(chatHistory);
+            
+            // Debug log conversion with VS Code output channel
+            this.outputChannel.appendLine('=== MESSAGE CONVERSION DEBUG ===');
+            this.outputChannel.appendLine(`📥 Input: ${chatHistory.length} frontend messages`);
+            this.outputChannel.appendLine(`📤 Output: ${convertedMessages.length} AI SDK messages`);
+            
+            // Log each original message
+            this.outputChannel.appendLine('📋 Original messages:');
+            chatHistory.forEach((msg, index) => {
+                this.outputChannel.appendLine(`  [${index}] ${msg.type}: "${msg.message.substring(0, 100)}..." (timestamp: ${msg.timestamp})`);
+            });
+            
+            // Log each converted message  
+            this.outputChannel.appendLine('🔄 Converted messages:');
+            convertedMessages.forEach((msg, index) => {
+                const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+                this.outputChannel.appendLine(`  [${index}] ${msg.role}: "${content.substring(0, 100)}..."`);
+            });
+            
+            this.outputChannel.appendLine('=== END CONVERSION DEBUG ===');
+            
+            // Keep original debug for console
+            debugConversion(chatHistory, convertedMessages);
+            
+            // Decide whether to use conversation history or single prompt
+            let response: any[];
+            if (convertedMessages.length > 0) {
+                // Use conversation history
+                this.outputChannel.appendLine(`Using conversation history with ${convertedMessages.length} messages`);
+                response = await this.agentService.query(
+                    undefined, // no prompt 
+                    convertedMessages, // use messages array
+                    undefined, 
+                    this.currentRequestController,
+                    (streamMessage: any) => {
+                        // Process and send each message as it arrives
+                        this.handleStreamMessage(streamMessage, webview);
+                    }
+                );
+            } else {
+                // Fallback to single prompt for first message
+                this.outputChannel.appendLine('No conversation history, using single prompt');
+                response = await this.agentService.query(
+                    latestMessage, // use latest message as prompt
+                    undefined, // no messages array
+                    undefined, 
+                    this.currentRequestController,
+                    (streamMessage: any) => {
+                        // Process and send each message as it arrives
+                        this.handleStreamMessage(streamMessage, webview);
+                    }
+                );
+            }
 
             // Check if request was aborted
             if (this.currentRequestController.signal.aborted) {
@@ -39,7 +91,7 @@ export class ChatMessageService {
                 return;
             }
 
-            this.outputChannel.appendLine(`Claude response completed with ${response.length} total messages`);
+            this.outputChannel.appendLine(`Agent response completed with ${response.length} total messages`);
 
             // Send stream end message
             webview.postMessage({

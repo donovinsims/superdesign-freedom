@@ -1,4 +1,4 @@
-import { streamText } from 'ai';
+import { streamText, CoreMessage } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import * as vscode from 'vscode';
@@ -144,13 +144,25 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
     }
 
     async query(
-        prompt: string, 
+        prompt?: string,
+        conversationHistory?: CoreMessage[],
         options?: any, 
         abortController?: AbortController,
         onMessage?: (message: any) => void
     ): Promise<any[]> {
         this.outputChannel.appendLine('=== CUSTOM AGENT QUERY CALLED ===');
-        this.outputChannel.appendLine(`Query prompt: ${prompt.substring(0, 200)}...`);
+        
+        // Determine which input format we're using
+        const usingConversationHistory = !!conversationHistory && conversationHistory.length > 0;
+        
+        if (usingConversationHistory) {
+            this.outputChannel.appendLine(`Query using conversation history: ${conversationHistory!.length} messages`);
+        } else if (prompt) {
+            this.outputChannel.appendLine(`Query prompt: ${prompt.substring(0, 200)}...`);
+        } else {
+            throw new Error('Either prompt or conversationHistory must be provided');
+        }
+        
         this.outputChannel.appendLine(`Query options: ${JSON.stringify(options, null, 2)}`);
         this.outputChannel.appendLine(`Streaming enabled: ${!!onMessage}`);
 
@@ -158,7 +170,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
             await this.setupWorkingDirectory();
         }
 
-        const messages: any[] = [];
+        const responseMessages: any[] = [];
         const sessionId = `session_${Date.now()}`;
         let messageBuffer = '';
         
@@ -189,14 +201,34 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                 bash: createBashTool(executionContext)
             };
 
-            const result = streamText({
+            // Prepare AI SDK input based on available data
+            const streamTextConfig: any = {
                 model: this.getModel(),
                 system: this.getSystemPrompt(),
-                prompt: prompt,
                 tools: tools,
                 toolCallStreaming: true,
                 maxSteps: 5 // Enable multi-step reasoning with tools
-            });
+            };
+            
+            if (usingConversationHistory) {
+                // Use conversation messages
+                streamTextConfig.messages = conversationHistory;
+                this.outputChannel.appendLine(`Using conversation history with ${conversationHistory!.length} messages`);
+                
+                // Debug: Log the actual messages being sent to AI SDK
+                this.outputChannel.appendLine('=== AI SDK MESSAGES DEBUG ===');
+                conversationHistory!.forEach((msg, index) => {
+                    const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+                    this.outputChannel.appendLine(`  [${index}] ${msg.role}: "${content.substring(0, 150)}..."`);
+                });
+                this.outputChannel.appendLine('=== END AI SDK MESSAGES DEBUG ===');
+            } else {
+                // Use single prompt
+                streamTextConfig.prompt = prompt;
+                this.outputChannel.appendLine(`Using single prompt: ${prompt!.substring(0, 100)}...`);
+            }
+
+            const result = streamText(streamTextConfig);
 
             this.outputChannel.appendLine('AI SDK streamText created, starting to process chunks...');
 
@@ -223,7 +255,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                         
                         this.outputChannel.appendLine(`Sending text chunk: "${chunk.textDelta}"`);
                         onMessage?.(textMessage);
-                        messages.push(textMessage);
+                        responseMessages.push(textMessage);
                         break;
 
                     case 'finish':
@@ -241,7 +273,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                         };
                         
                         onMessage?.(resultMessage);
-                        messages.push(resultMessage);
+                        responseMessages.push(resultMessage);
                         break;
 
                     case 'error':
@@ -258,7 +290,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                         };
                         
                         onMessage?.(errorMessage);
-                        messages.push(errorMessage);
+                        responseMessages.push(errorMessage);
                         break;
 
                     case 'tool-call-streaming-start':
@@ -289,7 +321,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                         };
                         
                         onMessage?.(toolCallStartMessage);
-                        messages.push(toolCallStartMessage);
+                        responseMessages.push(toolCallStartMessage);
                         break;
 
                     case 'tool-call-delta':
@@ -353,7 +385,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                             };
                             
                             onMessage?.(toolCallMessage);
-                            messages.push(toolCallMessage);
+                            responseMessages.push(toolCallMessage);
                         } else {
                             this.outputChannel.appendLine(`Skipping duplicate tool call message - already sent streaming start for ID: ${toolCall.toolCallId}`);
                         }
@@ -361,29 +393,6 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                         // Reset tool call streaming state
                         currentToolCall = null;
                         toolCallBuffer = '';
-                        break;
-
-                    case 'tool-result':
-                        // Handle tool result - transform to Claude Code format
-                        const toolResult = chunk as any;
-                        this.outputChannel.appendLine(`Tool result for ID: ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result).substring(0, 200)}...`);
-                        
-                        const toolResultMessage = {
-                            type: 'user',
-                            message: {
-                                content: [{
-                                    type: 'tool_result',
-                                    tool_use_id: toolResult.toolCallId,
-                                    content: JSON.stringify(toolResult.result, null, 2),
-                                    is_error: false
-                                }]
-                            },
-                            session_id: sessionId,
-                            parent_tool_use_id: null
-                        };
-                        
-                        onMessage?.(toolResultMessage);
-                        messages.push(toolResultMessage);
                         break;
 
                     case 'step-start':
@@ -399,15 +408,38 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                         break;
 
                     default:
-                        this.outputChannel.appendLine(`Unknown chunk type: ${chunk.type}`);
+                        // Handle tool results and other unknown chunk types
+                        if ((chunk as any).type === 'tool-result') {
+                            const toolResult = chunk as any;
+                            this.outputChannel.appendLine(`Tool result for ID: ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result).substring(0, 200)}...`);
+                            
+                            const toolResultMessage = {
+                                type: 'user',
+                                message: {
+                                    content: [{
+                                        type: 'tool_result',
+                                        tool_use_id: toolResult.toolCallId,
+                                        content: JSON.stringify(toolResult.result, null, 2),
+                                        is_error: false
+                                    }]
+                                },
+                                session_id: sessionId,
+                                parent_tool_use_id: null
+                            };
+                            
+                            onMessage?.(toolResultMessage);
+                            responseMessages.push(toolResultMessage);
+                        } else {
+                            this.outputChannel.appendLine(`Unknown chunk type: ${chunk.type}`);
+                        }
                         break;
                 }
             }
 
-            this.outputChannel.appendLine(`Query completed successfully. Total messages: ${messages.length}`);
+            this.outputChannel.appendLine(`Query completed successfully. Total messages: ${responseMessages.length}`);
             this.outputChannel.appendLine(`Complete response: "${messageBuffer}"`);
             
-            return messages;
+            return responseMessages;
 
         } catch (error) {
             this.outputChannel.appendLine(`Custom Agent query failed: ${error}`);

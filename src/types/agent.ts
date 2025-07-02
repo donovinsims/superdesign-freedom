@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
+import { CoreMessage } from 'ai';
 
 export interface AgentService {
     query(
-        prompt: string,
+        prompt?: string,
+        messages?: CoreMessage[],
         options?: any,
         abortController?: AbortController,
         onMessage?: (message: any) => void

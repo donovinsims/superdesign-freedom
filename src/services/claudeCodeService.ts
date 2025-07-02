@@ -195,11 +195,22 @@ export class ClaudeCodeService {
         }
     }
 
-    async query(prompt: string, options?: Partial<ClaudeCodeOptions>, abortController?: AbortController, onMessage?: (message: SDKMessage) => void): Promise<SDKMessage[]> {
+    async query(prompt?: string, conversationMessages?: any, options?: Partial<ClaudeCodeOptions>, abortController?: AbortController, onMessage?: (message: SDKMessage) => void): Promise<SDKMessage[]> {
+        // ClaudeCodeService handles conversation via internal session management
+        // so we ignore conversationMessages and just use the prompt
+        
+        if (!prompt) {
+            throw new Error('ClaudeCodeService requires a prompt parameter');
+        }
+        
         this.outputChannel.appendLine('=== QUERY FUNCTION CALLED ===');
         this.outputChannel.appendLine(`Query prompt: ${prompt.substring(0, 200)}...`);
         this.outputChannel.appendLine(`Query options: ${JSON.stringify(options, null, 2)}`);
         this.outputChannel.appendLine(`Streaming enabled: ${!!onMessage}`);
+        
+        if (conversationMessages) {
+            this.outputChannel.appendLine('Note: ClaudeCodeService ignores conversationMessages (uses internal session management)');
+        }
 
         await this.ensureInitialized();
         this.outputChannel.appendLine('Initialization check completed');
@@ -333,7 +344,7 @@ Your goal is to extract a generalized and reusable design system from the screen
             }
 
             const queryParams = {
-                prompt,
+                prompt: prompt!, // Non-null assertion since we checked above
                 abortController: abortController || new AbortController(),
                 options: finalOptions
             };
