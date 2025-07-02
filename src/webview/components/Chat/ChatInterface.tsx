@@ -198,26 +198,99 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         return () => window.removeEventListener('autoCollapseTools', handleAutoCollapse);
     }, [chatHistory]);
 
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         if (inputMessage.trim()) {
-            let finalMessage = inputMessage;
+            let messageContent: any;
             
             console.log('📤 Sending message with context:', currentContext);
             console.log('📤 Input message:', inputMessage);
             
-            // Add context prefix if available
-            if (currentContext) {
-                if (currentContext.type === 'images') {
-                    finalMessage = `Context: Multiple images in moodboard\n\nMessage: ${inputMessage}`;
-                } else {
-                    finalMessage = `Context: ${currentContext.fileName}\n\nMessage: ${inputMessage}`;
+            // Check if we have image context to include
+            if (currentContext && (currentContext.type === 'image' || currentContext.type === 'images')) {
+                try {
+                    // Create structured content with text and images
+                    const contentParts: any[] = [
+                        {
+                            type: 'text',
+                            text: inputMessage
+                        }
+                    ];
+                    
+                    // Process image context
+                    const imagePaths = currentContext.type === 'images' 
+                        ? currentContext.fileName.split(', ')
+                        : [currentContext.fileName];
+                    
+                    // Convert each image to base64
+                    for (const imagePath of imagePaths) {
+                        try {
+                            // Request base64 data from the extension
+                            const base64Data = await new Promise<string>((resolve, reject) => {
+                                const timeoutId = setTimeout(() => {
+                                    reject(new Error('Timeout waiting for base64 data'));
+                                }, 10000);
+                                
+                                const handler = (event: MessageEvent) => {
+                                    const message = event.data;
+                                    if (message.command === 'base64ImageResponse' && message.filePath === imagePath) {
+                                        clearTimeout(timeoutId);
+                                        window.removeEventListener('message', handler);
+                                        if (message.error) {
+                                            reject(new Error(message.error));
+                                        } else {
+                                            resolve(message.base64Data);
+                                        }
+                                    }
+                                };
+                                
+                                window.addEventListener('message', handler);
+                                
+                                // Request base64 data from extension
+                                vscode.postMessage({
+                                    command: 'getBase64Image',
+                                    filePath: imagePath
+                                });
+                            });
+                            
+                            // Extract MIME type from base64 data URL
+                            const mimeMatch = base64Data.match(/^data:([^;]+);base64,/);
+                            const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+                            const base64Content = base64Data.replace(/^data:[^;]+;base64,/, '');
+                            
+                            contentParts.push({
+                                type: 'image',
+                                image: base64Content,
+                                mimeType: mimeType
+                            });
+                            
+                            console.log('📎 Added image to message:', imagePath, 'MIME:', mimeType);
+                        } catch (error) {
+                            console.error('Failed to load image:', imagePath, error);
+                            // Add error note to text content instead
+                            contentParts[0].text += `\n\n[Note: Could not load image ${imagePath}: ${error}]`;
+                        }
+                    }
+                    
+                    messageContent = contentParts;
+                    console.log('📤 Final structured message content:', contentParts.length, 'parts');
+                } catch (error) {
+                    console.error('Error processing images:', error);
+                    // Fallback to text-only message with context info
+                    messageContent = currentContext.type === 'images' 
+                        ? `Context: Multiple images in moodboard\n\nMessage: ${inputMessage}`
+                        : `Context: ${currentContext.fileName}\n\nMessage: ${inputMessage}`;
                 }
-                console.log('📤 Final message with context:', finalMessage);
+            } else if (currentContext) {
+                // Non-image context - use simple text format
+                messageContent = `Context: ${currentContext.fileName}\n\nMessage: ${inputMessage}`;
+                console.log('📤 Final message with non-image context:', messageContent);
             } else {
+                // No context - just the message text
+                messageContent = inputMessage;
                 console.log('📤 No context available, sending message as-is');
             }
             
-            sendMessage(finalMessage);
+            sendMessage(messageContent);
             setInputMessage('');
         }
     };

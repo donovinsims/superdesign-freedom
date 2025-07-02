@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 export interface ChatMessage {
     type: 'user' | 'assistant' | 'result' | 'user-input' | 'tool' | 'tool-result' | 'tool-group';
     message: string;
+    content?: any; // Structured content for AI SDK (TextPart[] | ImagePart[] etc.)
     timestamp?: number;
     subtype?: string;
     metadata?: {
@@ -33,7 +34,7 @@ export interface ChatMessage {
 export interface ChatHookResult {
     chatHistory: ChatMessage[];
     isLoading: boolean;
-    sendMessage: (message: string) => void;
+    sendMessage: (message: string | any[]) => void; // Support both string and structured content
     stopResponse: () => void;
     clearHistory: () => void;
 }
@@ -427,15 +428,24 @@ export function useChat(vscode: any): ChatHookResult {
         return () => window.removeEventListener('message', messageHandler);
     }, []);
 
-    const sendMessage = useCallback((message: string) => {
-        if (!message.trim() || isLoading) {
+    const sendMessage = useCallback((message: string | any[]) => {
+        // Handle both string and structured content
+        const messageText = typeof message === 'string' ? message : 
+            (Array.isArray(message) ? 
+                message.find(part => part.type === 'text')?.text || '[Message with attachments]' : 
+                String(message));
+        
+        if ((typeof message === 'string' && !message.trim()) || 
+            (Array.isArray(message) && (!message.length || !messageText.trim())) || 
+            isLoading) {
             return;
         }
         
         // Add user message to history first
         const newUserMessage: ChatMessage = {
             type: 'user-input',
-            message: message.trim(),
+            message: messageText.trim(),
+            content: typeof message === 'string' ? undefined : message, // Store structured content
             timestamp: Date.now()
         };
         
@@ -446,7 +456,8 @@ export function useChat(vscode: any): ChatHookResult {
             setIsLoading(true);
             vscode.postMessage({
                 command: 'chatWithClaude',
-                message: message.trim(), // Keep for backward compatibility
+                message: messageText.trim(), // Keep for backward compatibility
+                messageContent: message, // Send the full content (string or structured)
                 chatHistory: updatedHistory // Send full conversation history
             });
             

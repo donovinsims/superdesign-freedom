@@ -61,15 +61,46 @@ function convertSingleMessage(chatMessage: ChatMessage): CoreMessage | null {
 
 /**
  * Convert user-input type to user role message
+ * Handles both simple text messages and structured content with images
  */
 function convertUserInputMessage(chatMessage: ChatMessage): CoreMessage {
-    return {
-        role: 'user',
-        content: [{
-            type: 'text',
-            text: chatMessage.message
-        }]
-    };
+    // Check if we have structured content (for images)
+    if (chatMessage.content && Array.isArray(chatMessage.content)) {
+        // Handle structured content with text and image parts
+        const contentParts: any[] = [];
+        
+        for (const part of chatMessage.content) {
+            if (part.type === 'text' && part.text) {
+                contentParts.push({
+                    type: 'text',
+                    text: part.text
+                });
+            } else if (part.type === 'image' && part.image) {
+                contentParts.push({
+                    type: 'image',
+                    image: part.image, // Base64 string or URL
+                    mimeType: part.mimeType
+                });
+            }
+        }
+        
+        return {
+            role: 'user',
+            content: contentParts.length > 0 ? contentParts : [{
+                type: 'text',
+                text: chatMessage.message || '[Message with attachments]'
+            }]
+        };
+    } else {
+        // Handle simple text content (original behavior)
+        return {
+            role: 'user',
+            content: [{
+                type: 'text',
+                text: chatMessage.message
+            }]
+        };
+    }
 }
 
 /**

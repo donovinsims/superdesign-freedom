@@ -71,6 +71,10 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     case 'stopChat':
                         await this.messageHandler.stopCurrentChat(webviewView.webview);
                         break;
+                    case 'getBase64Image':
+                        // Forward to extension for image conversion
+                        // This will be handled by extension.ts
+                        break;
                     case 'getCurrentProvider':
                         await this.handleGetCurrentProvider(webviewView.webview);
                         break;

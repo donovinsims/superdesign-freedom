@@ -74,6 +74,64 @@ async function saveImageToMoodboard(data: {
 	}
 }
 
+// Function to convert image files to base64 for AI SDK
+async function getBase64Image(filePath: string, sidebarProvider: ChatSidebarProvider) {
+	try {
+		// Read the image file
+		const fileUri = vscode.Uri.file(filePath);
+		const fileData = await vscode.workspace.fs.readFile(fileUri);
+		
+		// Determine MIME type from file extension
+		const extension = filePath.toLowerCase().split('.').pop();
+		let mimeType: string;
+		switch (extension) {
+			case 'jpg':
+			case 'jpeg':
+				mimeType = 'image/jpeg';
+				break;
+			case 'png':
+				mimeType = 'image/png';
+				break;
+			case 'gif':
+				mimeType = 'image/gif';
+				break;
+			case 'webp':
+				mimeType = 'image/webp';
+				break;
+			case 'bmp':
+				mimeType = 'image/bmp';
+				break;
+			default:
+				mimeType = 'image/png'; // Default fallback
+		}
+		
+		// Convert to base64
+		const base64Content = Buffer.from(fileData).toString('base64');
+		const base64DataUri = `data:${mimeType};base64,${base64Content}`;
+		
+		console.log(`Converted image to base64: ${filePath} (${(fileData.length / 1024).toFixed(1)} KB)`);
+		
+		// Send back the base64 data to webview
+		sidebarProvider.sendMessage({
+			command: 'base64ImageResponse',
+			filePath: filePath,
+			base64Data: base64DataUri,
+			mimeType: mimeType,
+			size: fileData.length
+		});
+		
+	} catch (error) {
+		console.error('Error converting image to base64:', error);
+		
+		// Send error back to webview
+		sidebarProvider.sendMessage({
+			command: 'base64ImageResponse',
+			filePath: filePath,
+			error: error instanceof Error ? error.message : String(error)
+		});
+	}
+}
+
 // Function to submit email to Supabase API
 async function submitEmailToSupabase(email: string, sidebarProvider: ChatSidebarProvider) {
 	try {
@@ -943,6 +1001,11 @@ export function activate(context: vscode.ExtensionContext) {
 			case 'saveImageToMoodboard':
 				// Save uploaded image to moodboard directory
 				saveImageToMoodboard(message.data, sidebarProvider);
+				break;
+
+			case 'getBase64Image':
+				// Convert saved image to base64 for AI SDK
+				getBase64Image(message.filePath, sidebarProvider);
 				break;
 
 			case 'showError':

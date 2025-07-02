@@ -17,9 +17,24 @@ export class ChatMessageService {
         try {
             const chatHistory: ChatMessage[] = message.chatHistory || [];
             const latestMessage = message.message || '';
+            const messageContent = message.messageContent || latestMessage; // New structured content field
             
             this.outputChannel.appendLine(`Chat message received with ${chatHistory.length} history messages`);
             this.outputChannel.appendLine(`Latest message: ${latestMessage}`);
+            
+            // Debug structured content
+            if (typeof messageContent !== 'string' && Array.isArray(messageContent)) {
+                this.outputChannel.appendLine(`Structured content: ${messageContent.length} parts`);
+                messageContent.forEach((part, index) => {
+                    if (part.type === 'text') {
+                        this.outputChannel.appendLine(`  [${index}] text: "${part.text?.substring(0, 100)}..."`);
+                    } else if (part.type === 'image') {
+                        this.outputChannel.appendLine(`  [${index}] image: ${part.mimeType || 'unknown type'} (${part.image?.length || 0} chars)`);
+                    }
+                });
+            } else {
+                this.outputChannel.appendLine(`Simple text content: ${String(messageContent).substring(0, 100)}...`);
+            }
             
             // Create new AbortController for this request
             this.currentRequestController = new AbortController();
