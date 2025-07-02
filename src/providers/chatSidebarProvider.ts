@@ -71,8 +71,64 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     case 'stopChat':
                         await this.messageHandler.stopCurrentChat(webviewView.webview);
                         break;
+                    case 'getCurrentProvider':
+                        await this.handleGetCurrentProvider(webviewView.webview);
+                        break;
+                    case 'changeProvider':
+                        await this.handleChangeProvider(message.provider, webviewView.webview);
+                        break;
                 }
             }
         );
+    }
+
+    private async handleGetCurrentProvider(webview: vscode.Webview) {
+        const config = vscode.workspace.getConfiguration('superdesign');
+        const currentProvider = config.get<string>('aiModelProvider', 'anthropic');
+        
+        webview.postMessage({
+            command: 'currentProviderResponse',
+            provider: currentProvider
+        });
+    }
+
+    private async handleChangeProvider(provider: string, webview: vscode.Webview) {
+        try {
+            const config = vscode.workspace.getConfiguration('superdesign');
+            await config.update('aiModelProvider', provider, vscode.ConfigurationTarget.Global);
+            
+            // Check if the API key is configured for the selected provider
+            const apiKeyKey = provider === 'openai' ? 'openaiApiKey' : 'anthropicApiKey';
+            const apiKey = config.get<string>(apiKeyKey);
+            
+            if (!apiKey) {
+                const providerName = provider === 'openai' ? 'OpenAI (GPT-4o)' : 'Anthropic (Claude 3.5 Sonnet)';
+                const configureCommand = provider === 'openai' ? 
+                    'superdesign.configureOpenAIApiKey' : 
+                    'superdesign.configureApiKey';
+                
+                const result = await vscode.window.showWarningMessage(
+                    `${providerName} selected, but API key is not configured. Would you like to configure it now?`,
+                    'Configure API Key',
+                    'Later'
+                );
+                
+                if (result === 'Configure API Key') {
+                    await vscode.commands.executeCommand(configureCommand);
+                }
+            } else {
+                const providerName = provider === 'openai' ? 'OpenAI (GPT-4o)' : 'Anthropic (Claude 3.5 Sonnet)';
+                vscode.window.showInformationMessage(`✅ AI provider switched to ${providerName}`);
+            }
+
+            // Notify webview of successful change
+            webview.postMessage({
+                command: 'providerChanged',
+                provider: provider
+            });
+
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to update AI provider: ${error}`);
+        }
     }
 } 

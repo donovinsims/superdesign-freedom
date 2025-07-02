@@ -17,8 +17,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const { chatHistory, isLoading, sendMessage, stopResponse, clearHistory } = useChat(vscode);
     const { isFirstTime, isLoading: isCheckingFirstTime, markAsReturningUser, resetFirstTimeUser } = useFirstTimeUser();
     const [inputMessage, setInputMessage] = useState('');
-    const [selectedAgent, setSelectedAgent] = useState('Agent #1');
-    const [selectedModel, setSelectedModel] = useState('claude-4-sonnet');
+    const [selectedProvider, setSelectedProvider] = useState('anthropic');
     const [expandedTools, setExpandedTools] = useState<{[key: number]: boolean}>({});
     const [showFullContent, setShowFullContent] = useState<{[key: string]: boolean}>({});
     const [currentContext, setCurrentContext] = useState<{fileName: string; type: string} | null>(null);
@@ -27,6 +26,35 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     // Drag and drop state
     const [uploadingImages, setUploadingImages] = useState<string[]>([]);
     const [pendingImages, setPendingImages] = useState<{fileName: string; originalName: string; fullPath: string}[]>([]);
+
+    // Get current provider from extension on load and listen for changes
+    useEffect(() => {
+        // Request current provider setting
+        vscode.postMessage({
+            command: 'getCurrentProvider'
+        });
+
+        // Listen for provider updates
+        const handleMessage = (event: MessageEvent) => {
+            const message = event.data;
+            if (message.command === 'currentProviderResponse') {
+                setSelectedProvider(message.provider || 'anthropic');
+            } else if (message.command === 'providerChanged') {
+                setSelectedProvider(message.provider);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [vscode]);
+
+    const handleProviderChange = (provider: string) => {
+        // Send provider change request to extension
+        vscode.postMessage({
+            command: 'changeProvider',
+            provider: provider
+        });
+    };
 
     useEffect(() => {
         // Inject ChatInterface CSS styles
@@ -1148,29 +1176,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             <div className="selectors-group">
                                 <div className="selector-wrapper">
                                     <select 
-                                        className="agent-selector"
-                                        value={selectedAgent}
-                                        onChange={(e) => setSelectedAgent(e.target.value)}
-                                        disabled={isLoading || showWelcome}
-                                    >
-                                        <option value="Agent #1">Agent #1</option>
-                                        <option value="Agent #2">Agent #2</option>
-                                    </select>
-                                    <svg className="selector-icon agent-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                                        <path d="M5.68 5.792 7.345 7.75 5.681 9.708a2.75 2.75 0 1 1 0-3.916ZM8 6.978 6.416 5.113a2.75 2.75 0 1 1 3.168 0L8 6.978ZM9.598 7.75 8 6.022l1.598 1.728a2.75 2.75 0 1 1-1.598 0Z"/>
-                                    </svg>
-                                </div>
-
-                                <div className="selector-wrapper">
-                                    <select 
                                         className="model-selector"
-                                        value={selectedModel}
-                                        onChange={(e) => setSelectedModel(e.target.value)}
+                                        value={selectedProvider}
+                                        onChange={(e) => handleProviderChange(e.target.value)}
                                         disabled={isLoading || showWelcome}
                                     >
-                                        <option value="claude-4-sonnet">claude-4-sonnet</option>
-                                        <option value="claude-3-haiku">claude-3-haiku</option>
-                                        <option value="claude-3-opus">claude-3-opus</option>
+                                        <option value="anthropic">Anthropic (Claude 3.5 Sonnet)</option>
+                                        <option value="openai">OpenAI (GPT-4o)</option>
                                     </select>
                                     <svg className="selector-icon model-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                                         <path d="M9.5 2A1.5 1.5 0 0 1 11 3.5v1.75l1.85 1.85a.5.5 0 0 1 0 .7L11 9.65V11.5A1.5 1.5 0 0 1 9.5 13h-3A1.5 1.5 0 0 1 5 11.5V9.65L3.15 7.8a.5.5 0 0 1 0-.7L5 5.25V3.5A1.5 1.5 0 0 1 6.5 2h3ZM6 3.5v1.75a.5.5 0 0 1-.146.354L4.207 7.5l1.647 1.396A.5.5 0 0 1 6 9.25V11.5a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5V9.25a.5.5 0 0 1 .146-.354L11.793 7.5l-1.647-1.396A.5.5 0 0 1 10 5.75V3.5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5Z"/>
