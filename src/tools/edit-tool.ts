@@ -1,313 +1,205 @@
-// import * as vscode from 'vscode';
-// import * as fs from 'fs';
-// import * as path from 'path';
-// import { BaseTool, ToolResult, ExecutionContext, ToolSchema, ValidationResult } from './base-tool';
+import { z } from 'zod';
+import { tool } from 'ai';
+import * as fs from 'fs';
+import * as path from 'path';
+import { ExecutionContext } from '../types/agent';
 
-// /**
-//  * Parameters for the Edit tool
-//  */
-// export interface EditToolParams {
-//   /**
-//    * The path to the file to edit (relative to workspace)
-//    */
-//   file_path: string;
+const editParametersSchema = z.object({
+  file_path: z.string().describe('Path to the file to edit (relative to workspace root)'),
+  old_string: z.string().describe('The exact text to find and replace. Must match exactly including whitespace, indentation, and context. For single replacements, include 3+ lines of context before and after the target text.'),
+  new_string: z.string().describe('The text to replace old_string with. Should maintain proper indentation and formatting.'),
+  expected_replacements: z.number().min(1).optional().describe('Number of replacements expected (default: 1). Use when replacing multiple occurrences.')
+});
 
-//   /**
-//    * The exact text to find and replace
-//    */
-//   old_string: string;
+interface CalculatedEdit {
+  currentContent: string;
+  newContent: string;
+  occurrences: number;
+  isNewFile: boolean;
+  error?: string;
+}
 
-//   /**
-//    * The text to replace it with
-//    */
-//   new_string: string;
-
-//   /**
-//    * Number of replacements expected (default: 1)
-//    */
-//   expected_replacements?: number;
-// }
-
-// /**
-//  * Result of calculating an edit operation
-//  */
-// interface CalculatedEdit {
-//   currentContent: string;
-//   newContent: string;
-//   occurrences: number;
-//   isNewFile: boolean;
-//   error?: string;
-// }
-
-// /**
-//  * Tool for editing files using find-and-replace operations
-//  */
-// export class EditTool extends BaseTool {
-//   readonly name = 'edit';
-//   readonly description = 'Replace text within a file using exact string matching. Requires precise text matching including whitespace and indentation.';
+/**
+ * Validate if a path is within the workspace directory
+ */
+function validatePath(relativePath: string, context: ExecutionContext): boolean {
+  const normalizedPath = path.normalize(relativePath);
+  const resolvedPath = path.resolve(context.workingDirectory, normalizedPath);
+  const normalizedWorkspace = path.normalize(context.workingDirectory);
   
-//   readonly schema: ToolSchema = {
-//     name: this.name,
-//     description: this.description,
-//     parameters: {
-//       type: 'object',
-//       properties: {
-//         file_path: {
-//           name: 'file_path',
-//           type: 'string',
-//           description: 'Path to the file to edit (relative to workspace root)',
-//           required: true
-//         },
-//         old_string: {
-//           name: 'old_string',
-//           type: 'string',
-//           description: 'The exact text to find and replace. Must match exactly including whitespace, indentation, and context. For single replacements, include 3+ lines of context before and after the target text.',
-//           required: true
-//         },
-//         new_string: {
-//           name: 'new_string',
-//           type: 'string',
-//           description: 'The text to replace old_string with. Should maintain proper indentation and formatting.',
-//           required: true
-//         },
-//         expected_replacements: {
-//           name: 'expected_replacements',
-//           type: 'number',
-//           description: 'Number of replacements expected (default: 1). Use when replacing multiple occurrences.',
-//           required: false
-//         }
-//       },
-//       required: ['file_path', 'old_string', 'new_string']
-//     }
-//   };
+  return resolvedPath.startsWith(normalizedWorkspace);
+}
 
-//   validate(params: EditToolParams): ValidationResult {
-//     const errors: string[] = [];
+/**
+ * Escape special regex characters
+ */
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-//     // Basic parameter validation
-//     if (!params.file_path || typeof params.file_path !== 'string') {
-//       errors.push('file_path is required and must be a string');
-//     }
+/**
+ * Calculate the edit operation without executing it
+ */
+function calculateEdit(
+  file_path: string,
+  old_string: string, 
+  new_string: string,
+  expected_replacements: number,
+  context: ExecutionContext
+): CalculatedEdit {
+  const absolutePath = path.resolve(context.workingDirectory, file_path);
+  
+  // Check if file exists
+  if (!fs.existsSync(absolutePath)) {
+    if (old_string === '') {
+      // Creating a new file
+      return {
+        currentContent: '',
+        newContent: new_string,
+        occurrences: 1,
+        isNewFile: true
+      };
+    } else {
+      return {
+        currentContent: '',
+        newContent: '',
+        occurrences: 0,
+        isNewFile: false,
+        error: `File not found: ${file_path}. Cannot apply edit. Use empty old_string to create a new file.`
+      };
+    }
+  }
 
-//     if (params.old_string === undefined || params.old_string === null) {
-//       errors.push('old_string is required');
-//     }
+  // Read current content
+  let currentContent: string;
+  try {
+    currentContent = fs.readFileSync(absolutePath, 'utf8');
+    // Normalize line endings to LF
+    currentContent = currentContent.replace(/\r\n/g, '\n');
+  } catch (error) {
+    return {
+      currentContent: '',
+      newContent: '',
+      occurrences: 0,
+      isNewFile: false,
+      error: `Failed to read file: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
 
-//     if (typeof params.old_string !== 'string') {
-//       errors.push('old_string must be a string');
-//     }
+  // Handle creating file that already exists
+  if (old_string === '') {
+    return {
+      currentContent,
+      newContent: '',
+      occurrences: 0,
+      isNewFile: false,
+      error: `File already exists, cannot create: ${file_path}`
+    };
+  }
 
-//     if (params.new_string === undefined || params.new_string === null) {
-//       errors.push('new_string is required');
-//     }
+  // Count occurrences
+  const occurrences = (currentContent.match(new RegExp(escapeRegExp(old_string), 'g')) || []).length;
 
-//     if (typeof params.new_string !== 'string') {
-//       errors.push('new_string must be a string');
-//     }
+  // Validate occurrence count
+  if (occurrences === 0) {
+    return {
+      currentContent,
+      newContent: currentContent,
+      occurrences: 0,
+      isNewFile: false,
+      error: `Text not found in file. 0 occurrences of old_string found. Ensure exact text match including whitespace and indentation.`
+    };
+  }
 
-//     if (params.expected_replacements !== undefined && 
-//         (typeof params.expected_replacements !== 'number' || params.expected_replacements < 1)) {
-//       errors.push('expected_replacements must be a positive number');
-//     }
+  if (occurrences !== expected_replacements) {
+    return {
+      currentContent,
+      newContent: currentContent,
+      occurrences,
+      isNewFile: false,
+      error: `Expected ${expected_replacements} replacement(s) but found ${occurrences} occurrence(s).`
+    };
+  }
 
-//     // Path validation
-//     if (params.file_path) {
-//       if (path.isAbsolute(params.file_path)) {
-//         errors.push('file_path must be relative to workspace root, not absolute');
-//       }
+  // Apply replacement
+  const newContent = currentContent.split(old_string).join(new_string);
 
-//       if (params.file_path.includes('..')) {
-//         errors.push('file_path cannot contain ".." for security reasons');
-//       }
+  return {
+    currentContent,
+    newContent,
+    occurrences,
+    isNewFile: false
+  };
+}
 
-//       if (params.file_path.startsWith('/') || params.file_path.startsWith('\\')) {
-//         errors.push('file_path should not start with path separators');
-//       }
-//     }
+export function createEditTool(context: ExecutionContext) {
+  return tool({
+    description: 'Replace text within a file using exact string matching. Requires precise text matching including whitespace and indentation.',
+    parameters: editParametersSchema,
+    execute: async (params) => {
+      const { file_path, old_string, new_string, expected_replacements = 1 } = params;
 
-//     return {
-//       isValid: errors.length === 0,
-//       errors
-//     };
-//   }
+      // Path validation
+      if (path.isAbsolute(file_path)) {
+        throw new Error('file_path must be relative to workspace root, not absolute');
+      }
 
-//   /**
-//    * Calculate the edit operation without executing it
-//    */
-//   private calculateEdit(params: EditToolParams, context: ExecutionContext): CalculatedEdit {
-//     const absolutePath = path.resolve(context.workingDirectory, params.file_path);
-//     const expectedReplacements = params.expected_replacements ?? 1;
-    
-//     // Check if file exists
-//     if (!fs.existsSync(absolutePath)) {
-//       if (params.old_string === '') {
-//         // Creating a new file
-//         return {
-//           currentContent: '',
-//           newContent: params.new_string,
-//           occurrences: 1,
-//           isNewFile: true
-//         };
-//       } else {
-//         return {
-//           currentContent: '',
-//           newContent: '',
-//           occurrences: 0,
-//           isNewFile: false,
-//           error: `File not found: ${params.file_path}. Cannot apply edit. Use empty old_string to create a new file.`
-//         };
-//       }
-//     }
+      if (file_path.includes('..')) {
+        throw new Error('file_path cannot contain ".." for security reasons');
+      }
 
-//     // Read current content
-//     let currentContent: string;
-//     try {
-//       currentContent = fs.readFileSync(absolutePath, 'utf8');
-//       // Normalize line endings to LF
-//       currentContent = currentContent.replace(/\r\n/g, '\n');
-//     } catch (error) {
-//       return {
-//         currentContent: '',
-//         newContent: '',
-//         occurrences: 0,
-//         isNewFile: false,
-//         error: `Failed to read file: ${error instanceof Error ? error.message : String(error)}`
-//       };
-//     }
+      if (file_path.startsWith('/') || file_path.startsWith('\\')) {
+        throw new Error('file_path should not start with path separators');
+      }
 
-//     // Handle creating file that already exists
-//     if (params.old_string === '') {
-//       return {
-//         currentContent,
-//         newContent: '',
-//         occurrences: 0,
-//         isNewFile: false,
-//         error: `File already exists, cannot create: ${params.file_path}`
-//       };
-//     }
+      // Security check
+      if (!validatePath(file_path, context)) {
+        throw new Error(`File path must be within SuperDesign workspace: ${file_path}`);
+      }
 
-//     // Count occurrences
-//     const occurrences = (currentContent.match(new RegExp(this.escapeRegExp(params.old_string), 'g')) || []).length;
+      console.log(`Editing file: ${file_path}`);
 
-//     // Validate occurrence count
-//     if (occurrences === 0) {
-//       return {
-//         currentContent,
-//         newContent: currentContent,
-//         occurrences: 0,
-//         isNewFile: false,
-//         error: `Text not found in file. 0 occurrences of old_string found. Ensure exact text match including whitespace and indentation.`
-//       };
-//     }
-
-//     if (occurrences !== expectedReplacements) {
-//       return {
-//         currentContent,
-//         newContent: currentContent,
-//         occurrences,
-//         isNewFile: false,
-//         error: `Expected ${expectedReplacements} replacement(s) but found ${occurrences} occurrence(s).`
-//       };
-//     }
-
-//     // Apply replacement
-//     const newContent = currentContent.split(params.old_string).join(params.new_string);
-
-//     return {
-//       currentContent,
-//       newContent,
-//       occurrences,
-//       isNewFile: false
-//     };
-//   }
-
-//   /**
-//    * Escape special regex characters
-//    */
-//   private escapeRegExp(string: string): string {
-//     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-//   }
-
-//   async execute(params: EditToolParams, context: ExecutionContext): Promise<ToolResult> {
-//     const startTime = Date.now();
-    
-//     try {
-//       // Validate parameters
-//       const validation = this.validate(params);
-//       if (!validation.isValid) {
-//         return this.createResult(false, undefined, `Validation failed: ${validation.errors.join(', ')}`);
-//       }
-
-//       // Security check
-//       if (!this.validatePath(params.file_path, context)) {
-//         return this.createResult(false, undefined, `File path must be within SuperDesign workspace: ${params.file_path}`);
-//       }
-
-//       this.log(`Editing file: ${params.file_path}`, context);
-
-//       // Calculate the edit
-//       const editResult = this.calculateEdit(params, context);
+      // Calculate the edit
+      const editResult = calculateEdit(file_path, old_string, new_string, expected_replacements, context);
       
-//       if (editResult.error) {
-//         return this.createResult(false, undefined, editResult.error);
-//       }
+      if (editResult.error) {
+        throw new Error(editResult.error);
+      }
 
-//       const absolutePath = path.resolve(context.workingDirectory, params.file_path);
+      const absolutePath = path.resolve(context.workingDirectory, file_path);
 
-//       // Create parent directories if needed (for new files)
-//       if (editResult.isNewFile) {
-//         const dirName = path.dirname(absolutePath);
-//         if (!fs.existsSync(dirName)) {
-//           fs.mkdirSync(dirName, { recursive: true });
-//           this.log(`Created parent directories for: ${params.file_path}`, context);
-//         }
-//       }
+      // Create parent directories if needed (for new files)
+      if (editResult.isNewFile) {
+        const dirName = path.dirname(absolutePath);
+        if (!fs.existsSync(dirName)) {
+          fs.mkdirSync(dirName, { recursive: true });
+          console.log(`Created parent directories for: ${file_path}`);
+        }
+      }
 
-//       // Write the updated content
-//       fs.writeFileSync(absolutePath, editResult.newContent, 'utf8');
+      // Write the updated content
+      fs.writeFileSync(absolutePath, editResult.newContent, 'utf8');
 
-//       const duration = Date.now() - startTime;
-//       const newLines = editResult.newContent.split('\n').length;
-//       const newSize = Buffer.byteLength(editResult.newContent, 'utf8');
+      const newLines = editResult.newContent.split('\n').length;
+      const newSize = Buffer.byteLength(editResult.newContent, 'utf8');
 
-//       if (editResult.isNewFile) {
-//         this.log(`Created new file: ${params.file_path} (${newLines} lines)`, context);
-//       } else {
-//         this.log(`Applied ${editResult.occurrences} replacement(s) to: ${params.file_path} (${newLines} lines)`, context);
-//       }
+      if (editResult.isNewFile) {
+        console.log(`Created new file: ${file_path} (${newLines} lines)`);
+      } else {
+        console.log(`Applied ${editResult.occurrences} replacement(s) to: ${file_path} (${newLines} lines)`);
+      }
 
-//       return this.createResult(
-//         true,
-//         {
-//           file_path: params.file_path,
-//           absolute_path: absolutePath,
-//           is_new_file: editResult.isNewFile,
-//           replacements_made: editResult.occurrences,
-//           lines_total: newLines,
-//           bytes_total: newSize,
-//           old_string_length: params.old_string.length,
-//           new_string_length: params.new_string.length
-//         },
-//         undefined,
-//         {
-//           duration,
-//           filesAffected: [absolutePath],
-//           outputSize: newSize
-//         }
-//       );
-
-//     } catch (error) {
-//       const duration = Date.now() - startTime;
-//       const errorMessage = error instanceof Error ? error.message : String(error);
-      
-//       this.log(`Error editing file: ${errorMessage}`, context);
-      
-//       return this.createResult(
-//         false,
-//         undefined,
-//         `Failed to edit file: ${errorMessage}`,
-//         { duration }
-//       );
-//     }
-//   }
-// } 
+      return {
+        success: true,
+        file_path,
+        absolute_path: absolutePath,
+        is_new_file: editResult.isNewFile,
+        replacements_made: editResult.occurrences,
+        lines_total: newLines,
+        bytes_total: newSize,
+        old_string_length: old_string.length,
+        new_string_length: new_string.length
+      };
+    }
+  });
+} 
