@@ -11,6 +11,7 @@ import { createWriteTool } from '../tools/write-tool';
 import { createBashTool } from '../tools/bash-tool';
 import { createEditTool } from '../tools/edit-tool';
 import { createGlobTool } from '../tools/glob-tool';
+import { createGrepTool } from '../tools/grep-tool';
 
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
@@ -128,6 +129,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
 - **write**: Write content to files in the workspace (creates parent directories automatically)
 - **edit**: Replace text within files using exact string matching (requires precise text matching including whitespace and indentation)
 - **glob**: Find files and directories matching glob patterns (e.g., "*.js", "src/**/*.ts") - efficient for locating files by name or path structure
+- **grep**: Search for text patterns within file contents using regular expressions (can filter by file types and paths)
 - **bash**: Execute shell/bash commands within the workspace (secure execution with timeouts and output capture)
 
 # Instructions
@@ -177,6 +179,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                 write: createWriteTool(executionContext),
                 edit: createEditTool(executionContext),
                 glob: createGlobTool(executionContext),
+                grep: createGrepTool(executionContext),
                 bash: createBashTool(executionContext)
             };
 

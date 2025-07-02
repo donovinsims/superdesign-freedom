@@ -1,447 +1,321 @@
-// import * as vscode from 'vscode';
-// import * as fs from 'fs';
-// import * as path from 'path';
-// import { BaseTool, ToolResult, ExecutionContext, ToolSchema, ValidationResult } from './base-tool';
+import { z } from 'zod';
+import { tool } from 'ai';
+import * as fs from 'fs';
+import * as path from 'path';
+import { ExecutionContext } from '../types/agent';
 
-// /**
-//  * Parameters for the Grep tool
-//  */
-// export interface GrepToolParams {
-//   /**
-//    * The regex pattern to search for in file contents
-//    */
-//   pattern: string;
+const grepParametersSchema = z.object({
+  pattern: z.string().describe('Regular expression pattern to search for (e.g., "function\\s+\\w+", "import.*from")'),
+  path: z.string().optional().describe('Directory to search in (relative to workspace root). Defaults to workspace root.'),
+  include: z.string().optional().describe('File pattern to include (e.g., "*.js", "*.{ts,tsx}", "src/**/*.ts")'),
+  case_sensitive: z.boolean().optional().describe('Whether the search should be case-sensitive (default: false)'),
+  max_files: z.number().min(1).optional().describe('Maximum number of files to search (default: 1000)'),
+  max_matches: z.number().min(1).optional().describe('Maximum number of matches to return (default: 100)')
+});
 
-//   /**
-//    * The directory to search in (relative to workspace)
-//    */
-//   path?: string;
+interface GrepMatch {
+  filePath: string;
+  lineNumber: number;
+  line: string;
+  matchStart: number;
+  matchEnd: number;
+}
 
-//   /**
-//    * File pattern to include in the search (e.g. "*.js", "*.{ts,tsx}")
-//    */
-//   include?: string;
-
-//   /**
-//    * Whether the search should be case-sensitive
-//    */
-//   case_sensitive?: boolean;
-
-//   /**
-//    * Maximum number of files to search (default: 1000)
-//    */
-//   max_files?: number;
-
-//   /**
-//    * Maximum number of matches to return (default: 100)
-//    */
-//   max_matches?: number;
-// }
-
-// /**
-//  * Single match result
-//  */
-// export interface GrepMatch {
-//   filePath: string;
-//   lineNumber: number;
-//   line: string;
-//   matchStart: number;
-//   matchEnd: number;
-// }
-
-// /**
-//  * Tool for searching text content within files using regex patterns
-//  */
-// export class GrepTool extends BaseTool {
-//   readonly name = 'grep';
-//   readonly description = 'Search for text patterns within file contents using regular expressions. Can filter by file types and paths.';
+/**
+ * Validate if a path is within the workspace directory
+ */
+function validatePath(relativePath: string, context: ExecutionContext): boolean {
+  const normalizedPath = path.normalize(relativePath);
+  const resolvedPath = path.resolve(context.workingDirectory, normalizedPath);
+  const normalizedWorkspace = path.normalize(context.workingDirectory);
   
-//   readonly schema: ToolSchema = {
-//     name: this.name,
-//     description: this.description,
-//     parameters: {
-//       type: 'object',
-//       properties: {
-//         pattern: {
-//           name: 'pattern',
-//           type: 'string',
-//           description: 'Regular expression pattern to search for (e.g., "function\\s+\\w+", "import.*from")',
-//           required: true
-//         },
-//         path: {
-//           name: 'path',
-//           type: 'string',
-//           description: 'Directory to search in (relative to workspace root). Defaults to workspace root.',
-//           required: false
-//         },
-//         include: {
-//           name: 'include',
-//           type: 'string',
-//           description: 'File pattern to include (e.g., "*.js", "*.{ts,tsx}", "src/**/*.ts")',
-//           required: false
-//         },
-//         case_sensitive: {
-//           name: 'case_sensitive',
-//           type: 'boolean',
-//           description: 'Whether the search should be case-sensitive (default: false)',
-//           required: false
-//         },
-//         max_files: {
-//           name: 'max_files',
-//           type: 'number',
-//           description: 'Maximum number of files to search (default: 1000)',
-//           required: false
-//         },
-//         max_matches: {
-//           name: 'max_matches',
-//           type: 'number',
-//           description: 'Maximum number of matches to return (default: 100)',
-//           required: false
-//         }
-//       },
-//       required: ['pattern']
-//     }
-//   };
+  return resolvedPath.startsWith(normalizedWorkspace);
+}
 
-//   validate(params: GrepToolParams): ValidationResult {
-//     const errors: string[] = [];
+/**
+ * Check if a file path matches the include pattern
+ */
+function matchesIncludePattern(filePath: string, includePattern?: string): boolean {
+  if (!includePattern) {
+    return true;
+  }
 
-//     // Pattern validation
-//     if (!params.pattern || typeof params.pattern !== 'string') {
-//       errors.push('pattern is required and must be a string');
-//     } else {
-//       try {
-//         new RegExp(params.pattern);
-//       } catch (error) {
-//         errors.push(`Invalid regular expression pattern: ${error instanceof Error ? error.message : String(error)}`);
-//       }
-//     }
+  // Convert glob pattern to regex (simplified)
+  const regexPattern = includePattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')  // Escape special regex chars
+    .replace(/\*\*/g, '###DOUBLESTAR###')   // Temporarily replace **
+    .replace(/\*/g, '[^/]*')                // * becomes [^/]* (no directory separators)
+    .replace(/###DOUBLESTAR###/g, '.*')     // ** becomes .* (any characters)
+    .replace(/\?/g, '[^/]');                // ? becomes [^/] (single char, no dir sep)
 
-//     // Path validation
-//     if (params.path) {
-//       if (typeof params.path !== 'string') {
-//         errors.push('path must be a string');
-//       } else {
-//         if (path.isAbsolute(params.path)) {
-//           errors.push('path must be relative to workspace root, not absolute');
-//         }
+  const regex = new RegExp(`^${regexPattern}$`);
+  return regex.test(filePath);
+}
 
-//         if (params.path.includes('..')) {
-//           errors.push('path cannot contain ".." for security reasons');
-//         }
-//       }
-//     }
+/**
+ * Check if a file should be skipped based on common patterns
+ */
+function shouldSkipFile(filePath: string): boolean {
+  const skipPatterns = [
+    /node_modules/,
+    /\.git/,
+    /\.vscode/,
+    /dist/,
+    /build/,
+    /coverage/,
+    /\.nyc_output/,
+    /\.next/,
+    /\.cache/,
+    /\.DS_Store/,
+    /Thumbs\.db/,
+    /\.log$/,
+    /\.tmp$/,
+    /\.temp$/
+  ];
 
-//     // Include pattern validation
-//     if (params.include !== undefined && typeof params.include !== 'string') {
-//       errors.push('include must be a string');
-//     }
+  return skipPatterns.some(pattern => pattern.test(filePath));
+}
 
-//     // Boolean validation
-//     if (params.case_sensitive !== undefined && typeof params.case_sensitive !== 'boolean') {
-//       errors.push('case_sensitive must be a boolean');
-//     }
+/**
+ * Simple check if file is likely a text file
+ */
+function isTextFile(filePath: string): boolean {
+  const textExtensions = [
+    '.js', '.ts', '.jsx', '.tsx', '.json', '.html', '.htm', '.css', '.scss', '.sass',
+    '.py', '.java', '.cpp', '.c', '.h', '.hpp', '.cs', '.php', '.rb', '.go',
+    '.rs', '.swift', '.kt', '.scala', '.clj', '.hs', '.elm', '.ml', '.f',
+    '.txt', '.md', '.rst', '.asciidoc', '.xml', '.yaml', '.yml', '.toml',
+    '.ini', '.cfg', '.conf', '.properties', '.env', '.gitignore', '.gitattributes',
+    '.dockerfile', '.makefile', '.sh', '.bat', '.ps1', '.sql', '.graphql',
+    '.vue', '.svelte', '.astro', '.prisma', '.proto'
+  ];
 
-//     // Number validation
-//     if (params.max_files !== undefined) {
-//       if (typeof params.max_files !== 'number' || params.max_files < 1) {
-//         errors.push('max_files must be a positive number');
-//       }
-//     }
+  const ext = path.extname(filePath).toLowerCase();
+  return textExtensions.includes(ext) || !ext; // Include extensionless files
+}
 
-//     if (params.max_matches !== undefined) {
-//       if (typeof params.max_matches !== 'number' || params.max_matches < 1) {
-//         errors.push('max_matches must be a positive number');
-//       }
-//     }
+/**
+ * Recursively find files to search
+ */
+async function findFilesToSearch(
+  dirPath: string, 
+  includePattern?: string, 
+  maxFiles: number = 1000
+): Promise<string[]> {
+  const files: string[] = [];
+  
+  const scanDirectory = async (currentPath: string): Promise<void> => {
+    if (files.length >= maxFiles) {
+      return;
+    }
 
-//     return {
-//       isValid: errors.length === 0,
-//       errors
-//     };
-//   }
+    try {
+      const entries = await fs.promises.readdir(currentPath, { withFileTypes: true });
+      
+      for (const entry of entries) {
+        if (files.length >= maxFiles) {
+          break;
+        }
 
-//   /**
-//    * Check if a file path matches the include pattern
-//    */
-//   private matchesIncludePattern(filePath: string, includePattern?: string): boolean {
-//     if (!includePattern) return true;
+        const fullPath = path.join(currentPath, entry.name);
+        const relativePath = path.relative(dirPath, fullPath);
 
-//     // Convert glob pattern to regex (simplified)
-//     const regexPattern = includePattern
-//       .replace(/[.+^${}()|[\]\\]/g, '\\$&')  // Escape special regex chars
-//       .replace(/\*\*/g, '###DOUBLESTAR###')   // Temporarily replace **
-//       .replace(/\*/g, '[^/]*')                // * becomes [^/]* (no directory separators)
-//       .replace(/###DOUBLESTAR###/g, '.*')     // ** becomes .* (any characters)
-//       .replace(/\?/g, '[^/]');                // ? becomes [^/] (single char, no dir sep)
+        // Skip common directories and files
+        if (shouldSkipFile(relativePath)) {
+          continue;
+        }
 
-//     const regex = new RegExp(`^${regexPattern}$`);
-//     return regex.test(filePath);
-//   }
+        if (entry.isDirectory()) {
+          await scanDirectory(fullPath);
+        } else if (entry.isFile()) {
+          // Check if file matches include pattern
+          if (matchesIncludePattern(relativePath, includePattern)) {
+            // Only include text files (basic check)
+            if (isTextFile(fullPath)) {
+              files.push(fullPath);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      // Ignore permission errors and continue
+    }
+  };
 
-//   /**
-//    * Check if a file should be skipped based on common patterns
-//    */
-//   private shouldSkipFile(filePath: string): boolean {
-//     const skipPatterns = [
-//       /node_modules/,
-//       /\.git/,
-//       /\.vscode/,
-//       /dist/,
-//       /build/,
-//       /coverage/,
-//       /\.nyc_output/,
-//       /\.next/,
-//       /\.cache/,
-//       /\.DS_Store/,
-//       /Thumbs\.db/,
-//       /\.log$/,
-//       /\.tmp$/,
-//       /\.temp$/
-//     ];
+  await scanDirectory(dirPath);
+  return files;
+}
 
-//     return skipPatterns.some(pattern => pattern.test(filePath));
-//   }
-
-//   /**
-//    * Recursively find files to search
-//    */
-//   private async findFilesToSearch(
-//     dirPath: string, 
-//     includePattern?: string, 
-//     maxFiles: number = 1000
-//   ): Promise<string[]> {
-//     const files: string[] = [];
+/**
+ * Search for pattern in a single file
+ */
+async function searchInFile(filePath: string, regex: RegExp, maxMatches: number): Promise<GrepMatch[]> {
+  const matches: GrepMatch[] = [];
+  
+  try {
+    const content = await fs.promises.readFile(filePath, 'utf8');
+    const lines = content.split(/\r?\n/);
     
-//     const scanDirectory = async (currentPath: string): Promise<void> => {
-//       if (files.length >= maxFiles) return;
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      if (matches.length >= maxMatches) {
+        break;
+      }
 
-//       try {
-//         const entries = await fs.promises.readdir(currentPath, { withFileTypes: true });
+      const line = lines[lineIndex];
+      let match;
+      regex.lastIndex = 0; // Reset regex state
+      
+      while ((match = regex.exec(line)) !== null) {
+        matches.push({
+          filePath,
+          lineNumber: lineIndex + 1,
+          line: line,
+          matchStart: match.index,
+          matchEnd: match.index + match[0].length
+        });
+
+        if (matches.length >= maxMatches) {
+          break;
+        }
         
-//         for (const entry of entries) {
-//           if (files.length >= maxFiles) break;
+        // Prevent infinite loop on zero-length matches
+        if (match.index === regex.lastIndex) {
+          regex.lastIndex++;
+        }
+      }
+    }
+  } catch (error) {
+    // Ignore files that can't be read (binary files, permission issues, etc.)
+  }
 
-//           const fullPath = path.join(currentPath, entry.name);
-//           const relativePath = path.relative(dirPath, fullPath);
+  return matches;
+}
 
-//           // Skip common directories and files
-//           if (this.shouldSkipFile(relativePath)) {
-//             continue;
-//           }
+export function createGrepTool(context: ExecutionContext) {
+  return tool({
+    description: 'Search for text patterns within file contents using regular expressions. Can filter by file types and paths.',
+    parameters: grepParametersSchema,
+    execute: async (params) => {
+      const { 
+        pattern, 
+        path: searchPath = '.', 
+        include, 
+        case_sensitive = false, 
+        max_files = 1000, 
+        max_matches = 100 
+      } = params;
 
-//           if (entry.isDirectory()) {
-//             await scanDirectory(fullPath);
-//           } else if (entry.isFile()) {
-//             // Check if file matches include pattern
-//             if (this.matchesIncludePattern(relativePath, includePattern)) {
-//               // Only include text files (basic check)
-//               if (this.isTextFile(fullPath)) {
-//                 files.push(fullPath);
-//               }
-//             }
-//           }
-//         }
-//       } catch (error) {
-//         // Ignore permission errors and continue
-//       }
-//     };
+      // Pattern validation (test if it's a valid regex)
+      try {
+        new RegExp(pattern);
+      } catch (error) {
+        throw new Error(`Invalid regular expression pattern: ${error instanceof Error ? error.message : String(error)}`);
+      }
 
-//     await scanDirectory(dirPath);
-//     return files;
-//   }
+      // Path validation
+      if (path.isAbsolute(searchPath)) {
+        throw new Error('path must be relative to workspace root, not absolute');
+      }
 
-//   /**
-//    * Simple check if file is likely a text file
-//    */
-//   private isTextFile(filePath: string): boolean {
-//     const textExtensions = [
-//       '.js', '.ts', '.jsx', '.tsx', '.json', '.html', '.htm', '.css', '.scss', '.sass',
-//       '.py', '.java', '.cpp', '.c', '.h', '.hpp', '.cs', '.php', '.rb', '.go',
-//       '.rs', '.swift', '.kt', '.scala', '.clj', '.hs', '.elm', '.ml', '.f',
-//       '.txt', '.md', '.rst', '.asciidoc', '.xml', '.yaml', '.yml', '.toml',
-//       '.ini', '.cfg', '.conf', '.properties', '.env', '.gitignore', '.gitattributes',
-//       '.dockerfile', '.makefile', '.sh', '.bat', '.ps1', '.sql', '.graphql',
-//       '.vue', '.svelte', '.astro', '.prisma', '.proto'
-//     ];
+      if (searchPath.includes('..')) {
+        throw new Error('path cannot contain ".." for security reasons');
+      }
 
-//     const ext = path.extname(filePath).toLowerCase();
-//     return textExtensions.includes(ext) || !ext; // Include extensionless files
-//   }
+      // Security check
+      if (!validatePath(searchPath, context)) {
+        throw new Error(`Path must be within SuperDesign workspace: ${searchPath}`);
+      }
 
-//   /**
-//    * Search for pattern in a single file
-//    */
-//   private async searchInFile(filePath: string, regex: RegExp, maxMatches: number): Promise<GrepMatch[]> {
-//     const matches: GrepMatch[] = [];
-    
-//     try {
-//       const content = await fs.promises.readFile(filePath, 'utf8');
-//       const lines = content.split(/\r?\n/);
+      // Resolve search directory
+      const absolutePath = path.resolve(context.workingDirectory, searchPath);
+
+      // Check if path exists and is a directory
+      if (!fs.existsSync(absolutePath)) {
+        throw new Error(`Search path not found: ${searchPath}`);
+      }
+
+      const stats = fs.statSync(absolutePath);
+      if (!stats.isDirectory()) {
+        throw new Error(`Search path is not a directory: ${searchPath}`);
+      }
+
+      console.log(`Searching for pattern "${pattern}" in ${searchPath}`);
+
+      // Create regex pattern
+      const regexFlags = case_sensitive ? 'g' : 'gi';
+      const regex = new RegExp(pattern, regexFlags);
+
+      // Find files to search
+      const filesToSearch = await findFilesToSearch(absolutePath, include, max_files);
       
-//       for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-//         if (matches.length >= maxMatches) break;
+      if (filesToSearch.length === 0) {
+        const message = `No files found to search in ${searchPath}${include ? ` matching ${include}` : ''}`;
+        return {
+          success: true,
+          pattern,
+          search_path: searchPath,
+          include_pattern: include,
+          files_searched: 0,
+          matches: [],
+          total_matches: 0,
+          message
+        };
+      }
 
-//         const line = lines[lineIndex];
-//         let match;
-//         regex.lastIndex = 0; // Reset regex state
-        
-//         while ((match = regex.exec(line)) !== null) {
-//           matches.push({
-//             filePath,
-//             lineNumber: lineIndex + 1,
-//             line: line,
-//             matchStart: match.index,
-//             matchEnd: match.index + match[0].length
-//           });
+      // Search in files
+      const allMatches: GrepMatch[] = [];
+      let filesSearched = 0;
+      let filesWithMatches = 0;
 
-//           if (matches.length >= maxMatches) break;
+      for (const file of filesToSearch) {
+        if (allMatches.length >= max_matches) {
+          break;
+        }
+
+        const fileMatches = await searchInFile(file, regex, max_matches - allMatches.length);
+        if (fileMatches.length > 0) {
+          // Convert absolute paths to relative paths for output
+          const relativePath = path.relative(absolutePath, file);
+          fileMatches.forEach(match => {
+            match.filePath = relativePath;
+          });
           
-//           // Prevent infinite loop on zero-length matches
-//           if (match.index === regex.lastIndex) {
-//             regex.lastIndex++;
-//           }
-//         }
-//       }
-//     } catch (error) {
-//       // Ignore files that can't be read (binary files, permission issues, etc.)
-//     }
+          allMatches.push(...fileMatches);
+          filesWithMatches++;
+        }
+        filesSearched++;
+      }
 
-//     return matches;
-//   }
+      // Format results
+      let summary = `Found ${allMatches.length} match(es) for "${pattern}" in ${filesWithMatches} file(s)`;
+      if (filesSearched < filesToSearch.length) {
+        summary += ` (searched ${filesSearched}/${filesToSearch.length} files)`;
+      }
 
-//   async execute(params: GrepToolParams, context: ExecutionContext): Promise<ToolResult> {
-//     const startTime = Date.now();
-    
-//     try {
-//       // Validate parameters
-//       const validation = this.validate(params);
-//       if (!validation.isValid) {
-//         return this.createResult(false, undefined, `Validation failed: ${validation.errors.join(', ')}`);
-//       }
+      // Group matches by file for better readability
+      const matchesByFile: Record<string, GrepMatch[]> = {};
+      allMatches.forEach(match => {
+        if (!matchesByFile[match.filePath]) {
+          matchesByFile[match.filePath] = [];
+        }
+        matchesByFile[match.filePath].push(match);
+      });
 
-//       // Resolve search directory
-//       const searchPath = params.path || '.';
-//       const absolutePath = path.resolve(context.workingDirectory, searchPath);
-      
-//       // Security check
-//       if (!this.validatePath(searchPath, context)) {
-//         return this.createResult(false, undefined, `Path must be within SuperDesign workspace: ${searchPath}`);
-//       }
+      console.log(summary);
 
-//       // Check if path exists and is a directory
-//       if (!fs.existsSync(absolutePath)) {
-//         return this.createResult(false, undefined, `Search path not found: ${searchPath}`);
-//       }
-
-//       const stats = fs.statSync(absolutePath);
-//       if (!stats.isDirectory()) {
-//         return this.createResult(false, undefined, `Search path is not a directory: ${searchPath}`);
-//       }
-
-//       const caseSensitive = params.case_sensitive || false;
-//       const maxFiles = params.max_files || 1000;
-//       const maxMatches = params.max_matches || 100;
-
-//       this.log(`Searching for pattern "${params.pattern}" in ${searchPath}`, context);
-
-//       // Create regex pattern
-//       const regexFlags = caseSensitive ? 'g' : 'gi';
-//       const regex = new RegExp(params.pattern, regexFlags);
-
-//       // Find files to search
-//       const filesToSearch = await this.findFilesToSearch(absolutePath, params.include, maxFiles);
-      
-//       if (filesToSearch.length === 0) {
-//         const message = `No files found to search in ${searchPath}${params.include ? ` matching ${params.include}` : ''}`;
-//         return this.createResult(
-//           true,
-//           {
-//             pattern: params.pattern,
-//             search_path: searchPath,
-//             include_pattern: params.include,
-//             files_searched: 0,
-//             matches: [],
-//             total_matches: 0
-//           },
-//           message
-//         );
-//       }
-
-//       // Search in files
-//       const allMatches: GrepMatch[] = [];
-//       let filesSearched = 0;
-//       let filesWithMatches = 0;
-
-//       for (const file of filesToSearch) {
-//         if (allMatches.length >= maxMatches) break;
-
-//         const fileMatches = await this.searchInFile(file, regex, maxMatches - allMatches.length);
-//         if (fileMatches.length > 0) {
-//           // Convert absolute paths to relative paths for output
-//           const relativePath = path.relative(absolutePath, file);
-//           fileMatches.forEach(match => {
-//             match.filePath = relativePath;
-//           });
-          
-//           allMatches.push(...fileMatches);
-//           filesWithMatches++;
-//         }
-//         filesSearched++;
-//       }
-
-//       const duration = Date.now() - startTime;
-
-//       // Format results
-//       let summary = `Found ${allMatches.length} match(es) for "${params.pattern}" in ${filesWithMatches} file(s)`;
-//       if (filesSearched < filesToSearch.length) {
-//         summary += ` (searched ${filesSearched}/${filesToSearch.length} files)`;
-//       }
-
-//       // Group matches by file for better readability
-//       const matchesByFile: Record<string, GrepMatch[]> = {};
-//       allMatches.forEach(match => {
-//         if (!matchesByFile[match.filePath]) {
-//           matchesByFile[match.filePath] = [];
-//         }
-//         matchesByFile[match.filePath].push(match);
-//       });
-
-//       this.log(summary, context);
-
-//       return this.createResult(
-//         true,
-//         {
-//           pattern: params.pattern,
-//           search_path: searchPath,
-//           include_pattern: params.include,
-//           files_searched: filesSearched,
-//           files_with_matches: filesWithMatches,
-//           matches: allMatches,
-//           matches_by_file: matchesByFile,
-//           total_matches: allMatches.length,
-//           summary,
-//           truncated: allMatches.length >= maxMatches
-//         },
-//         undefined,
-//         {
-//           duration,
-//           filesAffected: Object.keys(matchesByFile).map(f => path.resolve(absolutePath, f))
-//         }
-//       );
-
-//     } catch (error) {
-//       const duration = Date.now() - startTime;
-//       const errorMessage = error instanceof Error ? error.message : String(error);
-      
-//       this.log(`Error in grep search: ${errorMessage}`, context);
-      
-//       return this.createResult(
-//         false,
-//         undefined,
-//         `Failed to search files: ${errorMessage}`,
-//         { duration }
-//       );
-//     }
-//   }
-// } 
+      return {
+        success: true,
+        pattern,
+        search_path: searchPath,
+        include_pattern: include,
+        files_searched: filesSearched,
+        files_with_matches: filesWithMatches,
+        matches: allMatches,
+        matches_by_file: matchesByFile,
+        total_matches: allMatches.length,
+        summary,
+        truncated: allMatches.length >= max_matches
+      };
+    }
+  });
+} 
