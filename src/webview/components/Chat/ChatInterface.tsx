@@ -229,6 +229,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         }
     };
 
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setInputMessage(e.target.value);
+        resizeTextarea(e.target);
+    };
+
+    const resizeTextarea = (textarea: HTMLTextAreaElement) => {
+        // Auto-resize textarea
+        textarea.style.height = 'auto'; // Reset height to calculate new height
+        
+        // Set height based on scroll height, with max height of 120px (about 6 lines)
+        const maxHeight = 120;
+        const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+        textarea.style.height = `${newHeight}px`;
+    };
+
+    // Reset textarea height when input is cleared (e.g., after sending message)
+    useEffect(() => {
+        if (!inputMessage.trim()) {
+            const textarea = document.querySelector('.message-input') as HTMLTextAreaElement;
+            if (textarea) {
+                textarea.style.height = 'auto';
+            }
+        }
+    }, [inputMessage]);
+
     const handleAddContext = () => {
         // TODO: Implement context addition functionality
         console.log('Add Context clicked');
@@ -1161,13 +1186,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         {/* Input Area */}
                     <div className="chat-input">
                             <textarea
-                                placeholder="Plan, search, build anything... (Paste images with Ctrl/Cmd+V)"
+                                placeholder="Design a calculator UI..."
                             value={inputMessage}
-                            onChange={(e) => setInputMessage(e.target.value)}
+                            onChange={handleInputChange}
                             onKeyPress={handleKeyPress}
                             disabled={isLoading || showWelcome}
                             className="message-input"
                                 rows={1}
+                                style={{
+                                    minHeight: '20px',
+                                    maxHeight: '120px',
+                                    resize: 'none',
+                                    overflow: inputMessage.split('\n').length > 6 ? 'auto' : 'hidden'
+                                }}
                         />
                         </div>
 
