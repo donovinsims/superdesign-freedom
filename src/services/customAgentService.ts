@@ -13,6 +13,7 @@ import { createEditTool } from '../tools/edit-tool';
 import { createGlobTool } from '../tools/glob-tool';
 import { createGrepTool } from '../tools/grep-tool';
 import { createLsTool } from '../tools/ls-tool';
+import { createMultieditTool } from '../tools/multiedit-tool';
 
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
@@ -129,6 +130,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
 - **read**: Read file contents within the workspace (supports text files, images, with line range options)
 - **write**: Write content to files in the workspace (creates parent directories automatically)
 - **edit**: Replace text within files using exact string matching (requires precise text matching including whitespace and indentation)
+- **multiedit**: Perform multiple find-and-replace operations on a single file in sequence (each edit applied to result of previous edit)
 - **glob**: Find files and directories matching glob patterns (e.g., "*.js", "src/**/*.ts") - efficient for locating files by name or path structure
 - **grep**: Search for text patterns within file contents using regular expressions (can filter by file types and paths)
 - **ls**: List directory contents with optional filtering, sorting, and detailed information (shows files and subdirectories)
@@ -180,6 +182,7 @@ You are a helpful AI assistant integrated into VS Code as part of the Super Desi
                 read: createReadTool(executionContext),
                 write: createWriteTool(executionContext),
                 edit: createEditTool(executionContext),
+                multiedit: createMultieditTool(executionContext),
                 glob: createGlobTool(executionContext),
                 grep: createGrepTool(executionContext),
                 ls: createLsTool(executionContext),

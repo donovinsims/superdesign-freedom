@@ -4,6 +4,14 @@ import * as mime from 'mime-types';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { ExecutionContext } from '../types/agent';
+import { 
+  handleToolError, 
+  validateWorkspacePath, 
+  resolveWorkspacePath, 
+  createSuccessResponse,
+  validateFileExists,
+  ToolResponse 
+} from './tool-utils';
 
 /**
  * File read result with metadata
@@ -24,20 +32,7 @@ const DEFAULT_MAX_LINES = 1000;
 const MAX_LINE_LENGTH = 2000;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
-/**
- * Validate file path is within workspace
- */
-function validatePath(filePath: string, context: ExecutionContext): boolean {
-  if (!filePath || !context.workingDirectory) {
-    return false;
-  }
-
-  const resolvedPath = path.resolve(context.workingDirectory, filePath);
-  const workspacePath = path.resolve(context.workingDirectory);
-  
-  // Must be within workspace directory
-  return resolvedPath.startsWith(workspacePath);
-}
+// Path validation is now handled by validateWorkspacePath in tool-utils
 
 /**
  * Check if a file is likely binary by sampling content
@@ -206,34 +201,39 @@ export function createReadTool(context: ExecutionContext) {
       lineCount: z.number().optional().describe('Optional: Number of lines to read. Use with startLine to read specific sections.'),
       encoding: z.string().optional().describe('Optional: File encoding (utf-8, ascii, etc.). Defaults to utf-8.')
     }),
-    execute: async ({ filePath, startLine, lineCount, encoding }) => {
+    execute: async ({ filePath, startLine, lineCount, encoding }): Promise<ToolResponse> => {
       const startTime = Date.now();
       
       try {
-        // Resolve and validate file path
-        const absolutePath = path.isAbsolute(filePath) 
-          ? filePath 
-          : path.resolve(context.workingDirectory, filePath);
-
-        if (!validatePath(filePath, context)) {
-          throw new Error('File path is outside the allowed workspace');
+        // Validate workspace path (handles both absolute and relative paths)
+        const pathError = validateWorkspacePath(filePath, context);
+        if (pathError) {
+          return pathError;
         }
 
+        // Resolve file path
+        const absolutePath = resolveWorkspacePath(filePath, context);
+
         // Check file existence
-        if (!fs.existsSync(absolutePath)) {
-          throw new Error(`File not found: ${filePath}`);
+        const fileError = validateFileExists(absolutePath, filePath);
+        if (fileError) {
+          return fileError;
         }
 
         // Check if it's a directory
         const stats = fs.statSync(absolutePath);
         if (stats.isDirectory()) {
-          throw new Error(`Path is a directory, not a file: ${filePath}`);
+          return handleToolError(`Path is a directory, not a file: ${filePath}`, 'Path validation', 'validation');
         }
 
         // Check file size
         if (stats.size > MAX_FILE_SIZE_BYTES) {
           const sizeMB = (stats.size / 1024 / 1024).toFixed(1);
-          throw new Error(`File too large (${sizeMB}MB). Maximum size: ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB`);
+          return handleToolError(
+            `File too large (${sizeMB}MB). Maximum size: ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB`,
+            'File size check',
+            'validation'
+          );
         }
 
         // Detect file type
@@ -273,7 +273,7 @@ export function createReadTool(context: ExecutionContext) {
           }
 
           default:
-            throw new Error(`Unsupported file type: ${fileType}`);
+            return handleToolError(`Unsupported file type: ${fileType}`, 'File type detection', 'validation');
         }
 
         // Create result
@@ -289,12 +289,12 @@ export function createReadTool(context: ExecutionContext) {
         const duration = Date.now() - startTime;
         context.outputChannel.appendLine(`[read] File read completed in ${duration}ms`);
 
-        return fileReadResult;
+        return createSuccessResponse(fileReadResult);
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         context.outputChannel.appendLine(`[read] Read failed: ${errorMessage}`);
-        throw new Error(`Failed to read file: ${errorMessage}`);
+        return handleToolError(error, 'Read tool execution', 'execution');
       }
     }
   });

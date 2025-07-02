@@ -3,10 +3,18 @@ import { tool } from 'ai';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ExecutionContext } from '../types/agent';
+import { 
+  handleToolError, 
+  validateWorkspacePath, 
+  resolveWorkspacePath, 
+  createSuccessResponse,
+  validateDirectoryExists,
+  ToolResponse 
+} from './tool-utils';
 
 const globParametersSchema = z.object({
   pattern: z.string().describe('Glob pattern to match (e.g., "*.js", "src/**/*.ts", "**/*.{js,ts}")'),
-  path: z.string().optional().describe('Directory to search in (relative to workspace root). Defaults to workspace root.'),
+  path: z.string().optional().describe('Directory to search in (relative to workspace root, or absolute path within workspace). Defaults to workspace root.'),
   case_sensitive: z.boolean().optional().describe('Whether the search should be case-sensitive (default: false)'),
   include_dirs: z.boolean().optional().describe('Whether to include directories in results (default: false)'),
   show_hidden: z.boolean().optional().describe('Whether to include hidden files/directories (starting with .)'),
@@ -23,16 +31,7 @@ interface GlobFileEntry {
   extension?: string;
 }
 
-/**
- * Validate if a path is within the workspace directory
- */
-function validatePath(relativePath: string, context: ExecutionContext): boolean {
-  const normalizedPath = path.normalize(relativePath);
-  const resolvedPath = path.resolve(context.workingDirectory, normalizedPath);
-  const normalizedWorkspace = path.normalize(context.workingDirectory);
-  
-  return resolvedPath.startsWith(normalizedWorkspace);
-}
+// Path validation is now handled by validateWorkspacePath in tool-utils
 
 /**
  * Convert glob pattern to regex pattern
@@ -214,43 +213,32 @@ export function createGlobTool(context: ExecutionContext) {
   return tool({
     description: 'Find files and directories matching glob patterns (e.g., "*.js", "src/**/*.ts"). Efficient for locating files by name or path structure.',
     parameters: globParametersSchema,
-    execute: async (params) => {
-      const { 
-        pattern, 
-        path: searchPath = '.', 
-        case_sensitive = false, 
-        include_dirs = false, 
-        show_hidden = false, 
-        max_results = 500, 
-        sort_by_time = false 
-      } = params;
+    execute: async (params): Promise<ToolResponse> => {
+      try {
+        const { 
+          pattern, 
+          path: searchPath = '.', 
+          case_sensitive = false, 
+          include_dirs = false, 
+          show_hidden = false, 
+          max_results = 500, 
+          sort_by_time = false 
+        } = params;
 
-      // Path validation
-      if (path.isAbsolute(searchPath)) {
-        throw new Error('path must be relative to workspace root, not absolute');
-      }
+        // Validate workspace path (handles both absolute and relative paths)
+        const pathError = validateWorkspacePath(searchPath, context);
+        if (pathError) {
+          return pathError;
+        }
 
-      if (searchPath.includes('..')) {
-        throw new Error('path cannot contain ".." for security reasons');
-      }
+        // Resolve search directory
+        const absolutePath = resolveWorkspacePath(searchPath, context);
 
-      // Security check
-      if (!validatePath(searchPath, context)) {
-        throw new Error(`Path must be within SuperDesign workspace: ${searchPath}`);
-      }
-
-      // Resolve search directory
-      const absolutePath = path.resolve(context.workingDirectory, searchPath);
-
-      // Check if path exists and is a directory
-      if (!fs.existsSync(absolutePath)) {
-        throw new Error(`Search path not found: ${searchPath}`);
-      }
-
-      const stats = fs.statSync(absolutePath);
-      if (!stats.isDirectory()) {
-        throw new Error(`Search path is not a directory: ${searchPath}`);
-      }
+        // Check if path exists and is a directory
+        const dirError = validateDirectoryExists(absolutePath, searchPath);
+        if (dirError) {
+          return dirError;
+        }
 
       console.log(`Finding files matching pattern "${pattern}" in ${searchPath}`);
 
@@ -286,8 +274,7 @@ export function createGlobTool(context: ExecutionContext) {
 
       console.log(summary);
 
-      return {
-        success: true,
+      return createSuccessResponse({
         pattern,
         search_path: searchPath,
         matches: sortedMatches,
@@ -297,7 +284,11 @@ export function createGlobTool(context: ExecutionContext) {
         summary,
         truncated: sortedMatches.length >= max_results,
         sorted_by_time: sort_by_time
-      };
+      });
+
+      } catch (error) {
+        return handleToolError(error, 'Glob tool execution', 'execution');
+      }
     }
   });
 }

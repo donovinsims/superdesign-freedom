@@ -3,6 +3,13 @@ import * as path from 'path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { ExecutionContext } from '../types/agent';
+import { 
+  handleToolError, 
+  validateWorkspacePath, 
+  resolveWorkspacePath, 
+  createSuccessResponse,
+  ToolResponse 
+} from './tool-utils';
 
 /**
  * Write tool result with metadata
@@ -15,33 +22,7 @@ export interface WriteToolResult {
   bytes_written: number;
 }
 
-/**
- * Validate file path is within workspace and secure
- */
-function validateWritePath(filePath: string, context: ExecutionContext): boolean {
-  if (!filePath || !context.workingDirectory) {
-    return false;
-  }
-
-  // Check for security issues
-  if (path.isAbsolute(filePath)) {
-    return false; // Must be relative
-  }
-
-  if (filePath.includes('..')) {
-    return false; // No parent directory traversal
-  }
-
-  if (filePath.startsWith('/') || filePath.startsWith('\\')) {
-    return false; // Should not start with separators
-  }
-
-  // Check workspace boundary
-  const resolvedPath = path.resolve(context.workingDirectory, filePath);
-  const workspacePath = path.resolve(context.workingDirectory);
-  
-  return resolvedPath.startsWith(workspacePath);
-}
+// Path validation is now handled by validateWorkspacePath in tool-utils
 
 /**
  * Create SuperDesign write tool with execution context
@@ -50,21 +31,22 @@ export function createWriteTool(context: ExecutionContext) {
   return tool({
     description: 'Write content to a file in the SuperDesign workspace. Creates parent directories if needed.',
     parameters: z.object({
-      file_path: z.string().describe('Path to the file to write to (relative to workspace root)'),
+      file_path: z.string().describe('Path to the file to write to (relative to workspace root, or absolute path within workspace)'),
       content: z.string().describe('Content to write to the file'),
       create_dirs: z.boolean().optional().default(true).describe('Whether to create parent directories if they don\'t exist (default: true)')
     }),
-    execute: async ({ file_path, content, create_dirs = true }) => {
+    execute: async ({ file_path, content, create_dirs = true }): Promise<ToolResponse> => {
       const startTime = Date.now();
       
       try {
-        // Validate file path
-        if (!validateWritePath(file_path, context)) {
-          throw new Error(`Invalid file path: ${file_path}. Must be relative to workspace and not contain ".." or absolute paths.`);
+        // Validate workspace path (handles both absolute and relative paths)
+        const pathError = validateWorkspacePath(file_path, context);
+        if (pathError) {
+          return pathError;
         }
 
         // Resolve absolute path within workspace
-        const absolutePath = path.resolve(context.workingDirectory, file_path);
+        const absolutePath = resolveWorkspacePath(file_path, context);
         
         context.outputChannel.appendLine(`[write] Writing to file: ${file_path}`);
 
@@ -72,7 +54,7 @@ export function createWriteTool(context: ExecutionContext) {
         if (fs.existsSync(absolutePath)) {
           const stats = fs.lstatSync(absolutePath);
           if (stats.isDirectory()) {
-            throw new Error(`Target path is a directory, not a file: ${file_path}`);
+            return handleToolError(`Target path is a directory, not a file: ${file_path}`, 'Path validation', 'validation');
           }
         }
 
@@ -105,14 +87,14 @@ export function createWriteTool(context: ExecutionContext) {
           bytes_written: size
         };
 
-        return result;
+        return createSuccessResponse(result);
 
       } catch (error) {
         const duration = Date.now() - startTime;
         const errorMessage = error instanceof Error ? error.message : String(error);
         
         context.outputChannel.appendLine(`[write] Error writing file: ${errorMessage} (${duration}ms)`);
-        throw new Error(`Failed to write file: ${errorMessage}`);
+        return handleToolError(error, 'Write tool execution', 'execution');
       }
     }
   });

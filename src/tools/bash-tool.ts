@@ -5,6 +5,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { ExecutionContext } from '../types/agent';
+import { 
+  handleToolError, 
+  validateWorkspacePath, 
+  resolveWorkspacePath, 
+  createSuccessResponse,
+  validateDirectoryExists,
+  ToolResponse 
+} from './tool-utils';
 
 const bashParametersSchema = z.object({
   command: z.string().describe('Shell command to execute (e.g., "npm install", "ls -la", "git status")'),
@@ -53,16 +61,7 @@ function hasUnsafeCommand(command: string): boolean {
   return unsafePatterns.some(pattern => pattern.test(command));
 }
 
-/**
- * Validate if a path is within the workspace directory
- */
-function validatePath(relativePath: string, context: ExecutionContext): boolean {
-  const normalizedPath = path.normalize(relativePath);
-  const resolvedPath = path.resolve(context.workingDirectory, normalizedPath);
-  const normalizedWorkspace = path.normalize(context.workingDirectory);
-  
-  return resolvedPath.startsWith(normalizedWorkspace);
-}
+// Path validation is now handled by validateWorkspacePath in tool-utils
 
 /**
  * Execute command with proper process management
@@ -161,27 +160,31 @@ export function createBashTool(context: ExecutionContext) {
   return tool({
     description: 'Execute shell/bash commands within the SuperDesign workspace. Supports timeouts, output capture, and secure execution.',
     parameters: bashParametersSchema,
-    execute: async (params) => {
-      const { command, description, directory, timeout = 30000, capture_output = true, env } = params;
+    execute: async (params): Promise<ToolResponse> => {
+      try {
+        const { command, description, directory, timeout = 30000, capture_output = true, env } = params;
 
-      // Security checks
-      if (hasUnsafeCommand(command)) {
-        throw new Error('Command contains potentially unsafe operations');
-      }
+        // Security checks
+        if (hasUnsafeCommand(command)) {
+          return handleToolError('Command contains potentially unsafe operations', 'Security check', 'security');
+        }
 
-      // Resolve execution directory
-      const workingDir = directory || '.';
-      const absolutePath = path.resolve(context.workingDirectory, workingDir);
-      
-      // Security check
-      if (!validatePath(workingDir, context)) {
-        throw new Error(`Directory must be within SuperDesign workspace: ${workingDir}`);
-      }
+        // Resolve execution directory
+        const workingDir = directory || '.';
+        
+        // Security check for workspace boundary
+        const pathError = validateWorkspacePath(workingDir, context);
+        if (pathError) {
+          return pathError;
+        }
 
-      // Check if directory exists
-      if (!fs.existsSync(absolutePath)) {
-        throw new Error(`Directory does not exist: ${workingDir}`);
-      }
+        const absolutePath = resolveWorkspacePath(workingDir, context);
+
+        // Check if directory exists
+        const dirError = validateDirectoryExists(absolutePath, workingDir);
+        if (dirError) {
+          return dirError;
+        }
 
       console.log(`Executing command: ${command}${description ? ` (${description})` : ''}`);
       console.log(`Working directory: ${workingDir}`);
@@ -231,15 +234,18 @@ export function createBashTool(context: ExecutionContext) {
       }
 
       if (result.timedOut) {
-        throw new Error(`Command timed out after ${timeout}ms`);
+        return handleToolError(`Command timed out after ${timeout}ms`, 'Command execution', 'execution');
       }
 
       if (result.exitCode !== 0) {
-        throw new Error(`Command failed with exit code ${result.exitCode}${result.stderr ? `\nStderr: ${result.stderr}` : ''}`);
+        return handleToolError(
+          `Command failed with exit code ${result.exitCode}${result.stderr ? `\nStderr: ${result.stderr}` : ''}`,
+          'Command execution',
+          'execution'
+        );
       }
 
-      return {
-        success: true,
+      return createSuccessResponse({
         command,
         directory: workingDir,
         exitCode: result.exitCode,
@@ -247,7 +253,11 @@ export function createBashTool(context: ExecutionContext) {
         stdout: result.stdout,
         stderr: result.stderr,
         summary
-      };
+      });
+
+      } catch (error) {
+        return handleToolError(error, 'Bash tool execution', 'execution');
+      }
     }
   });
 } 

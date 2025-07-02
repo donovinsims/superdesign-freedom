@@ -3,9 +3,17 @@ import { tool } from 'ai';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ExecutionContext } from '../types/agent';
+import { 
+  handleToolError, 
+  validateWorkspacePath, 
+  resolveWorkspacePath, 
+  createSuccessResponse,
+  validateDirectoryExists,
+  ToolResponse 
+} from './tool-utils';
 
 const lsParametersSchema = z.object({
-  path: z.string().optional().describe('Path to the directory to list (relative to workspace root). Defaults to workspace root.'),
+  path: z.string().optional().describe('Path to the directory to list (relative to workspace root, or absolute path within workspace). Defaults to workspace root.'),
   show_hidden: z.boolean().optional().describe('Whether to show hidden files and directories (starting with .)'),
   ignore: z.array(z.string()).optional().describe('Array of glob patterns to ignore (e.g., ["*.log", "temp*"])'),
   detailed: z.boolean().optional().describe('Whether to show detailed file information (size, modified time)')
@@ -19,16 +27,7 @@ interface FileEntry {
   extension?: string;
 }
 
-/**
- * Validate if a path is within the workspace directory
- */
-function validatePath(relativePath: string, context: ExecutionContext): boolean {
-  const normalizedPath = path.normalize(relativePath);
-  const resolvedPath = path.resolve(context.workingDirectory, normalizedPath);
-  const normalizedWorkspace = path.normalize(context.workingDirectory);
-  
-  return resolvedPath.startsWith(normalizedWorkspace);
-}
+// Path validation is now handled by validateWorkspacePath in tool-utils
 
 /**
  * Check if a filename should be ignored based on patterns
@@ -99,51 +98,39 @@ export function createLsTool(context: ExecutionContext) {
   return tool({
     description: 'List the contents of a directory in the SuperDesign workspace. Shows files and subdirectories with optional filtering.',
     parameters: lsParametersSchema,
-    execute: async (params) => {
-      const { path: targetPath = '.', show_hidden = false, ignore, detailed = false } = params;
+    execute: async (params): Promise<ToolResponse> => {
+      try {
+        const { path: targetPath = '.', show_hidden = false, ignore, detailed = false } = params;
 
-      // Path validation
-      if (path.isAbsolute(targetPath)) {
-        throw new Error('path must be relative to workspace root, not absolute');
-      }
+        // Validate workspace path (handles both absolute and relative paths)
+        const pathError = validateWorkspacePath(targetPath, context);
+        if (pathError) {
+          return pathError;
+        }
 
-      if (targetPath.includes('..')) {
-        throw new Error('path cannot contain ".." for security reasons');
-      }
+        // Resolve target directory
+        const absolutePath = resolveWorkspacePath(targetPath, context);
 
-      // Security check
-      if (!validatePath(targetPath, context)) {
-        throw new Error(`Path must be within SuperDesign workspace: ${targetPath}`);
-      }
+        console.log(`Listing directory: ${targetPath}`);
 
-      // Resolve target directory
-      const absolutePath = path.resolve(context.workingDirectory, targetPath);
-
-      console.log(`Listing directory: ${targetPath}`);
-
-      // Check if path exists and is a directory
-      if (!fs.existsSync(absolutePath)) {
-        throw new Error(`Directory not found: ${targetPath}`);
-      }
-
-      const stats = fs.statSync(absolutePath);
-      if (!stats.isDirectory()) {
-        throw new Error(`Path is not a directory: ${targetPath}`);
-      }
+        // Check if path exists and is a directory
+        const dirError = validateDirectoryExists(absolutePath, targetPath);
+        if (dirError) {
+          return dirError;
+        }
 
       // Read directory contents
       const files = fs.readdirSync(absolutePath);
       
-      if (files.length === 0) {
-        console.log(`Directory is empty: ${targetPath}`);
-        return {
-          success: true,
-          path: targetPath,
-          absolute_path: absolutePath,
-          entries: [],
-          total_count: 0
-        };
-      }
+              if (files.length === 0) {
+          console.log(`Directory is empty: ${targetPath}`);
+          return createSuccessResponse({
+            path: targetPath,
+            absolute_path: absolutePath,
+            entries: [],
+            total_count: 0
+          });
+        }
 
       const entries: FileEntry[] = [];
       let hiddenCount = 0;
@@ -219,8 +206,7 @@ export function createLsTool(context: ExecutionContext) {
 
       console.log(`${summary}${detailedListing}`);
 
-      return {
-        success: true,
+      return createSuccessResponse({
         path: targetPath,
         absolute_path: absolutePath,
         entries,
@@ -231,7 +217,11 @@ export function createLsTool(context: ExecutionContext) {
         files: entries.filter(e => !e.isDirectory).length,
         summary,
         detailed_listing: detailed ? detailedListing : undefined
-      };
+      });
+
+      } catch (error) {
+        return handleToolError(error, 'Ls tool execution', 'execution');
+      }
     }
   });
 } 

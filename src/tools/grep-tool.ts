@@ -3,10 +3,18 @@ import { tool } from 'ai';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ExecutionContext } from '../types/agent';
+import { 
+  handleToolError, 
+  validateWorkspacePath, 
+  resolveWorkspacePath, 
+  createSuccessResponse,
+  validateDirectoryExists,
+  ToolResponse 
+} from './tool-utils';
 
 const grepParametersSchema = z.object({
   pattern: z.string().describe('Regular expression pattern to search for (e.g., "function\\s+\\w+", "import.*from")'),
-  path: z.string().optional().describe('Directory to search in (relative to workspace root). Defaults to workspace root.'),
+  path: z.string().optional().describe('Directory to search in (relative to workspace root, or absolute path within workspace). Defaults to workspace root.'),
   include: z.string().optional().describe('File pattern to include (e.g., "*.js", "*.{ts,tsx}", "src/**/*.ts")'),
   case_sensitive: z.boolean().optional().describe('Whether the search should be case-sensitive (default: false)'),
   max_files: z.number().min(1).optional().describe('Maximum number of files to search (default: 1000)'),
@@ -21,16 +29,7 @@ interface GrepMatch {
   matchEnd: number;
 }
 
-/**
- * Validate if a path is within the workspace directory
- */
-function validatePath(relativePath: string, context: ExecutionContext): boolean {
-  const normalizedPath = path.normalize(relativePath);
-  const resolvedPath = path.resolve(context.workingDirectory, normalizedPath);
-  const normalizedWorkspace = path.normalize(context.workingDirectory);
-  
-  return resolvedPath.startsWith(normalizedWorkspace);
-}
+// Path validation is now handled by validateWorkspacePath in tool-utils
 
 /**
  * Check if a file path matches the include pattern
@@ -195,49 +194,42 @@ export function createGrepTool(context: ExecutionContext) {
   return tool({
     description: 'Search for text patterns within file contents using regular expressions. Can filter by file types and paths.',
     parameters: grepParametersSchema,
-    execute: async (params) => {
-      const { 
-        pattern, 
-        path: searchPath = '.', 
-        include, 
-        case_sensitive = false, 
-        max_files = 1000, 
-        max_matches = 100 
-      } = params;
-
-      // Pattern validation (test if it's a valid regex)
+    execute: async (params): Promise<ToolResponse> => {
       try {
-        new RegExp(pattern);
-      } catch (error) {
-        throw new Error(`Invalid regular expression pattern: ${error instanceof Error ? error.message : String(error)}`);
-      }
+        const { 
+          pattern, 
+          path: searchPath = '.', 
+          include, 
+          case_sensitive = false, 
+          max_files = 1000, 
+          max_matches = 100 
+        } = params;
 
-      // Path validation
-      if (path.isAbsolute(searchPath)) {
-        throw new Error('path must be relative to workspace root, not absolute');
-      }
+        // Pattern validation (test if it's a valid regex)
+        try {
+          new RegExp(pattern);
+        } catch (error) {
+          return handleToolError(
+            `Invalid regular expression pattern: ${error instanceof Error ? error.message : String(error)}`,
+            'Pattern validation',
+            'validation'
+          );
+        }
 
-      if (searchPath.includes('..')) {
-        throw new Error('path cannot contain ".." for security reasons');
-      }
+        // Validate workspace path (handles both absolute and relative paths)
+        const pathError = validateWorkspacePath(searchPath, context);
+        if (pathError) {
+          return pathError;
+        }
 
-      // Security check
-      if (!validatePath(searchPath, context)) {
-        throw new Error(`Path must be within SuperDesign workspace: ${searchPath}`);
-      }
+        // Resolve search directory
+        const absolutePath = resolveWorkspacePath(searchPath, context);
 
-      // Resolve search directory
-      const absolutePath = path.resolve(context.workingDirectory, searchPath);
-
-      // Check if path exists and is a directory
-      if (!fs.existsSync(absolutePath)) {
-        throw new Error(`Search path not found: ${searchPath}`);
-      }
-
-      const stats = fs.statSync(absolutePath);
-      if (!stats.isDirectory()) {
-        throw new Error(`Search path is not a directory: ${searchPath}`);
-      }
+        // Check if path exists and is a directory
+        const dirError = validateDirectoryExists(absolutePath, searchPath);
+        if (dirError) {
+          return dirError;
+        }
 
       console.log(`Searching for pattern "${pattern}" in ${searchPath}`);
 
@@ -250,8 +242,7 @@ export function createGrepTool(context: ExecutionContext) {
       
       if (filesToSearch.length === 0) {
         const message = `No files found to search in ${searchPath}${include ? ` matching ${include}` : ''}`;
-        return {
-          success: true,
+        return createSuccessResponse({
           pattern,
           search_path: searchPath,
           include_pattern: include,
@@ -259,7 +250,7 @@ export function createGrepTool(context: ExecutionContext) {
           matches: [],
           total_matches: 0,
           message
-        };
+        });
       }
 
       // Search in files
@@ -303,8 +294,7 @@ export function createGrepTool(context: ExecutionContext) {
 
       console.log(summary);
 
-      return {
-        success: true,
+      return createSuccessResponse({
         pattern,
         search_path: searchPath,
         include_pattern: include,
@@ -315,7 +305,11 @@ export function createGrepTool(context: ExecutionContext) {
         total_matches: allMatches.length,
         summary,
         truncated: allMatches.length >= max_matches
-      };
+      });
+
+      } catch (error) {
+        return handleToolError(error, 'Grep tool execution', 'execution');
+      }
     }
   });
 } 

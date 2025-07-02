@@ -3,9 +3,17 @@ import { tool } from 'ai';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ExecutionContext } from '../types/agent';
+import { 
+  handleToolError, 
+  validateWorkspacePath, 
+  resolveWorkspacePath, 
+  createSuccessResponse,
+  validateFileExists,
+  ToolResponse 
+} from './tool-utils';
 
 const editParametersSchema = z.object({
-  file_path: z.string().describe('Path to the file to edit (relative to workspace root)'),
+  file_path: z.string().describe('Path to the file to edit (relative to workspace root, or absolute path within workspace)'),
   old_string: z.string().describe('The exact text to find and replace. Must match exactly including whitespace, indentation, and context. For single replacements, include 3+ lines of context before and after the target text.'),
   new_string: z.string().describe('The text to replace old_string with. Should maintain proper indentation and formatting.'),
   expected_replacements: z.number().min(1).optional().describe('Number of replacements expected (default: 1). Use when replacing multiple occurrences.')
@@ -19,16 +27,7 @@ interface CalculatedEdit {
   error?: string;
 }
 
-/**
- * Validate if a path is within the workspace directory
- */
-function validatePath(relativePath: string, context: ExecutionContext): boolean {
-  const normalizedPath = path.normalize(relativePath);
-  const resolvedPath = path.resolve(context.workingDirectory, normalizedPath);
-  const normalizedWorkspace = path.normalize(context.workingDirectory);
-  
-  return resolvedPath.startsWith(normalizedWorkspace);
-}
+// Path validation is now handled by validateWorkspacePath in tool-utils
 
 /**
  * Escape special regex characters
@@ -47,7 +46,8 @@ function calculateEdit(
   expected_replacements: number,
   context: ExecutionContext
 ): CalculatedEdit {
-  const absolutePath = path.resolve(context.workingDirectory, file_path);
+  // Use the utility function to resolve paths
+  const absolutePath = resolveWorkspacePath(file_path, context);
   
   // Check if file exists
   if (!fs.existsSync(absolutePath)) {
@@ -134,72 +134,64 @@ function calculateEdit(
 
 export function createEditTool(context: ExecutionContext) {
   return tool({
-    description: 'Replace text within a file using exact string matching. Requires precise text matching including whitespace and indentation.',
+    description: 'Replace text within a file using exact string matching. Accepts both relative and absolute file paths within the workspace.',
     parameters: editParametersSchema,
-    execute: async (params) => {
-      const { file_path, old_string, new_string, expected_replacements = 1 } = params;
+    execute: async (params): Promise<ToolResponse> => {
+      try {
+        const { file_path, old_string, new_string, expected_replacements = 1 } = params;
 
-      // Path validation
-      if (path.isAbsolute(file_path)) {
-        throw new Error('file_path must be relative to workspace root, not absolute');
-      }
-
-      if (file_path.includes('..')) {
-        throw new Error('file_path cannot contain ".." for security reasons');
-      }
-
-      if (file_path.startsWith('/') || file_path.startsWith('\\')) {
-        throw new Error('file_path should not start with path separators');
-      }
-
-      // Security check
-      if (!validatePath(file_path, context)) {
-        throw new Error(`File path must be within SuperDesign workspace: ${file_path}`);
-      }
-
-      console.log(`Editing file: ${file_path}`);
-
-      // Calculate the edit
-      const editResult = calculateEdit(file_path, old_string, new_string, expected_replacements, context);
-      
-      if (editResult.error) {
-        throw new Error(editResult.error);
-      }
-
-      const absolutePath = path.resolve(context.workingDirectory, file_path);
-
-      // Create parent directories if needed (for new files)
-      if (editResult.isNewFile) {
-        const dirName = path.dirname(absolutePath);
-        if (!fs.existsSync(dirName)) {
-          fs.mkdirSync(dirName, { recursive: true });
-          console.log(`Created parent directories for: ${file_path}`);
+        // Validate workspace path (handles both absolute and relative paths)
+        const pathError = validateWorkspacePath(file_path, context);
+        if (pathError) {
+          return pathError;
         }
+
+        console.log(`Editing file: ${file_path}`);
+
+        // Calculate the edit
+        const editResult = calculateEdit(file_path, old_string, new_string, expected_replacements, context);
+        
+        if (editResult.error) {
+          return handleToolError(editResult.error, 'Edit operation', 'execution');
+        }
+
+        const absolutePath = resolveWorkspacePath(file_path, context);
+
+        // Create parent directories if needed (for new files)
+        if (editResult.isNewFile) {
+          const dirName = path.dirname(absolutePath);
+          if (!fs.existsSync(dirName)) {
+            fs.mkdirSync(dirName, { recursive: true });
+            console.log(`Created parent directories for: ${file_path}`);
+          }
+        }
+
+        // Write the updated content
+        fs.writeFileSync(absolutePath, editResult.newContent, 'utf8');
+
+        const newLines = editResult.newContent.split('\n').length;
+        const newSize = Buffer.byteLength(editResult.newContent, 'utf8');
+
+        if (editResult.isNewFile) {
+          console.log(`Created new file: ${file_path} (${newLines} lines)`);
+        } else {
+          console.log(`Applied ${editResult.occurrences} replacement(s) to: ${file_path} (${newLines} lines)`);
+        }
+
+        return createSuccessResponse({
+          file_path,
+          absolute_path: absolutePath,
+          is_new_file: editResult.isNewFile,
+          replacements_made: editResult.occurrences,
+          lines_total: newLines,
+          bytes_total: newSize,
+          old_string_length: old_string.length,
+          new_string_length: new_string.length
+        });
+
+      } catch (error) {
+        return handleToolError(error, 'Edit tool execution', 'execution');
       }
-
-      // Write the updated content
-      fs.writeFileSync(absolutePath, editResult.newContent, 'utf8');
-
-      const newLines = editResult.newContent.split('\n').length;
-      const newSize = Buffer.byteLength(editResult.newContent, 'utf8');
-
-      if (editResult.isNewFile) {
-        console.log(`Created new file: ${file_path} (${newLines} lines)`);
-      } else {
-        console.log(`Applied ${editResult.occurrences} replacement(s) to: ${file_path} (${newLines} lines)`);
-      }
-
-      return {
-        success: true,
-        file_path,
-        absolute_path: absolutePath,
-        is_new_file: editResult.isNewFile,
-        replacements_made: editResult.occurrences,
-        lines_total: newLines,
-        bytes_total: newSize,
-        old_string_length: old_string.length,
-        new_string_length: new_string.length
-      };
     }
   });
 } 
