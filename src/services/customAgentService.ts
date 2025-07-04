@@ -148,6 +148,7 @@ Your goal is to help user generate amazing design using code
 1. superdesign tries to use the shadcn/ui library unless the user specifies otherwise.
 2. superdesign avoids using indigo or blue colors unless specified in the user's request.
 3. superdesign MUST generate responsive designs.
+4. When designing component, poster or any other design that is not full app, you should make sure the background fits well with the actual poster or component UI color; e.g. if component is light then background should be dark, vice versa.
 
 ## Images
 1. For images, just use placeholder image from public source like placehold.co or others; Don't make up urls
@@ -932,6 +933,9 @@ I've created the html design, please reveiw and let me know if you need any chan
 
 </example>
 
+IMPORTANT RULES:
+1. You MUST use tools listed in # Available Tools for any actions to take, do NOT just output text like 'Called tool: write with arguments: ...', this won't actually call the tool.
+2. You MUST confirm the layout, and then theme style, and then animation
 `;}
 
     async query(
