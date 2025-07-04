@@ -139,8 +139,8 @@ export class ChatMessageService {
 
     private handleStreamMessage(message: any, webview: vscode.Webview): void {
         const subtype = 'subtype' in message ? message.subtype : undefined;
-        this.outputChannel.appendLine(`Processing stream message type: ${message.type}${subtype ? `, subtype: ${subtype}` : ''}`);
-        this.outputChannel.appendLine(`Full message structure: ${JSON.stringify(message, null, 2)}`);
+        // this.outputChannel.appendLine(`Processing stream message type: ${message.type}${subtype ? `, subtype: ${subtype}` : ''}`);
+        // this.outputChannel.appendLine(`Full message structure: ${JSON.stringify(message, null, 2)}`);
         
         // Skip system messages
         if (message.type === 'system') {
@@ -249,11 +249,11 @@ export class ChatMessageService {
         
         // Handle assistant messages
         if (message.type === 'assistant' && message.message) {
-            this.outputChannel.appendLine(`Assistant message structure: ${JSON.stringify(message.message, null, 2)}`);
+            // this.outputChannel.appendLine(`Assistant message structure: ${JSON.stringify(message.message, null, 2)}`);
             
             if (typeof message.message === 'string') {
                 const content = message.message;
-                this.outputChannel.appendLine(`Extracted assistant content: "${content}"`);
+                // this.outputChannel.appendLine(`Extracted assistant content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
@@ -301,7 +301,7 @@ export class ChatMessageService {
                 }
             } else if (message.message.content && typeof message.message.content === 'string') {
                 const content = message.message.content;
-                this.outputChannel.appendLine(`Extracted assistant content: "${content}"`);
+                // this.outputChannel.appendLine(`Extracted assistant content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
@@ -317,7 +317,7 @@ export class ChatMessageService {
                 }
             } else if (message.message.text) {
                 const content = message.message.text;
-                this.outputChannel.appendLine(`Extracted assistant content: "${content}"`);
+                // this.outputChannel.appendLine(`Extracted assistant content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
