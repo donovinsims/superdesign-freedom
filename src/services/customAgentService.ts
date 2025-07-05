@@ -142,6 +142,177 @@ Your goal is to help user generate amazing design using code
 4. When designing component, poster or any other design that is not full app, you should make sure the background fits well with the actual poster or component UI color; e.g. if component is light then background should be dark, vice versa.
 5. Font should always using google font, below is a list of default fonts: 'JetBrains Mono', 'Fira Code', 'Source Code Pro','IBM Plex Mono','Roboto Mono','Space Mono','Geist Mono','Inter','Roboto','Open Sans','Poppins','Montserrat','Outfit','Plus Jakarta Sans','DM Sans','Geist','Oxanium','Architects Daughter','Merriweather','Playfair Display','Lora','Source Serif Pro','Libre Baskerville','Space Grotesk'
 6. When creating CSS, make sure you include !important for all properties that might be overwritten by tailwind & flowbite, e.g. h1, body, etc.
+7. Example theme patterns:
+Ney-brutalism style that feels like 90s web design
+<neo-brutalism-style>
+:root {
+  --background: oklch(1.0000 0 0);
+  --foreground: oklch(0 0 0);
+  --card: oklch(1.0000 0 0);
+  --card-foreground: oklch(0 0 0);
+  --popover: oklch(1.0000 0 0);
+  --popover-foreground: oklch(0 0 0);
+  --primary: oklch(0.6489 0.2370 26.9728);
+  --primary-foreground: oklch(1.0000 0 0);
+  --secondary: oklch(0.9680 0.2110 109.7692);
+  --secondary-foreground: oklch(0 0 0);
+  --muted: oklch(0.9551 0 0);
+  --muted-foreground: oklch(0.3211 0 0);
+  --accent: oklch(0.5635 0.2408 260.8178);
+  --accent-foreground: oklch(1.0000 0 0);
+  --destructive: oklch(0 0 0);
+  --destructive-foreground: oklch(1.0000 0 0);
+  --border: oklch(0 0 0);
+  --input: oklch(0 0 0);
+  --ring: oklch(0.6489 0.2370 26.9728);
+  --chart-1: oklch(0.6489 0.2370 26.9728);
+  --chart-2: oklch(0.9680 0.2110 109.7692);
+  --chart-3: oklch(0.5635 0.2408 260.8178);
+  --chart-4: oklch(0.7323 0.2492 142.4953);
+  --chart-5: oklch(0.5931 0.2726 328.3634);
+  --sidebar: oklch(0.9551 0 0);
+  --sidebar-foreground: oklch(0 0 0);
+  --sidebar-primary: oklch(0.6489 0.2370 26.9728);
+  --sidebar-primary-foreground: oklch(1.0000 0 0);
+  --sidebar-accent: oklch(0.5635 0.2408 260.8178);
+  --sidebar-accent-foreground: oklch(1.0000 0 0);
+  --sidebar-border: oklch(0 0 0);
+  --sidebar-ring: oklch(0.6489 0.2370 26.9728);
+  --font-sans: DM Sans, sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: Space Mono, monospace;
+  --radius: 0px;
+  --shadow-2xs: 4px 4px 0px 0px hsl(0 0% 0% / 0.50);
+  --shadow-xs: 4px 4px 0px 0px hsl(0 0% 0% / 0.50);
+  --shadow-sm: 4px 4px 0px 0px hsl(0 0% 0% / 1.00), 4px 1px 2px -1px hsl(0 0% 0% / 1.00);
+  --shadow: 4px 4px 0px 0px hsl(0 0% 0% / 1.00), 4px 1px 2px -1px hsl(0 0% 0% / 1.00);
+  --shadow-md: 4px 4px 0px 0px hsl(0 0% 0% / 1.00), 4px 2px 4px -1px hsl(0 0% 0% / 1.00);
+  --shadow-lg: 4px 4px 0px 0px hsl(0 0% 0% / 1.00), 4px 4px 6px -1px hsl(0 0% 0% / 1.00);
+  --shadow-xl: 4px 4px 0px 0px hsl(0 0% 0% / 1.00), 4px 8px 10px -1px hsl(0 0% 0% / 1.00);
+  --shadow-2xl: 4px 4px 0px 0px hsl(0 0% 0% / 2.50);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+</neo-brutalism-style>
+
+Vintage style that feels a bit of modern & classic
+<vintage-style>
+:root {
+  --background: oklch(0.9582 0.0152 90.2357);
+  --foreground: oklch(0.3760 0.0225 64.3434);
+  --card: oklch(0.9914 0.0098 87.4695);
+  --card-foreground: oklch(0.3760 0.0225 64.3434);
+  --popover: oklch(0.9914 0.0098 87.4695);
+  --popover-foreground: oklch(0.3760 0.0225 64.3434);
+  --primary: oklch(0.6180 0.0778 65.5444);
+  --primary-foreground: oklch(1.0000 0 0);
+  --secondary: oklch(0.8846 0.0302 85.5655);
+  --secondary-foreground: oklch(0.4313 0.0300 64.9288);
+  --muted: oklch(0.9239 0.0190 83.0636);
+  --muted-foreground: oklch(0.5391 0.0387 71.1655);
+  --accent: oklch(0.8348 0.0426 88.8064);
+  --accent-foreground: oklch(0.3760 0.0225 64.3434);
+  --destructive: oklch(0.5471 0.1438 32.9149);
+  --destructive-foreground: oklch(1.0000 0 0);
+  --border: oklch(0.8606 0.0321 84.5881);
+  --input: oklch(0.8606 0.0321 84.5881);
+  --ring: oklch(0.6180 0.0778 65.5444);
+  --chart-1: oklch(0.6180 0.0778 65.5444);
+  --chart-2: oklch(0.5604 0.0624 68.5805);
+  --chart-3: oklch(0.4851 0.0570 72.6827);
+  --chart-4: oklch(0.6777 0.0624 64.7755);
+  --chart-5: oklch(0.7264 0.0581 66.6967);
+  --sidebar: oklch(0.9239 0.0190 83.0636);
+  --sidebar-foreground: oklch(0.3760 0.0225 64.3434);
+  --sidebar-primary: oklch(0.6180 0.0778 65.5444);
+  --sidebar-primary-foreground: oklch(1.0000 0 0);
+  --sidebar-accent: oklch(0.8348 0.0426 88.8064);
+  --sidebar-accent-foreground: oklch(0.3760 0.0225 64.3434);
+  --sidebar-border: oklch(0.8606 0.0321 84.5881);
+  --sidebar-ring: oklch(0.6180 0.0778 65.5444);
+  --font-sans: Libre Baskerville, serif;
+  --font-serif: Lora, serif;
+  --font-mono: IBM Plex Mono, monospace;
+  --radius: 0.25rem;
+  --shadow-2xs: 2px 3px 5px 0px hsl(28 13% 20% / 0.06);
+  --shadow-xs: 2px 3px 5px 0px hsl(28 13% 20% / 0.06);
+  --shadow-sm: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 1px 2px -1px hsl(28 13% 20% / 0.12);
+  --shadow: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 1px 2px -1px hsl(28 13% 20% / 0.12);
+  --shadow-md: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 2px 4px -1px hsl(28 13% 20% / 0.12);
+  --shadow-lg: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 4px 6px -1px hsl(28 13% 20% / 0.12);
+  --shadow-xl: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 8px 10px -1px hsl(28 13% 20% / 0.12);
+  --shadow-2xl: 2px 3px 5px 0px hsl(28 13% 20% / 0.30);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+</vintage-style>
+
+Modern dark mode style like vercel, linear
+<modern-dark-mode-style>
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.1450 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.1450 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.1450 0 0);
+  --primary: oklch(0.2050 0 0);
+  --primary-foreground: oklch(0.9850 0 0);
+  --secondary: oklch(0.9700 0 0);
+  --secondary-foreground: oklch(0.2050 0 0);
+  --muted: oklch(0.9700 0 0);
+  --muted-foreground: oklch(0.5560 0 0);
+  --accent: oklch(0.9700 0 0);
+  --accent-foreground: oklch(0.2050 0 0);
+  --destructive: oklch(0.5770 0.2450 27.3250);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9220 0 0);
+  --input: oklch(0.9220 0 0);
+  --ring: oklch(0.7080 0 0);
+  --chart-1: oklch(0.8100 0.1000 252);
+  --chart-2: oklch(0.6200 0.1900 260);
+  --chart-3: oklch(0.5500 0.2200 263);
+  --chart-4: oklch(0.4900 0.2200 264);
+  --chart-5: oklch(0.4200 0.1800 266);
+  --sidebar: oklch(0.9850 0 0);
+  --sidebar-foreground: oklch(0.1450 0 0);
+  --sidebar-primary: oklch(0.2050 0 0);
+  --sidebar-primary-foreground: oklch(0.9850 0 0);
+  --sidebar-accent: oklch(0.9700 0 0);
+  --sidebar-accent-foreground: oklch(0.2050 0 0);
+  --sidebar-border: oklch(0.9220 0 0);
+  --sidebar-ring: oklch(0.7080 0 0);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.625rem;
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+</modern-dark-mode-style>
 
 ## Images & icons
 1. For images, just use placeholder image from public source like unsplash, placehold.co or others that you already know exact image url; Don't make up urls
