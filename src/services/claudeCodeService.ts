@@ -1,3 +1,5 @@
+// This is deprecated, use customAgentService instead
+
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -174,9 +176,23 @@ export class ClaudeCodeService {
         }
     }
 
-        async query(prompt: string, options?: Partial<ClaudeCodeOptions>, abortController?: AbortController, onMessage?: (message: SDKMessage) => void): Promise<SDKMessage[]> {
-        Logger.info('Starting Claude Code query');
+    async query(prompt?: string, conversationMessages?: any, options?: Partial<ClaudeCodeOptions>, abortController?: AbortController, onMessage?: (message: SDKMessage) => void): Promise<SDKMessage[]> {
+        // ClaudeCodeService handles conversation via internal session management
+        // so we ignore conversationMessages and just use the prompt
         
+        if (!prompt) {
+            throw new Error('ClaudeCodeService requires a prompt parameter');
+        }
+        
+        Logger.info('=== QUERY FUNCTION CALLED ===');
+        Logger.info(`Query prompt: ${prompt.substring(0, 200)}...`);
+        Logger.info(`Query options: ${JSON.stringify(options, null, 2)}`);
+        Logger.info(`Streaming enabled: ${!!onMessage}`);
+        
+        if (conversationMessages) {
+            Logger.info('Note: ClaudeCodeService ignores conversationMessages (uses internal session management)');
+        }
+
         await this.ensureInitialized();
 
         const messages: SDKMessage[] = [];
@@ -307,7 +323,7 @@ Your goal is to extract a generalized and reusable design system from the screen
             }
 
             const queryParams = {
-                prompt,
+                prompt: prompt!, // Non-null assertion since we checked above
                 abortController: abortController || new AbortController(),
                 options: finalOptions
             };

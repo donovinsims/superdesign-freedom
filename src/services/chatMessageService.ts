@@ -1,46 +1,40 @@
 import * as vscode from 'vscode';
 import { ClaudeCodeService } from './claudeCodeService';
+import { AgentService } from '../types/agent';
+import { convertChatHistoryToAISDK, debugConversion } from './messageConverter';
+import { ChatMessage } from '../webview/hooks/useChat';
+import { CoreMessage } from 'ai';
 import { Logger } from './logger';
 
 export class ChatMessageService {
     private currentRequestController?: AbortController;
 
     constructor(
-        private claudeService: ClaudeCodeService,
+        private agentService: AgentService,
         private outputChannel: vscode.OutputChannel
     ) {}
 
     async handleChatMessage(message: any, webview: vscode.Webview): Promise<void> {
         try {
-            Logger.info(`Processing chat message: ${message.message?.substring(0, 100)}...`);
+            const chatHistory: ChatMessage[] = message.chatHistory || [];
+            const latestMessage = message.message || '';
+            const messageContent = message.messageContent || latestMessage; // New structured content field
             
-            // Check if API key is configured at the start
-            if (!this.claudeService.hasApiKey()) {
-                Logger.error('Anthropic API key not configured');
-                webview.postMessage({
-                    command: 'chatErrorWithActions',
-                    error: 'Anthropic API key required · Configure Anthropic API key',
-                    actions: [
-                        { text: 'Configure API Key', command: 'superdesign.configureApiKey' },
-                        { text: 'Open Settings', command: 'workbench.action.openSettings', args: '@ext:iganbold.superdesign' }
-                    ]
-                });
-                return;
-            }
+            Logger.info(`Chat message received with ${chatHistory.length} history messages`);
+            Logger.info(`Latest message: ${latestMessage}`);
             
-            // Refresh API key to ensure it's up to date
-            const apiKeyRefreshed = await this.claudeService.refreshApiKey();
-            if (!apiKeyRefreshed) {
-                Logger.error('Failed to refresh API key');
-                webview.postMessage({
-                    command: 'chatErrorWithActions',
-                    error: 'Invalid Anthropic API key · Fix Anthropic API key',
-                    actions: [
-                        { text: 'Configure API Key', command: 'superdesign.configureApiKey' },
-                        { text: 'Open Settings', command: 'workbench.action.openSettings', args: '@ext:iganbold.superdesign' }
-                    ]
+            // Debug structured content
+            if (typeof messageContent !== 'string' && Array.isArray(messageContent)) {
+                Logger.info(`Structured content: ${messageContent.length} parts`);
+                messageContent.forEach((part, index) => {
+                    if (part.type === 'text') {
+                        Logger.info(`  [${index}] text: "${part.text?.substring(0, 100)}..."`);
+                    } else if (part.type === 'image') {
+                        Logger.info(`  [${index}] image: ${part.mimeType || 'unknown type'} (${part.image?.length || 0} chars)`);
+                    }
                 });
-                return;
+            } else {
+                Logger.info(`Simple text content: ${String(messageContent).substring(0, 100)}...`);
             }
             
             // Create new AbortController for this request
@@ -51,16 +45,61 @@ export class ChatMessageService {
                 command: 'chatStreamStart'
             });
             
-            // Use the enhanced file tools method with streaming callback
-            const response = await this.claudeService.query(
-                message.message, 
-                undefined, 
-                this.currentRequestController,
-                (streamMessage) => {
-                    // Process and send each message as it arrives
-                    this.handleStreamMessage(streamMessage, webview);
-                }
-            );
+            // Convert chat history to AI SDK format
+            const convertedMessages = convertChatHistoryToAISDK(chatHistory);
+            
+            // Debug log conversion with VS Code output channel
+            this.outputChannel.appendLine('=== MESSAGE CONVERSION DEBUG ===');
+            this.outputChannel.appendLine(`📥 Input: ${chatHistory.length} frontend messages`);
+            this.outputChannel.appendLine(`📤 Output: ${convertedMessages.length} AI SDK messages`);
+            
+            // Log each original message
+            this.outputChannel.appendLine('📋 Original messages:');
+            chatHistory.forEach((msg, index) => {
+                this.outputChannel.appendLine(`  [${index}] ${msg.type}: "${msg.message.substring(0, 100)}..." (timestamp: ${msg.timestamp})`);
+            });
+            
+            // Log each converted message  
+            this.outputChannel.appendLine('🔄 Converted messages:');
+            convertedMessages.forEach((msg, index) => {
+                const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+                this.outputChannel.appendLine(`  [${index}] ${msg.role}: "${content.substring(0, 100)}..."`);
+            });
+            
+            this.outputChannel.appendLine('=== END CONVERSION DEBUG ===');
+            
+            // Keep original debug for console
+            debugConversion(chatHistory, convertedMessages);
+            
+            // Decide whether to use conversation history or single prompt
+            let response: any[];
+            if (convertedMessages.length > 0) {
+                // Use conversation history
+                this.outputChannel.appendLine(`Using conversation history with ${convertedMessages.length} messages`);
+                response = await this.agentService.query(
+                    undefined, // no prompt 
+                    convertedMessages, // use messages array
+                    undefined, 
+                    this.currentRequestController,
+                    (streamMessage: any) => {
+                        // Process and send each message as it arrives
+                        this.handleStreamMessage(streamMessage, webview);
+                    }
+                );
+            } else {
+                // Fallback to single prompt for first message
+                this.outputChannel.appendLine('No conversation history, using single prompt');
+                response = await this.agentService.query(
+                    latestMessage, // use latest message as prompt
+                    undefined, // no messages array
+                    undefined, 
+                    this.currentRequestController,
+                    (streamMessage: any) => {
+                        // Process and send each message as it arrives
+                        this.handleStreamMessage(streamMessage, webview);
+                    }
+                );
+            }
 
             // Check if request was aborted
             if (this.currentRequestController.signal.aborted) {
@@ -68,7 +107,7 @@ export class ChatMessageService {
                 return;
             }
 
-            Logger.info(`Claude response completed with ${response.length} total messages`);
+            Logger.info(`Agent response completed with ${response.length} total messages`);
 
             // Send stream end message
             webview.postMessage({
@@ -91,11 +130,11 @@ export class ChatMessageService {
             // Check if this is an API key authentication error or process failure
             const errorMessage = error instanceof Error ? error.message : String(error);
             Logger.error(`Processing error message: "${errorMessage}"`);
-            if (this.claudeService.isApiKeyAuthError(errorMessage) || !this.claudeService.hasApiKey()) {
+            if (this.agentService.isApiKeyAuthError(errorMessage) || !this.agentService.hasApiKey()) {
                 // Send API key error with action buttons
-                const displayMessage = this.claudeService.hasApiKey() ? 
-                    'Invalid Anthropic API key · Fix Anthropic API key' : 
-                    'Anthropic API key required · Configure Anthropic API key';
+                const displayMessage = this.agentService.hasApiKey() ? 
+                    'Invalid AI API key · Fix AI API key' : 
+                    'AI API key required · Configure AI API key';
                     
                 webview.postMessage({
                     command: 'chatErrorWithActions',
@@ -121,8 +160,8 @@ export class ChatMessageService {
 
     private handleStreamMessage(message: any, webview: vscode.Webview): void {
         const subtype = 'subtype' in message ? message.subtype : undefined;
-        Logger.debug(`Processing stream message type: ${message.type}${subtype ? `, subtype: ${subtype}` : ''}`);
-        Logger.debug(`Full message structure: ${JSON.stringify(message, null, 2)}`);
+        // Logger.info(`Processing stream message type: ${message.type}${subtype ? `, subtype: ${subtype}` : ''}`);
+        // Logger.info(`Full message structure: ${JSON.stringify(message, null, 2)}`);
         
         // Skip system messages
         if (message.type === 'system') {
@@ -168,6 +207,15 @@ export class ChatMessageService {
                                 session_id: message.session_id,
                                 parent_tool_use_id: message.parent_tool_use_id
                             }
+                        });
+                    } else if (item.type === 'tool_parameter_update' && item.tool_use_id) {
+                        // This is a tool parameter update - send it to update the tool's parameters
+                        this.outputChannel.appendLine(`Tool parameter update for ${item.tool_use_id}: ${JSON.stringify(item.parameters).substring(0, 200)}...`);
+                        
+                        webview.postMessage({
+                            command: 'chatToolUpdate',
+                            tool_use_id: item.tool_use_id,
+                            tool_input: item.parameters
                         });
                     } else if (item.type === 'text' && item.text) {
                         // Regular text content in user message
@@ -222,11 +270,11 @@ export class ChatMessageService {
         
         // Handle assistant messages
         if (message.type === 'assistant' && message.message) {
-            Logger.debug(`Assistant message structure: ${JSON.stringify(message.message, null, 2)}`);
+            // Logger.info(`Assistant message structure: ${JSON.stringify(message.message, null, 2)}`);
             
             if (typeof message.message === 'string') {
                 const content = message.message;
-                Logger.debug(`Extracted assistant content: "${content}"`);
+                // Logger.info(`Extracted assistant content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
@@ -274,7 +322,7 @@ export class ChatMessageService {
                 }
             } else if (message.message.content && typeof message.message.content === 'string') {
                 const content = message.message.content;
-                Logger.debug(`Extracted assistant content: "${content}"`);
+                // Logger.info(`Extracted assistant content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({
@@ -290,7 +338,7 @@ export class ChatMessageService {
                 }
             } else if (message.message.text) {
                 const content = message.message.text;
-                Logger.debug(`Extracted assistant content: "${content}"`);
+                // Logger.info(`Extracted assistant content: "${content}"`);
                 
                 if (content.trim()) {
                     webview.postMessage({

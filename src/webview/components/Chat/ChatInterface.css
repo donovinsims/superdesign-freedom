@@ -87,8 +87,6 @@
     position: relative;
 }
 
-
-
 .chat-history {
     flex: 1;
     overflow-y: auto;
@@ -436,6 +434,142 @@
 
 .chat-placeholder__features li {
     margin: 8px 0;
+}
+
+/* Empty state styles */
+.chat-placeholder__content {
+    margin-top: 20px;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.empty-state-message {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    text-align: center;
+}
+
+.empty-state-message p {
+    margin: 0;
+    line-height: 1.5;
+    color: var(--vscode-foreground);
+}
+
+.empty-state-message strong {
+    color: var(--vscode-textLink-foreground);
+    font-weight: 600;
+}
+
+.empty-state-message kbd {
+    background: var(--vscode-keybindingLabel-background);
+    border: 1px solid var(--vscode-keybindingLabel-border);
+    border-bottom: 2px solid var(--vscode-keybindingLabel-bottomBorder);
+    color: var(--vscode-keybindingLabel-foreground);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: var(--vscode-editor-font-family);
+    white-space: nowrap;
+}
+
+.empty-state-message code {
+    background: var(--vscode-textCodeBlock-background);
+    color: var(--vscode-textPreformat-foreground);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: var(--vscode-editor-font-family);
+}
+
+.empty-state-divider {
+    color: var(--vscode-descriptionForeground);
+    font-weight: 500;
+    font-size: 13px;
+    margin: 8px 0;
+    position: relative;
+}
+
+.empty-state-divider::before,
+.empty-state-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 40px;
+    height: 1px;
+    background: var(--vscode-separator-foreground);
+    opacity: 0.3;
+}
+
+.empty-state-divider::before {
+    right: calc(100% + 10px);
+}
+
+.empty-state-divider::after {
+    left: calc(100% + 10px);
+}
+
+.empty-state-message em {
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+}
+
+/* Sidebar layout adjustments */
+.chat-placeholder--sidebar .chat-placeholder__content {
+    margin-top: 16px;
+    max-width: 100%;
+    padding: 0 8px;
+}
+
+.chat-placeholder--sidebar .empty-state-message {
+    gap: 12px;
+}
+
+.chat-placeholder--sidebar .empty-state-message p {
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.chat-placeholder--sidebar .empty-state-message kbd {
+    font-size: 10px;
+    padding: 1px 4px;
+}
+
+.chat-placeholder--sidebar .empty-state-message code {
+    font-size: 10px;
+    padding: 1px 3px;
+}
+
+.chat-placeholder--sidebar .empty-state-divider {
+    font-size: 11px;
+}
+
+.chat-placeholder--sidebar .empty-state-divider::before,
+.chat-placeholder--sidebar .empty-state-divider::after {
+    width: 20px;
+}
+
+/* Responsive adjustments for empty state */
+@media (max-width: 600px) {
+    .chat-placeholder__content {
+        max-width: 90%;
+        margin-top: 16px;
+    }
+    
+    .empty-state-message {
+        gap: 12px;
+    }
+    
+    .empty-state-message p {
+        font-size: 13px;
+    }
+    
+    .empty-state-divider::before,
+    .empty-state-divider::after {
+        width: 20px;
+    }
 }
 
 /* Input container - Cursor style */
@@ -1968,6 +2102,74 @@
     padding: 8px 16px;
     font-size: 13px;
 }
+
+/* Theme Tool Message Styles - Added for generateTheme tool calls */
+.theme-tool-message {
+    margin-bottom: 16px;
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    padding: 0;
+    position: relative;
+}
+
+.theme-tool-message--panel {
+    margin-bottom: 20px;
+    border-radius: 16px;
+}
+
+.theme-tool-message--sidebar {
+    margin-bottom: 12px;
+    border-radius: 10px;
+}
+
+.theme-error-notice {
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    background-color: var(--vscode-inputValidation-errorBackground);
+    color: var(--vscode-inputValidation-errorForeground);
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    border-left: 3px solid var(--vscode-errorForeground);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-family: var(--vscode-editor-font-family);
+}
+
+/* Ensure theme preview cards use proper VSCode CSS variables */
+.theme-tool-message .theme-preview-card {
+    /* Override any hardcoded colors with VSCode theme variables */
+    --background: var(--vscode-editor-background);
+    --foreground: var(--vscode-editor-foreground);
+    --muted: var(--vscode-input-background);
+    --muted-foreground: var(--vscode-descriptionForeground);
+    --border: var(--vscode-input-border);
+    --card: var(--vscode-editorWidget-background);
+    --card-foreground: var(--vscode-editorWidget-foreground);
+    --primary: var(--vscode-textLink-foreground);
+    --primary-foreground: var(--vscode-button-foreground);
+    --secondary: var(--vscode-button-secondaryBackground);
+    --secondary-foreground: var(--vscode-button-secondaryForeground);
+    --accent: var(--vscode-list-hoverBackground);
+    --accent-foreground: var(--vscode-list-hoverForeground);
+    --destructive: var(--vscode-errorForeground);
+    --destructive-foreground: var(--vscode-button-foreground);
+    --ring: var(--vscode-focusBorder);
+    --input: var(--vscode-input-background);
+    --font-mono: var(--vscode-editor-font-family);
+}
+
+/* Responsive theme tool message styling */
+@media (max-width: 768px) {
+    .theme-tool-message--panel {
+        margin-bottom: 16px;
+    }
+    
+    .theme-tool-message--sidebar {
+        margin-bottom: 10px;
+    }
+}
+
+/* Tool result content */
 
 
  

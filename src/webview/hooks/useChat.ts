@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 export interface ChatMessage {
     type: 'user' | 'assistant' | 'result' | 'user-input' | 'tool' | 'tool-result' | 'tool-group' | 'error';
     message: string;
+    content?: any; // Structured content for AI SDK (TextPart[] | ImagePart[] etc.)
     timestamp?: number;
     subtype?: string;
     actions?: Array<{
@@ -38,7 +39,7 @@ export interface ChatMessage {
 export interface ChatHookResult {
     chatHistory: ChatMessage[];
     isLoading: boolean;
-    sendMessage: (message: string) => void;
+    sendMessage: (message: string | any[]) => void; // Support both string and structured content
     stopResponse: () => void;
     clearHistory: () => void;
 }
@@ -279,6 +280,49 @@ export function useChat(vscode: any): ChatHookResult {
                         });
                         break;
                         
+                    case 'chatToolUpdate':
+                        // Update existing tool message with streaming parameters
+                        console.log('Received tool parameter update for:', message.tool_use_id);
+                        setChatHistory(prev => {
+                            const newHistory = [...prev];
+                            
+                            // Helper function to find and update tool parameters in nested structure
+                            const findAndUpdateToolParams = (messages: ChatMessage[], toolId: string): boolean => {
+                                for (let i = 0; i < messages.length; i++) {
+                                    const msg = messages[i];
+                                    
+                                    if (msg.type === 'tool' && msg.metadata?.tool_id === toolId) {
+                                        // Found the tool - update parameters only, keep loading state
+                                        messages[i] = {
+                                            ...msg,
+                                            metadata: {
+                                                ...msg.metadata,
+                                                tool_input: message.tool_input || {}
+                                            }
+                                        };
+                                        return true;
+                                    } else if (msg.type === 'tool-group' && msg.metadata?.child_tools) {
+                                        // Search in child tools
+                                        if (findAndUpdateToolParams(msg.metadata.child_tools, toolId)) {
+                                            return true;
+                                        }
+                                    }
+                                }
+                                return false;
+                            };
+                            
+                            const found = findAndUpdateToolParams(newHistory, message.tool_use_id);
+                            
+                            if (found) {
+                                console.log('Updated tool parameters');
+                            } else {
+                                console.warn('Could not find tool for parameter update, ID:', message.tool_use_id);
+                            }
+                            
+                            return newHistory;
+                        });
+                        break;
+
                     case 'chatToolResult':
                         // Update existing tool message with its result
                         console.log('Received tool result for:', message.tool_use_id);
@@ -402,23 +446,40 @@ export function useChat(vscode: any): ChatHookResult {
         return () => window.removeEventListener('message', messageHandler);
     }, []);
 
-    const sendMessage = useCallback((message: string) => {
-        if (!message.trim() || isLoading) {
+    const sendMessage = useCallback((message: string | any[]) => {
+        // Handle both string and structured content
+        const messageText = typeof message === 'string' ? message : 
+            (Array.isArray(message) ? 
+                message.find(part => part.type === 'text')?.text || '[Message with attachments]' : 
+                String(message));
+        
+        if ((typeof message === 'string' && !message.trim()) || 
+            (Array.isArray(message) && (!message.length || !messageText.trim())) || 
+            isLoading) {
             return;
         }
         
-        // Add user message to history
-        setChatHistory(prev => [...prev, {
+        // Add user message to history first
+        const newUserMessage: ChatMessage = {
             type: 'user-input',
-            message: message.trim(),
+            message: messageText.trim(),
+            content: typeof message === 'string' ? undefined : message, // Store structured content
             timestamp: Date.now()
-        }]);
+        };
         
-        // Send to extension
-        setIsLoading(true);
-        vscode.postMessage({
-            command: 'chatWithClaude',
-            message: message.trim()
+        setChatHistory(prev => {
+            const updatedHistory = [...prev, newUserMessage];
+            
+            // Send full conversation history to extension
+            setIsLoading(true);
+            vscode.postMessage({
+                command: 'chatWithClaude',
+                message: messageText.trim(), // Keep for backward compatibility
+                messageContent: message, // Send the full content (string or structured)
+                chatHistory: updatedHistory // Send full conversation history
+            });
+            
+            return updatedHistory;
         });
     }, [vscode, isLoading]);
 
