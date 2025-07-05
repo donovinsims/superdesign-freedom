@@ -71,6 +71,15 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     case 'stopChat':
                         await this.messageHandler.stopCurrentChat(webviewView.webview);
                         break;
+                    case 'executeAction':
+                        // Execute command from error action buttons
+                        console.log('Executing action:', message.actionCommand, message.actionArgs);
+                        if (message.actionArgs) {
+                            await vscode.commands.executeCommand(message.actionCommand, message.actionArgs);
+                        } else {
+                            await vscode.commands.executeCommand(message.actionCommand);
+                        }
+                        break;
                     case 'getBase64Image':
                         // Forward to extension for image conversion
                         // This will be handled by extension.ts
@@ -102,7 +111,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 break;
             case 'anthropic':
             default:
-                defaultModel = 'claude-3-7-sonnet-20250219';
+                defaultModel = 'claude-3-5-sonnet-20241022';
                 break;
         }
         

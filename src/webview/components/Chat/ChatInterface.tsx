@@ -18,7 +18,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const { chatHistory, isLoading, sendMessage, stopResponse, clearHistory } = useChat(vscode);
     const { isFirstTime, isLoading: isCheckingFirstTime, markAsReturningUser, resetFirstTimeUser } = useFirstTimeUser();
     const [inputMessage, setInputMessage] = useState('');
-    const [selectedModel, setSelectedModel] = useState<string>('claude-3-7-sonnet-20250219');
+    const [selectedModel, setSelectedModel] = useState<string>('claude-3-5-sonnet-20241022');
     const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>({});
     const [showFullContent, setShowFullContent] = useState<{[key: string]: boolean}>({});
     const [currentContext, setCurrentContext] = useState<{fileName: string; type: string} | null>(null);
@@ -47,7 +47,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         break;
                     case 'anthropic':
                     default:
-                        fallbackModel = 'claude-3-7-sonnet-20250219';
+                        fallbackModel = 'claude-3-5-sonnet-20241022';
                         break;
                 }
                 setSelectedModel(message.model || fallbackModel);
@@ -604,6 +604,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         // Handle tool groups specially
         if (msg.type === 'tool-group') {
             return renderToolGroup(msg, index);
+        }
+        
+        // Handle error messages with actions specially
+        if (msg.type === 'error') {
+            return renderErrorMessage(msg, index);
         }
         
         // Determine message label and styling
@@ -1201,6 +1206,45 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 </div>
             );
         }
+    };
+
+    const renderErrorMessage = (msg: ChatMessage, index: number) => {
+        const handleActionClick = (action: { text: string; command: string; args?: string }) => {
+            console.log('Action clicked:', action);
+            vscode.postMessage({
+                command: 'executeAction',
+                actionCommand: action.command,
+                actionArgs: action.args
+            });
+        };
+
+        return (
+            <div key={index} className={`chat-message chat-message--result-error chat-message--${layout}`}>
+                {layout === 'panel' && (
+                    <div className="chat-message__header">
+                        <span className="chat-message__label">Error</span>
+                    </div>
+                )}
+                <div className="chat-message__content">
+                    <div className="error-message-content">
+                        {msg.message}
+                    </div>
+                    {msg.actions && msg.actions.length > 0 && (
+                        <div className="error-actions">
+                            {msg.actions.map((action, actionIndex) => (
+                                <button
+                                    key={actionIndex}
+                                    onClick={() => handleActionClick(action)}
+                                    className="error-action-btn"
+                                >
+                                    {action.text}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
     };
 
     const renderPlaceholder = () => (

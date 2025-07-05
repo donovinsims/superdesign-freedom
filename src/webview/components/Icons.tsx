@@ -17,7 +17,8 @@ import {
   AlertTriangle,
   CheckSquare,
   List,
-  Link
+  Link,
+  Settings
 } from 'lucide-react';
 
 const iconStyle: React.CSSProperties = {
@@ -36,6 +37,7 @@ export const ZoomOutIcon = () => <ZoomOut style={iconStyle} />;
 export const HomeIcon = () => <Home style={iconStyle} />;
 export const ScaleIcon = () => <Maximize2 style={iconStyle} />;
 export const RefreshIcon = () => <RotateCcw style={iconStyle} />;
+export const SettingsIcon = () => <Settings style={iconStyle} />;
 
 // Viewport Icons
 export const GlobeIcon = () => <Globe style={iconStyle} />;

@@ -2054,6 +2054,55 @@
 
 /* Drag & Drop Overlay */
 
+/* Error message with action buttons */
+.error-message-content {
+    margin-bottom: 12px;
+    color: var(--vscode-errorForeground);
+}
+
+.error-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.error-action-btn {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: 1px solid var(--vscode-button-border);
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.error-action-btn:hover {
+    background: var(--vscode-button-hoverBackground);
+    border-color: var(--vscode-button-hoverBackground);
+}
+
+.error-action-btn:active {
+    background: var(--vscode-button-activeBackground);
+    transform: scale(0.98);
+}
+
+.error-action-btn:focus {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+
+/* Panel specific styling */
+.chat-interface--panel .error-actions {
+    gap: 10px;
+}
+
+.chat-interface--panel .error-action-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
 /* Theme Tool Message Styles - Added for generateTheme tool calls */
 .theme-tool-message {
     margin-bottom: 16px;

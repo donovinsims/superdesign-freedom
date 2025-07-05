@@ -129,8 +129,8 @@ export class CustomAgentService implements AgentService {
                     apiKey: anthropicKey
                 });
                 
-                // Use specific model if available, otherwise default to claude-3-7-sonnet
-                const anthropicModel = specificModel || 'claude-3-7-sonnet-20250219';
+                // Use specific model if available, otherwise default to claude-3-5-sonnet
+                const anthropicModel = specificModel || 'claude-3-5-sonnet-20241022';
                 this.outputChannel.appendLine(`Using Anthropic model: ${anthropicModel}`);
                 return anthropic(anthropicModel);
                 
@@ -174,7 +174,7 @@ export class CustomAgentService implements AgentService {
                     break;
                 case 'anthropic':
                 default:
-                    modelName = 'claude-3-7-sonnet-20250219';
+                    modelName = 'claude-3-5-sonnet-20241022';
                     break;
             }
         }
@@ -1140,5 +1140,48 @@ IMPORTANT RULES:
 
     getWorkingDirectory(): string {
         return this.workingDirectory;
+    }
+
+    hasApiKey(): boolean {
+        const config = vscode.workspace.getConfiguration('superdesign');
+        const specificModel = config.get<string>('aiModel');
+        const provider = config.get<string>('aiModelProvider', 'anthropic');
+        
+        // Determine provider from model name if specific model is set
+        let effectiveProvider = provider;
+        if (specificModel) {
+            if (specificModel.includes('/')) {
+                effectiveProvider = 'openrouter';
+            } else if (specificModel.startsWith('claude-')) {
+                effectiveProvider = 'anthropic';
+            } else {
+                effectiveProvider = 'openai';
+            }
+        }
+        
+        switch (effectiveProvider) {
+            case 'openrouter':
+                return !!config.get<string>('openrouterApiKey');
+            case 'anthropic':
+                return !!config.get<string>('anthropicApiKey');
+            case 'openai':
+            default:
+                return !!config.get<string>('openaiApiKey');
+        }
+    }
+
+    isApiKeyAuthError(errorMessage: string): boolean {
+        if (!errorMessage) {
+            return false;
+        }
+        
+        const lowerError = errorMessage.toLowerCase();
+        return lowerError.includes('api key') ||
+               lowerError.includes('authentication') ||
+               lowerError.includes('unauthorized') ||
+               lowerError.includes('invalid_api_key') ||
+               lowerError.includes('permission_denied') ||
+               lowerError.includes('api_key_invalid') ||
+               lowerError.includes('unauthenticated');
     }
 } 

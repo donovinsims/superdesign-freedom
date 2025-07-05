@@ -627,7 +627,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                         </button>
                         <button className="toolbar-btn" onClick={handleResetPositions} title="Reset Frame Positions">
                             <RefreshIcon />
-                    </button>
+                        </button>
                     </div>
                 </div>
 
