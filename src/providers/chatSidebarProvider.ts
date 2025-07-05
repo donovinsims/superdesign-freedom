@@ -167,8 +167,6 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 if (result === 'Configure API Key') {
                     await vscode.commands.executeCommand(configureCommand);
                 }
-            } else {
-                vscode.window.showInformationMessage(`✅ AI model switched to ${displayName}`);
             }
 
             // Notify webview of successful change

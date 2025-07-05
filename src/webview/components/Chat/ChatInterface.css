@@ -698,18 +698,9 @@
     display: inline-block;
 }
 
-.selector-icon {
-    position: absolute;
-    left: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--vscode-descriptionForeground);
-    pointer-events: none;
-    z-index: 1;
-}
+/* Selector icon styles removed - handled by ModelSelector component */
 
-.agent-selector,
-.model-selector {
+.agent-selector {
     background: transparent;
     color: var(--vscode-foreground);
     border: none;
@@ -721,27 +712,17 @@
     border-radius: 4px;
     transition: background-color 0.2s ease;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 12 4-4 4 4'/%3E%3C/svg%3E");
     background-position: right 6px center;
     background-repeat: no-repeat;
     background-size: 12px;
-    max-width: 120px;
-    text-overflow: ellipsis;
+    min-width: 120px;
     white-space: nowrap;
-    overflow: hidden;
-}
-
-.agent-selector:hover,
-.model-selector:hover {
-    background: var(--vscode-list-hoverBackground);
-}
-
-.agent-selector {
     font-weight: 500;
 }
 
-.model-selector {
-    color: var(--vscode-descriptionForeground);
+.agent-selector:hover {
+    background: var(--vscode-list-hoverBackground);
 }
 
 /* Chat input */
@@ -892,19 +873,16 @@
         min-width: 0;
     }
     
-    .agent-selector,
-    .model-selector {
-        max-width: 80px;
+    .agent-selector {
+        min-width: 80px;
         font-size: 10px;
         padding: 2px 6px 2px 16px;
         background-size: 10px;
         background-position: right 4px center;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 12 4-4 4 4'/%3E%3C/svg%3E");
     }
     
-    .selector-icon {
-        left: 3px;
-        font-size: 10px;
-    }
+    /* Selector icon responsive styles removed - handled by ModelSelector component */
     
     .attach-btn,
     .send-btn {

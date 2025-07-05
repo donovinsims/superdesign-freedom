@@ -18,7 +18,8 @@ import {
   CheckSquare,
   List,
   Link,
-  Settings
+  Settings,
+  Brain
 } from 'lucide-react';
 
 const iconStyle: React.CSSProperties = {
@@ -29,6 +30,11 @@ const iconStyle: React.CSSProperties = {
 const toolIconStyle: React.CSSProperties = {
     width: '14px',
     height: '14px',
+};
+
+const selectorIconStyle: React.CSSProperties = {
+    width: '12px',
+    height: '12px',
 };
 
 // Canvas Control Icons
@@ -57,3 +63,6 @@ export const LightBulbIcon = () => <Lightbulb style={toolIconStyle} />;
 export const GroupIcon = () => <Folder style={toolIconStyle} />;
 export const WarningIcon = () => <AlertTriangle style={toolIconStyle} />;
 export const TaskIcon = () => <CheckSquare style={toolIconStyle} />;
+
+// Selector Icons (smallest size)
+export const BrainIcon = () => <Brain style={selectorIconStyle} />;

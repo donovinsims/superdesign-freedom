@@ -3,9 +3,10 @@ import { useChat, ChatMessage } from '../../hooks/useChat';
 import { useFirstTimeUser } from '../../hooks/useFirstTimeUser';
 import { WebviewLayout } from '../../../types/context';
 import MarkdownRenderer from '../MarkdownRenderer';
-import { TaskIcon, ClockIcon, CheckIcon, LightBulbIcon, GroupIcon } from '../Icons';
+import { TaskIcon, ClockIcon, CheckIcon, LightBulbIcon, GroupIcon, BrainIcon } from '../Icons';
 import Welcome from '../Welcome';
 import ThemePreviewCard from './ThemePreviewCard';
+import ModelSelector from './ModelSelector';
 import chatStyles from './ChatInterface.css';
 import welcomeStyles from '../Welcome/Welcome.css';
 
@@ -1395,194 +1396,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         <div className="input-controls">
                             <div className="selectors-group">
                                 <div className="selector-wrapper">
-                                    <select 
-                                        className="model-selector"
-                                        value={selectedModel}
-                                        onChange={(e) => handleModelChange(e.target.value)}
+                                    <ModelSelector
+                                        selectedModel={selectedModel}
+                                        onModelChange={handleModelChange}
                                         disabled={isLoading || showWelcome}
-                                    >
-                                        <optgroup label="OpenAI">
-                                            <option value="gpt-4.1">GPT-4.1</option>
-                                            <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
-                                            <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
-                                            <option value="gpt-4o">GPT-4o</option>
-                                            <option value="gpt-4o-mini">GPT-4o Mini</option>
-                                        </optgroup>
-                                        <optgroup label="Anthropic">
-                                            <option value="claude-4-opus-20250514">Claude 4 Opus</option>
-                                            <option value="claude-4-sonnet-20250514">Claude 4 Sonnet</option>
-                                            <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet</option>
-                                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
-                                            <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-                                            <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
-                                            <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
-                                        </optgroup>
-                                        <optgroup label="OpenRouter">
-                                            <option value="openai/o3-pro-2025-06-10">OpenAI O3 Pro</option>
-                                            <option value="openai/gpt-4.1-2025-04-14">OpenAI GPT-4.1</option>
-                                            <option value="openai/gpt-4.1-mini-2025-04-14">OpenAI GPT-4.1 Mini</option>
-                                            <option value="openai/gpt-4.1-nano-2025-04-14">OpenAI GPT-4.1 Nano</option>
-                                            <option value="openai/o3-2025-04-16">OpenAI O3</option>
-                                            <option value="openai/o4-mini-high-2025-04-16">OpenAI O4 Mini High</option>
-                                            <option value="openai/o4-mini-2025-04-16">OpenAI O4 Mini</option>
-                                            <option value="openai/gpt-4.5-preview-2025-02-27">OpenAI GPT-4.5 Preview</option>
-                                            <option value="openai/o3-mini-high-2025-01-31">OpenAI O3 Mini High</option>
-                                            <option value="openai/o3-mini-2025-01-31">OpenAI O3 Mini</option>
-                                            <option value="openai/o1-pro">OpenAI O1 Pro</option>
-                                            <option value="openai/gpt-4o-mini-search-preview-2025-03-11">OpenAI GPT-4o Mini Search</option>
-                                            <option value="openai/gpt-4o-search-preview-2025-03-11">OpenAI GPT-4o Search</option>
-                                            <option value="openai/o1-2024-12-17">OpenAI O1 (Dec 2024)</option>
-                                            <option value="openai/gpt-4o-2024-11-20">OpenAI GPT-4o (Nov 2024)</option>
-                                            <option value="openai/o1-mini">OpenAI O1 Mini</option>
-                                            <option value="openai/o1-preview">OpenAI O1 Preview</option>
-                                            <option value="openai/chatgpt-4o-latest">OpenAI ChatGPT-4o Latest</option>
-                                            <option value="openai/gpt-4o">OpenAI GPT-4o</option>
-                                            <option value="openai/gpt-4o-mini">OpenAI GPT-4o Mini</option>
-                                            <option value="openai/gpt-4-turbo">OpenAI GPT-4 Turbo</option>
-                                            <option value="openai/gpt-4">OpenAI GPT-4</option>
-                                            <option value="openai/gpt-3.5-turbo-instruct">OpenAI GPT-3.5 Turbo Instruct</option>
-                                            <option value="openai/codex-mini">OpenAI Codex Mini</option>
-                                            <option value="anthropic/claude-4-opus-20250522">Anthropic Claude 4 Opus</option>
-                                            <option value="anthropic/claude-4-sonnet-20250522">Anthropic Claude 4 Sonnet</option>
-                                            <option value="anthropic/claude-3-7-sonnet-20250219">Anthropic Claude 3.7 Sonnet</option>
-                                            <option value="anthropic/claude-3-5-haiku-20241022">Anthropic Claude 3.5 Haiku</option>
-                                            <option value="anthropic/claude-3.5-sonnet">Anthropic Claude 3.5 Sonnet</option>
-                                            <option value="anthropic/claude-3-opus">Anthropic Claude 3 Opus</option>
-                                            <option value="anthropic/claude-3-sonnet">Anthropic Claude 3 Sonnet</option>
-                                            <option value="anthropic/claude-3-haiku">Anthropic Claude 3 Haiku</option>
-                                            <option value="anthropic/claude-2.1">Anthropic Claude 2.1</option>
-                                            <option value="anthropic/claude-2">Anthropic Claude 2</option>
-                                            <option value="google/gemini-2.5-pro">Google Gemini 2.5 Pro</option>
-                                            <option value="google/gemini-2.5-flash">Google Gemini 2.5 Flash</option>
-                                            <option value="google/gemini-2.5-pro-preview-06-05">Google Gemini 2.5 Pro Preview</option>
-                                            <option value="google/gemini-2.5-flash-preview-05-20">Google Gemini 2.5 Flash Preview</option>
-                                            <option value="google/gemini-2.5-pro-preview-03-25">Google Gemini 2.5 Pro Preview (Mar)</option>
-                                            <option value="google/gemini-2.0-flash-001">Google Gemini 2.0 Flash</option>
-                                            <option value="google/gemini-2.0-flash-exp">Google Gemini 2.0 Flash Exp</option>
-                                            <option value="google/gemini-2.0-flash-lite-001">Google Gemini 2.0 Flash Lite</option>
-                                            <option value="google/gemma-3-27b-it">Google Gemma 3 27B</option>
-                                            <option value="google/gemma-3-12b-it">Google Gemma 3 12B</option>
-                                            <option value="google/gemma-3-4b-it">Google Gemma 3 4B</option>
-                                            <option value="google/gemma-2-27b-it">Google Gemma 2 27B</option>
-                                            <option value="google/gemma-2-9b-it">Google Gemma 2 9B</option>
-                                            <option value="google/gemini-flash-1.5">Google Gemini Flash 1.5</option>
-                                            <option value="google/gemini-flash-1.5-8b">Google Gemini Flash 1.5 8B</option>
-                                            <option value="google/gemini-pro-1.5">Google Gemini Pro 1.5</option>
-                                            <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Meta Llama 4 Maverick 17B</option>
-                                            <option value="meta-llama/llama-4-scout-17b-16e-instruct">Meta Llama 4 Scout 17B</option>
-                                            <option value="meta-llama/llama-3.3-70b-instruct">Meta Llama 3.3 70B</option>
-                                            <option value="meta-llama/llama-3.2-90b-vision-instruct">Meta Llama 3.2 90B Vision</option>
-                                            <option value="meta-llama/llama-3.2-11b-vision-instruct">Meta Llama 3.2 11B Vision</option>
-                                            <option value="meta-llama/llama-3.2-3b-instruct">Meta Llama 3.2 3B</option>
-                                            <option value="meta-llama/llama-3.2-1b-instruct">Meta Llama 3.2 1B</option>
-                                            <option value="meta-llama/llama-3.1-405b-instruct">Meta Llama 3.1 405B</option>
-                                            <option value="meta-llama/llama-3.1-70b-instruct">Meta Llama 3.1 70B</option>
-                                            <option value="meta-llama/llama-3.1-8b-instruct">Meta Llama 3.1 8B</option>
-                                            <option value="meta-llama/llama-3-70b-instruct">Meta Llama 3 70B</option>
-                                            <option value="meta-llama/llama-3-8b-instruct">Meta Llama 3 8B</option>
-                                            <option value="meta-llama/llama-guard-4-12b">Meta Llama Guard 4 12B</option>
-                                            <option value="meta-llama/llama-guard-3-8b">Meta Llama Guard 3 8B</option>
-                                            <option value="meta-llama/llama-guard-2-8b">Meta Llama Guard 2 8B</option>
-                                            <option value="deepseek/deepseek-r1">DeepSeek R1</option>
-                                            <option value="deepseek/deepseek-r1-0528">DeepSeek R1 0528</option>
-                                            <option value="deepseek/deepseek-r1-distill-llama-70b">DeepSeek R1 Distill Llama 70B</option>
-                                            <option value="deepseek/deepseek-r1-distill-llama-8b">DeepSeek R1 Distill Llama 8B</option>
-                                            <option value="deepseek/deepseek-r1-distill-qwen-32b">DeepSeek R1 Distill Qwen 32B</option>
-                                            <option value="deepseek/deepseek-r1-distill-qwen-14b">DeepSeek R1 Distill Qwen 14B</option>
-                                            <option value="deepseek/deepseek-r1-distill-qwen-7b">DeepSeek R1 Distill Qwen 7B</option>
-                                            <option value="deepseek/deepseek-r1-distill-qwen-1.5b">DeepSeek R1 Distill Qwen 1.5B</option>
-                                            <option value="deepseek/deepseek-chat-v3">DeepSeek Chat V3</option>
-                                            <option value="deepseek/deepseek-v3-base">DeepSeek V3 Base</option>
-                                            <option value="deepseek/deepseek-prover-v2">DeepSeek Prover V2</option>
-                                            <option value="mistralai/mistral-small-3.2-24b-instruct-2506">Mistral Small 3.2 24B</option>
-                                            <option value="mistralai/magistral-small-2506">Mistral Magistral Small</option>
-                                            <option value="mistralai/magistral-medium-2506">Mistral Magistral Medium</option>
-                                            <option value="mistralai/devstral-small-2505">Mistral Devstral Small</option>
-                                            <option value="mistralai/mistral-medium-3">Mistral Medium 3</option>
-                                            <option value="mistralai/mistral-small-3.1-24b-instruct-2503">Mistral Small 3.1 24B</option>
-                                            <option value="mistralai/mistral-saba-2502">Mistral Saba</option>
-                                            <option value="mistralai/mistral-small-24b-instruct-2501">Mistral Small 24B</option>
-                                            <option value="mistralai/codestral-2501">Mistral Codestral</option>
-                                            <option value="mistralai/mistral-large-2411">Mistral Large 2411</option>
-                                            <option value="mistralai/mistral-large-2407">Mistral Large 2407</option>
-                                            <option value="mistralai/pixtral-large-2411">Mistral Pixtral Large</option>
-                                            <option value="mistralai/pixtral-12b">Mistral Pixtral 12B</option>
-                                            <option value="mistralai/ministral-8b">Mistral Ministral 8B</option>
-                                            <option value="mistralai/ministral-3b">Mistral Ministral 3B</option>
-                                            <option value="mistralai/mistral-nemo">Mistral Nemo</option>
-                                            <option value="mistralai/mistral-large">Mistral Large</option>
-                                            <option value="mistralai/mixtral-8x22b-instruct">Mistral Mixtral 8x22B</option>
-                                            <option value="mistralai/mixtral-8x7b-instruct">Mistral Mixtral 8x7B</option>
-                                            <option value="mistralai/mistral-7b-instruct">Mistral 7B</option>
-                                            <option value="x-ai/grok-3">xAI Grok 3</option>
-                                            <option value="x-ai/grok-3-mini">xAI Grok 3 Mini</option>
-                                            <option value="x-ai/grok-3-beta">xAI Grok 3 Beta</option>
-                                            <option value="x-ai/grok-3-mini-beta">xAI Grok 3 Mini Beta</option>
-                                            <option value="x-ai/grok-2-vision-1212">xAI Grok 2 Vision</option>
-                                            <option value="x-ai/grok-2-1212">xAI Grok 2</option>
-                                            <option value="x-ai/grok-vision-beta">xAI Grok Vision Beta</option>
-                                            <option value="qwen/qwen3-235b-a22b-04-28">Qwen3 235B</option>
-                                            <option value="qwen/qwen3-32b-04-28">Qwen3 32B</option>
-                                            <option value="qwen/qwen3-30b-a3b-04-28">Qwen3 30B</option>
-                                            <option value="qwen/qwen3-14b-04-28">Qwen3 14B</option>
-                                            <option value="qwen/qwen3-8b-04-28">Qwen3 8B</option>
-                                            <option value="qwen/qwen2.5-vl-72b-instruct">Qwen2.5 VL 72B</option>
-                                            <option value="qwen/qwen2.5-vl-32b-instruct">Qwen2.5 VL 32B</option>
-                                            <option value="qwen/qwen-2.5-coder-32b-instruct">Qwen 2.5 Coder 32B</option>
-                                            <option value="qwen/qwen-2.5-72b-instruct">Qwen 2.5 72B</option>
-                                            <option value="qwen/qwen-2.5-7b-instruct">Qwen 2.5 7B</option>
-                                            <option value="qwen/qwen-2-72b-instruct">Qwen 2 72B</option>
-                                            <option value="qwen/qwen-2-vl-7b-instruct">Qwen 2 VL 7B</option>
-                                            <option value="qwen/qwq-32b">Qwen QwQ 32B</option>
-                                            <option value="qwen/qwq-32b-preview">Qwen QwQ 32B Preview</option>
-                                            <option value="qwen/qwen-vl-max-2025-01-25">Qwen VL Max</option>
-                                            <option value="qwen/qwen-vl-plus">Qwen VL Plus</option>
-                                            <option value="qwen/qwen-max-2025-01-25">Qwen Max</option>
-                                            <option value="qwen/qwen-plus-2025-01-25">Qwen Plus</option>
-                                            <option value="qwen/qwen-turbo-2024-11-01">Qwen Turbo</option>
-                                            <option value="perplexity/sonar-reasoning-pro">Perplexity Sonar Reasoning Pro</option>
-                                            <option value="perplexity/sonar-pro">Perplexity Sonar Pro</option>
-                                            <option value="perplexity/sonar-deep-research">Perplexity Sonar Deep Research</option>
-                                            <option value="perplexity/sonar-reasoning">Perplexity Sonar Reasoning</option>
-                                            <option value="perplexity/sonar">Perplexity Sonar</option>
-                                            <option value="perplexity/r1-1776">Perplexity R1-1776</option>
-                                            <option value="perplexity/llama-3.1-sonar-large-128k-online">Perplexity Llama 3.1 Sonar Large Online</option>
-                                            <option value="perplexity/llama-3.1-sonar-small-128k-online">Perplexity Llama 3.1 Sonar Small Online</option>
-                                            <option value="microsoft/phi-4-reasoning-plus-04-30">Microsoft Phi-4 Reasoning Plus</option>
-                                            <option value="microsoft/mai-ds-r1">Microsoft MAI-DS-R1</option>
-                                            <option value="microsoft/phi-4-multimodal-instruct">Microsoft Phi-4 Multimodal</option>
-                                            <option value="microsoft/phi-4">Microsoft Phi-4</option>
-                                            <option value="microsoft/phi-3.5-mini-128k-instruct">Microsoft Phi-3.5 Mini</option>
-                                            <option value="microsoft/phi-3-medium-128k-instruct">Microsoft Phi-3 Medium</option>
-                                            <option value="microsoft/phi-3-mini-128k-instruct">Microsoft Phi-3 Mini</option>
-                                            <option value="microsoft/wizardlm-2-8x22b">Microsoft WizardLM-2 8x22B</option>
-                                            <option value="nvidia/llama-3.3-nemotron-super-49b-v1">NVIDIA Llama 3.3 Nemotron Super 49B</option>
-                                            <option value="nvidia/llama-3.1-nemotron-ultra-253b-v1">NVIDIA Llama 3.1 Nemotron Ultra 253B</option>
-                                            <option value="nvidia/llama-3.1-nemotron-70b-instruct">NVIDIA Llama 3.1 Nemotron 70B</option>
-                                            <option value="minimax/minimax-01">MiniMax-01</option>
-                                            <option value="minimax/minimax-m1">MiniMax-M1</option>
-                                            <option value="liquid/lfm-40b">Liquid LFM 40B</option>
-                                            <option value="liquid/lfm-7b">Liquid LFM 7B</option>
-                                            <option value="liquid/lfm-3b">Liquid LFM 3B</option>
-                                            <option value="cohere/command-a-03-2025">Cohere Command A</option>
-                                            <option value="cohere/command-r7b-12-2024">Cohere Command R7B</option>
-                                            <option value="cohere/command-r-plus">Cohere Command R Plus</option>
-                                            <option value="cohere/command-r">Cohere Command R</option>
-                                            <option value="amazon/nova-pro-v1">Amazon Nova Pro</option>
-                                            <option value="amazon/nova-lite-v1">Amazon Nova Lite</option>
-                                            <option value="amazon/nova-micro-v1">Amazon Nova Micro</option>
-                                            <option value="ai21/jamba-1.6-large">AI21 Jamba 1.6 Large</option>
-                                            <option value="ai21/jamba-1.6-mini">AI21 Jamba 1.6 Mini</option>
-                                            <option value="01-ai/yi-large">01.AI Yi Large</option>
-                                            <option value="inflection/inflection-3-productivity">Inflection 3 Productivity</option>
-                                            <option value="inflection/inflection-3-pi">Inflection 3 Pi</option>
-                                            <option value="rekaai/reka-flash-3">Reka Flash 3</option>
-                                            <option value="openrouter/auto">Auto (Best Available)</option>
-                                        </optgroup>
-                                    </select>
-                                    <svg className="selector-icon model-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                                        <path d="M9.5 2A1.5 1.5 0 0 1 11 3.5v1.75l1.85 1.85a.5.5 0 0 1 0 .7L11 9.65V11.5A1.5 1.5 0 0 1 9.5 13h-3A1.5 1.5 0 0 1 5 11.5V9.65L3.15 7.8a.5.5 0 0 1 0-.7L5 5.25V3.5A1.5 1.5 0 0 1 6.5 2h3ZM6 3.5v1.75a.5.5 0 0 1-.146.354L4.207 7.5l1.647 1.396A.5.5 0 0 1 6 9.25V11.5a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5V9.25a.5.5 0 0 1 .146-.354L11.793 7.5l-1.647-1.396A.5.5 0 0 1 10 5.75V3.5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5Z"/>
-                                    </svg>
+                                    />
                                 </div>
                             </div>
                             
