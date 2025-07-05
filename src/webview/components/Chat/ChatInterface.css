@@ -87,8 +87,6 @@
     position: relative;
 }
 
-
-
 .chat-history {
     flex: 1;
     overflow-y: auto;
@@ -1919,6 +1917,74 @@
 }
 
 /* Drag & Drop Overlay */
+
+/* Theme Tool Message Styles - Added for generateTheme tool calls */
+.theme-tool-message {
+    margin-bottom: 16px;
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    padding: 0;
+    position: relative;
+}
+
+.theme-tool-message--panel {
+    margin-bottom: 20px;
+    border-radius: 16px;
+}
+
+.theme-tool-message--sidebar {
+    margin-bottom: 12px;
+    border-radius: 10px;
+}
+
+.theme-error-notice {
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    background-color: var(--vscode-inputValidation-errorBackground);
+    color: var(--vscode-inputValidation-errorForeground);
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    border-left: 3px solid var(--vscode-errorForeground);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-family: var(--vscode-editor-font-family);
+}
+
+/* Ensure theme preview cards use proper VSCode CSS variables */
+.theme-tool-message .theme-preview-card {
+    /* Override any hardcoded colors with VSCode theme variables */
+    --background: var(--vscode-editor-background);
+    --foreground: var(--vscode-editor-foreground);
+    --muted: var(--vscode-input-background);
+    --muted-foreground: var(--vscode-descriptionForeground);
+    --border: var(--vscode-input-border);
+    --card: var(--vscode-editorWidget-background);
+    --card-foreground: var(--vscode-editorWidget-foreground);
+    --primary: var(--vscode-textLink-foreground);
+    --primary-foreground: var(--vscode-button-foreground);
+    --secondary: var(--vscode-button-secondaryBackground);
+    --secondary-foreground: var(--vscode-button-secondaryForeground);
+    --accent: var(--vscode-list-hoverBackground);
+    --accent-foreground: var(--vscode-list-hoverForeground);
+    --destructive: var(--vscode-errorForeground);
+    --destructive-foreground: var(--vscode-button-foreground);
+    --ring: var(--vscode-focusBorder);
+    --input: var(--vscode-input-background);
+    --font-mono: var(--vscode-editor-font-family);
+}
+
+/* Responsive theme tool message styling */
+@media (max-width: 768px) {
+    .theme-tool-message--panel {
+        margin-bottom: 16px;
+    }
+    
+    .theme-tool-message--sidebar {
+        margin-bottom: 10px;
+    }
+}
+
+/* Tool result content */
 
 
  

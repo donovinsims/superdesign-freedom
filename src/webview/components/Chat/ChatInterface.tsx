@@ -5,6 +5,7 @@ import { WebviewLayout } from '../../../types/context';
 import MarkdownRenderer from '../MarkdownRenderer';
 import { TaskIcon, ClockIcon, CheckIcon, LightBulbIcon, GroupIcon } from '../Icons';
 import Welcome from '../Welcome';
+import ThemePreviewCard from './ThemePreviewCard';
 import chatStyles from './ChatInterface.css';
 import welcomeStyles from '../Welcome/Welcome.css';
 
@@ -736,13 +737,67 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
     const renderToolMessage = (msg: ChatMessage, index: number) => {
         try {
+            const toolName = msg.metadata?.tool_name || 'Unknown Tool';
+            const toolInput = msg.metadata?.tool_input || {};
+            
+            // Special handling for generateTheme tool calls
+            if (toolName === 'generateTheme') {
+                const hasResult = msg.metadata?.result_received || false;
+                const isLoading = msg.metadata?.is_loading || false;
+                const resultIsError = msg.metadata?.result_is_error || false;
+                const toolResult = msg.metadata?.tool_result || '';
+                
+                // Extract theme data from tool input
+                const themeName = toolInput.theme_name || 'Untitled Theme';
+                const reasoning = toolInput.reasoning_reference || '';
+                const cssSheet = toolInput.cssSheet || '';
+                
+                // Try to parse tool result to get file path
+                let cssFilePath = null;
+                if (hasResult && !resultIsError && toolResult) {
+                    try {
+                        const result = JSON.parse(toolResult);
+                        if (result.success && result.filePath) {
+                            cssFilePath = result.filePath;
+                        }
+                    } catch (e) {
+                        // Fallback to cssSheet if parsing fails
+                        console.warn('Failed to parse theme tool result:', e);
+                    }
+                }
+                
+                return (
+                    <div key={index} className={`theme-tool-message theme-tool-message--${layout}`}>
+                        <ThemePreviewCard
+                            themeName={themeName}
+                            reasoning={reasoning}
+                            cssSheet={cssFilePath ? null : cssSheet}
+                            cssFilePath={cssFilePath}
+                            isLoading={isLoading && !hasResult}
+                            vscode={vscode}
+                        />
+                        {resultIsError && (
+                            <div className="theme-error-notice" style={{
+                                margin: '0.5rem 0',
+                                padding: '0.75rem',
+                                backgroundColor: 'var(--destructive)',
+                                color: 'var(--destructive-foreground)',
+                                borderRadius: '0.375rem',
+                                fontSize: '0.875rem'
+                            }}>
+                                ⚠️ Theme generation encountered an error. The preview above shows the input data.
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+            
+            // Continue with existing generic tool rendering for other tools
             const isExpanded = expandedTools[index] || false;
             const showFullResult = showFullContent[index] || false;
             const showFullInput = showFullContent[`${index}_input`] || false;
             const showFullPrompt = showFullContent[`${index}_prompt`] || false;
             
-            const toolName = msg.metadata?.tool_name || 'Unknown Tool';
-            const toolInput = msg.metadata?.tool_input || {};
             const description = toolInput.description || '';
             const command = toolInput.command || '';
             const prompt = toolInput.prompt || '';

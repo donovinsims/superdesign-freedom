@@ -132,6 +132,38 @@ async function getBase64Image(filePath: string, sidebarProvider: ChatSidebarProv
 	}
 }
 
+// Function to read CSS file content for theme preview
+async function getCssFileContent(filePath: string, sidebarProvider: ChatSidebarProvider) {
+	try {
+		// Read the CSS file
+		const fileUri = vscode.Uri.file(filePath);
+		const fileData = await vscode.workspace.fs.readFile(fileUri);
+		
+		// Convert to string
+		const cssContent = Buffer.from(fileData).toString('utf8');
+		
+		console.log(`Read CSS file: ${filePath} (${(fileData.length / 1024).toFixed(1)} KB)`);
+		
+		// Send back the CSS content to webview
+		sidebarProvider.sendMessage({
+			command: 'cssFileContentResponse',
+			filePath: filePath,
+			content: cssContent,
+			size: fileData.length
+		});
+		
+	} catch (error) {
+		console.error('Error reading CSS file:', error);
+		
+		// Send error back to webview
+		sidebarProvider.sendMessage({
+			command: 'cssFileContentResponse',
+			filePath: filePath,
+			error: error instanceof Error ? error.message : String(error)
+		});
+	}
+}
+
 // Function to submit email to Supabase API
 async function submitEmailToSupabase(email: string, sidebarProvider: ChatSidebarProvider) {
 	try {
@@ -1006,6 +1038,11 @@ export function activate(context: vscode.ExtensionContext) {
 			case 'getBase64Image':
 				// Convert saved image to base64 for AI SDK
 				getBase64Image(message.filePath, sidebarProvider);
+				break;
+
+			case 'getCssFileContent':
+				// Read CSS file content for theme preview
+				getCssFileContent(message.filePath, sidebarProvider);
 				break;
 
 			case 'showError':
