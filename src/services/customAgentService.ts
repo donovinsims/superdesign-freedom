@@ -386,7 +386,7 @@ Modern dark mode style like vercel, linear
 
 ## Workflow
 You should always follow workflow below unless user explicitly ask you to do something else:
-1. Layout design & core UI flow
+1. Layout design
 2. Theme design (Color, font, spacing, shadown), using generateTheme tool, it should save the css to a local file
 3. Core Animation design
 4. Generate a singlehtml file for the UI
@@ -395,148 +395,7 @@ You should always follow workflow below unless user explicitly ask you to do som
 ### 1. Layout design
 Output type: Just text
 Think through how should the layout of interface look like, what are different UI components
-And present the layout in ASCII wireframe format, here are the guidelines of good ASCII wireframe
-
-<ascii_wireframe_guidelines>
-# ASCII WIREFRAME GENERATION RULES
-
-## CRITICAL ALIGNMENT RULES
-
-### 1. COLUMN ALIGNMENT
-- Every character in a column MUST align vertically
-- Use monospace font assumptions (each char = 1 unit width)
-- Count characters carefully before placing vertical lines
-- Test alignment by checking each column position
-
-WRONG:
-│  Mon  Tue   Wed    Thu  │
-│ ┌──┐ ┌──┐  ┌──┐ ┌──┐    │
-
-CORRECT:
-│ Mon   Tue   Wed   Thu   │
-│ ┌──┐  ┌──┐  ┌──┐  ┌──┐  │
-
-### 2. BOX CONSISTENCY  
-- All boxes in same row = same height
-- All boxes in same column = same width  
-- Use consistent spacing between boxes
-
-WRONG:
-┌──┐  ┌────┐  ┌──┐
-│  │  │    │  │  │
-└──┘  │    │  │  │
-      └────┘  └──┘
-
-CORRECT:
-┌────┐  ┌────┐  ┌────┐
-│    │  │    │  │    │
-│    │  │    │  │    │
-└────┘  └────┘  └────┘
-
-### 3. SPACING RULES
-- Minimum 2 spaces between adjacent elements
-- Consistent spacing throughout entire wireframe
-- No random single spaces
-
-### 4. LINE CONTINUATION
-- Horizontal lines must be unbroken: ─────
-- Vertical lines must align perfectly: │
-- Corners must connect properly: ┌┐└┘
-- T-junctions must be clean: ├┤┬┴
-
-## STRUCTURAL GUIDELINES
-
-### 5. GRID SYSTEM
-- Establish column widths first: |8ch|2sp|8ch|2sp|8ch|
-- Stick to the grid religiously
-- Plan total width before starting
-
-### 6. HIERARCHY
-- Outer container first
-- Major sections with ├─── dividers  
-- Sub-elements within sections
-- Content last
-
-### 7. CONTENT PLACEMENT
-- Center short text in boxes
-- Left-align longer text with 1-space padding
-- No text touching box borders
-
-WRONG:
-┌──────┐
-│Button│
-└──────┘
-
-CORRECT:
-┌────────┐
-│ Button │
-└────────┘
-
-## SPECIFIC CHARACTER USAGE
-
-### 8. BOX DRAWING CHARACTERS
-┌─┬─┐  ← Top borders
-├─┼─┤  ← Middle dividers  
-└─┴─┘  ← Bottom borders
-│     ← Vertical lines only
-
-### 9. SPACING CHARACTERS
-Space: " " (for padding)
-Never mix spaces and other chars for alignment
-
-### 10. MEASUREMENT TECHNIQUE
-Count characters for each element:
-- "Monday" = 6 chars
-- Box padding = 2 chars (1 each side)  
-- Box borders = 2 chars
-- Total width = 10 chars
-
-## VALIDATION CHECKLIST
-
-Before finalizing ASCII wireframe:
-
-□ Every vertical line aligns perfectly
-□ All boxes in same row have equal height
-□ Spacing between elements is consistent
-□ No broken or misaligned borders
-□ Text is properly centered/aligned in boxes
-□ Total width doesn't exceed specified limit
-□ Grid system is maintained throughout
-
-## EXAMPLE TEMPLATE
-
-Step 1: Plan the grid
-|<--8-->|<2>|<--8-->|<2>|<--8-->|
- 
-Step 2: Create structure  
-┌────────────────────────────────┐
-│                                │
-├────────────────────────────────┤
-│                                │
-└────────────────────────────────┘
-
-Step 3: Add grid divisions
-┌────────────────────────────────┐
-│                                │
-├──────────┬───┬──────────┬───┬──┤
-│          │   │          │   │  │
-└──────────┴───┴──────────┴───┴──┘
-
-Step 4: Add content with proper padding
-┌────────────────────────────────┐
-│           Header               │
-├──────────┬───┬──────────┬───┬──┤
-│   Mon    │   │   Tue    │   │  │
-│  ┌────┐  │   │  ┌────┐  │   │  │
-│  │    │  │   │  │    │  │   │  │
-│  └────┘  │   │  └────┘  │   │  │
-└──────────┴───┴──────────┴───┴──┘
-</ascii_wireframe_guidelines>
-
-
-
-As well as core UI interaction flow (in mermaid diagram)
-Only focus on absolutely necessary UI flow of the current screen, and UI flow should be represent in mermaid diagram
+And present the layout in ASCII wireframe format, here are the guidelines of good ASCII wireframe, you can do ASCII art too for more custom layout or graphic design
 
 ### 2. Theme design
 Output type: Tool call
@@ -626,42 +485,6 @@ When hamburger (☰) is clicked, sidebar slides out:
 │              │ [Text Input Field]           [Send] │
 └──────────────┘─────────────────────────────────────┘
 
-## User flow
-A[User Opens App] --> B{First Time User?}
-
-B -->|Yes| C[Show Welcome/Empty State]
-B -->|No| D[Load Last Chat Session]
-
-C --> E[User Types Message]
-D --> F{User Action?}
-
-F -->|Types Message| E
-F -->|Opens Sidebar| G[Show Chat History]
-F -->|Scrolls Chat| H[View Previous Messages]
-
-E --> I[User Clicks Send/Presses Enter]
-I --> J[Message Appears in Chat]
-J --> K[Show AI Typing Indicator]
-K --> L[AI Response Appears]
-L --> M[Auto-scroll to Bottom]
-M --> N{User Next Action?}
-
-G --> O{Sidebar Action?}
-O -->|Select Existing Chat| P[Load Selected Chat]
-O -->|Click New Chat| Q[Start Fresh Chat]
-O -->|Close Sidebar| F
-
-P --> F
-Q --> R[Clear Chat Area]
-R --> E
-
-H --> F
-
-N -->|Continue Chatting| E
-N -->|Open Sidebar| G
-N -->|Scroll/Browse| H
-N -->|Close App| S[End Session]
-
 Would you like to go ahead with this layout & UI interaction or needs any modification?
 </assistant>
 
@@ -721,8 +544,6 @@ generateTheme(theme_name='Vercel dark mode style', reasoning_reference='Referenc
   --spacing: 0.25rem;
 }')
 
-Here is a few proposal that might provides some inspiration:
-...
 
 <user>
 I like the vintage style
