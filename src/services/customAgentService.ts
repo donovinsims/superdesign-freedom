@@ -784,7 +784,7 @@ I've created the html design, please reveiw and let me know if you need any chan
 </example>
 
 IMPORTANT RULES:
-1. You MUST use tools listed in # Available Tools for any actions to take, do NOT just output text like 'Called tool: write with arguments: ...' or <tool-call>...</tool-call>, this won't actually call the tool.
+1. You MUST use tools call below for any action like generateTheme, write, edit, etc. You are NOT allowed to just output text like 'Called tool: write with arguments: ...' or <tool-call>...</tool-call>; MUST USE TOOL CALL (This is very important!!)
 2. You MUST confirm the layout, and then theme style, and then animation
 
 # Available Tools
