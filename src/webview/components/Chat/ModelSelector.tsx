@@ -133,7 +133,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
                         font-size: 11px;
                         font-family: inherit;
                         cursor: pointer;
-                        padding: 2px 20px 2px 18px;
+                        padding: 2px 20px 2px 6px;
                         border-radius: 4px;
                         transition: background-color 0.2s ease;
                         min-width: 120px;
@@ -141,7 +141,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
                         position: relative;
                         display: flex;
                         align-items: center;
-                        gap: 6px;
+                        gap: 3px;
                     }
 
                     .model-selector-trigger:hover:not(:disabled) {

@@ -577,16 +577,7 @@
     }
 }
 
-/* Input container - Cursor style */
-.chat-input-container {
-    padding: 6px 6px 12px 6px;
-    background: var(--vscode-editor-background);
-    border-radius: 8px 8px 0 0;
-    margin-top: auto;
-    flex-shrink: 0;
-    position: sticky;
-    bottom: 0;
-}
+/* Input container - Cursor style - REMOVED */
 
 /* Add Context Button */
 .add-context-btn {
@@ -597,9 +588,9 @@
     background: transparent;
     color: var(--vscode-foreground);
     border: 1px solid var(--vscode-input-border);
-    border-radius: 4px;
-    padding: 4px 8px;
-    margin: 6px 6px 0 6px;
+    border-radius: 6px;
+    padding: 4px 4px;
+    margin: 6px 6px 6px 6px;
     cursor: pointer;
     font-size: 11px;
     font-family: inherit;
@@ -672,6 +663,9 @@
     overflow: hidden;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     transition: all 0.2s ease;
+    margin: 6px 6px 12px 6px;
+    margin-top: auto;
+    flex-shrink: 0;
 }
 
 /* Remove focus highlight from chat input wrapper */

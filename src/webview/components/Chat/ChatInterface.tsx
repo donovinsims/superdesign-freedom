@@ -1314,9 +1314,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 </div>
 
                 {!showWelcome && (
-                    <div className="chat-input-container">
-                        {/* Main Input Area */}
-                        <div className="chat-input-wrapper">
+                    <div className="chat-input-wrapper">
                         {/* Context Display */}
                         {currentContext ? (
                             <div className="context-display">
@@ -1460,7 +1458,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             </div>
                         </div>
                     </div>
-                </div>
                 )}
             </div>
         </div>
