@@ -182,9 +182,6 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             'gpt-4.1-nano': 'GPT-4.1 Nano',
             'gpt-4o': 'GPT-4o',
             'gpt-4o-mini': 'GPT-4o Mini',
-            'o1': 'O1',
-            'o1-mini': 'O1 Mini',
-            'o3': 'O3',
             // Anthropic models
             'claude-4-opus-20250514': 'Claude 4 Opus',
             'claude-4-sonnet-20250514': 'Claude 4 Sonnet',
