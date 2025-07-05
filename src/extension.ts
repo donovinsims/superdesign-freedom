@@ -1579,6 +1579,12 @@ export function activate(context: vscode.ExtensionContext) {
 				// Handle email submission from welcome screen
 				submitEmailToSupabase(message.email, sidebarProvider);
 				break;
+
+			case 'initializeSuperdesign':
+				// Auto-trigger initialize Superdesign command
+				console.log('🚀 Received initializeSuperdesign command from webview');
+				vscode.commands.executeCommand('superdesign.initializeProject');
+				break;
 		}
 	});
 

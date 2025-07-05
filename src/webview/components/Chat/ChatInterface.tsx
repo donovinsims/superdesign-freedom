@@ -359,6 +359,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         setShowWelcome(false);
         markAsReturningUser();
         console.log('👋 User clicked Get Started, welcome dismissed');
+        
+        // Auto-trigger initialize Superdesign command
+        vscode.postMessage({
+            command: 'initializeSuperdesign'
+        });
+        console.log('🚀 Auto-triggering Initialize Superdesign command');
     };
 
     // Drag and drop handlers
@@ -1188,17 +1194,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
     const renderPlaceholder = () => (
         <div className={`chat-placeholder chat-placeholder--${layout}`}>
-            {layout === 'panel' && (
-                <div className="chat-placeholder__features">
-                    <p>You can ask about:</p>
-                    <ul>
-                        <li>🎨 Design and UI/UX questions</li>
-                        <li>💻 Code generation and debugging</li>
-                                                        <li>Architecture and best practices</li>
-                        <li>📚 Learning and explanations</li>
-                    </ul>
+            <div className="chat-placeholder__content">
+                <div className="empty-state-message">
+                    <p>
+                        <strong>Cursor/Windsurf/Claude Code rules already added</strong>, prompt Cursor/Windsurf/Claude Code to design UI like <kbd>Help me design a calculator UI</kbd> and preview the UI in Superdesign canvas by <kbd>Cmd+Shift+P</kbd> <code>'Superdesign: Open canvas view'</code>
+                    </p>
+                    <div className="empty-state-divider">OR</div>
+                    <p>
+                        You can start with native superdesign agent chat below <em>(We have better UX)</em>
+                    </p>
                 </div>
-            )}
+            </div>
         </div>
     );
 
