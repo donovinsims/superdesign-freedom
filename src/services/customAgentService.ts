@@ -1,6 +1,7 @@
 import { streamText, CoreMessage } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -78,11 +79,44 @@ export class CustomAgentService implements AgentService {
 
     private getModel() {
         const config = vscode.workspace.getConfiguration('superdesign');
-        const provider = config.get<string>('aiModelProvider', 'openai');
+        const specificModel = config.get<string>('aiModel');
+        const provider = config.get<string>('aiModelProvider', 'anthropic');
         
         this.outputChannel.appendLine(`Using AI provider: ${provider}`);
+        if (specificModel) {
+            this.outputChannel.appendLine(`Using specific AI model: ${specificModel}`);
+        }
         
-        switch (provider) {
+        // Determine provider from model name if specific model is set
+        let effectiveProvider = provider;
+        if (specificModel) {
+            if (specificModel.includes('/')) {
+                effectiveProvider = 'openrouter';
+            } else if (specificModel.startsWith('claude-')) {
+                effectiveProvider = 'anthropic';
+            } else {
+                effectiveProvider = 'openai';
+            }
+        }
+        
+        switch (effectiveProvider) {
+            case 'openrouter':
+                const openrouterKey = config.get<string>('openrouterApiKey');
+                if (!openrouterKey) {
+                    throw new Error('OpenRouter API key not configured. Please run "Configure OpenRouter API Key" command.');
+                }
+                
+                this.outputChannel.appendLine(`OpenRouter API key found: ${openrouterKey.substring(0, 12)}...`);
+                
+                const openrouter = createOpenRouter({
+                    apiKey: openrouterKey
+                });
+                
+                // Use specific model if available, otherwise default to Claude 3.7 Sonnet via OpenRouter
+                const openrouterModel = specificModel || 'anthropic/claude-3-7-sonnet-20250219';
+                this.outputChannel.appendLine(`Using OpenRouter model: ${openrouterModel}`);
+                return openrouter.chat(openrouterModel);
+                
             case 'anthropic':
                 const anthropicKey = config.get<string>('anthropicApiKey');
                 if (!anthropicKey) {
@@ -95,7 +129,10 @@ export class CustomAgentService implements AgentService {
                     apiKey: anthropicKey
                 });
                 
-                return anthropic('claude-3-5-sonnet-20241022');
+                // Use specific model if available, otherwise default to claude-3-7-sonnet
+                const anthropicModel = specificModel || 'claude-3-7-sonnet-20250219';
+                this.outputChannel.appendLine(`Using Anthropic model: ${anthropicModel}`);
+                return anthropic(anthropicModel);
                 
             case 'openai':
             default:
@@ -110,13 +147,37 @@ export class CustomAgentService implements AgentService {
                     apiKey: openaiKey
                 });
                 
-                return openai('gpt-4o');
+                // Use specific model if available, otherwise default to gpt-4o
+                const openaiModel = specificModel || 'gpt-4o';
+                this.outputChannel.appendLine(`Using OpenAI model: ${openaiModel}`);
+                return openai(openaiModel);
         }
     }
 
     private getSystemPrompt(): string {
         const config = vscode.workspace.getConfiguration('superdesign');
-        const provider = config.get<string>('aiModelProvider', 'openai');
+        const specificModel = config.get<string>('aiModel');
+        const provider = config.get<string>('aiModelProvider', 'anthropic');
+        
+        // Determine the actual model name being used
+        let modelName: string;
+        if (specificModel) {
+            modelName = specificModel;
+        } else {
+            // Use defaults based on provider
+            switch (provider) {
+                case 'openai':
+                    modelName = 'gpt-4o';
+                    break;
+                case 'openrouter':
+                    modelName = 'anthropic/claude-3-7-sonnet-20250219';
+                    break;
+                case 'anthropic':
+                default:
+                    modelName = 'claude-3-7-sonnet-20250219';
+                    break;
+            }
+        }
         
         return `# Role
 You are superdesign, a senior frontend designer integrated into VS Code as part of the Super Design extension.
@@ -124,7 +185,7 @@ Your goal is to help user generate amazing design using code
 
 # Current Context
 - Extension: Super Design (Design Agent for VS Code)
-- AI Provider: ${provider}
+- AI Model: ${modelName}
 - Working directory: ${this.workingDirectory}
 
 # Instructions
@@ -719,7 +780,6 @@ write(file_path='design_iterations/chat_ui.html', content='...')
 </tool-call>
 
 I've created the html design, please reveiw and let me know if you need any changes
-</assistant>
 
 </example>
 

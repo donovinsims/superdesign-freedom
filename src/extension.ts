@@ -1482,9 +1482,10 @@ export function activate(context: vscode.ExtensionContext) {
 		await configureOpenAIApiKey();
 	});
 
-	const selectAIProviderDisposable = vscode.commands.registerCommand('superdesign.selectAIProvider', async () => {
-		await selectAIProvider();
+	const configureOpenRouterApiKeyDisposable = vscode.commands.registerCommand('superdesign.configureOpenRouterApiKey', async () => {
+		await configureOpenRouterApiKey();
 	});
+
 
 	// Create the chat sidebar provider
 	const sidebarProvider = new ChatSidebarProvider(context.extensionUri, customAgent, outputChannel);
@@ -1592,7 +1593,7 @@ export function activate(context: vscode.ExtensionContext) {
 		helloWorldDisposable, 
 		configureApiKeyDisposable,
 		configureOpenAIApiKeyDisposable,
-		selectAIProviderDisposable,
+		configureOpenRouterApiKeyDisposable,
 		sidebarDisposable,
 		showSidebarDisposable,
 		openCanvasDisposable,
@@ -1692,59 +1693,47 @@ async function configureOpenAIApiKey() {
 	}
 }
 
-// Function to select AI model provider
-async function selectAIProvider() {
-	const config = vscode.workspace.getConfiguration('superdesign');
-	const currentProvider = config.get<string>('aiModelProvider', 'openai');
+// Function to configure OpenRouter API key
+async function configureOpenRouterApiKey() {
+	const currentKey = vscode.workspace.getConfiguration('superdesign').get<string>('openrouterApiKey');
 
-	const options = [
-		{
-			label: 'OpenAI (GPT-4o)',
-			detail: 'Use OpenAI GPT-4o model',
-			value: 'openai',
-			picked: currentProvider === 'openai'
-		},
-		{
-			label: 'Anthropic (Claude 3.5 Sonnet)',
-			detail: 'Use Anthropic Claude 3.5 Sonnet model',
-			value: 'anthropic',
-			picked: currentProvider === 'anthropic'
+	const input = await vscode.window.showInputBox({
+		title: 'Configure OpenRouter API Key',
+		prompt: 'Enter your OpenRouter API key (get one from https://openrouter.ai/)',
+		value: currentKey ? '••••••••••••••••' : '',
+		password: true,
+		placeHolder: 'sk-...',
+		validateInput: (value) => {
+			if (!value || value.trim().length === 0) {
+				return 'API key cannot be empty';
+			}
+			if (value === '••••••••••••••••') {
+				return null; // User didn't change the masked value, that's OK
+			}
+			if (!value.startsWith('sk-')) {
+				return 'OpenRouter API keys should start with "sk-"';
+			}
+			return null;
 		}
-	];
-
-	const selected = await vscode.window.showQuickPick(options, {
-		title: 'Select AI Model Provider',
-		placeHolder: `Current: ${currentProvider}`,
-		ignoreFocusOut: true
 	});
 
-	if (selected && selected.value !== currentProvider) {
-		try {
-			await config.update('aiModelProvider', selected.value, vscode.ConfigurationTarget.Global);
-			
-			// Check if the API key is configured for the selected provider
-			const apiKeyKey = selected.value === 'openai' ? 'openaiApiKey' : 'anthropicApiKey';
-			const apiKey = config.get<string>(apiKeyKey);
-			
-			if (!apiKey) {
-				const configureCommand = selected.value === 'openai' ? 
-					'superdesign.configureOpenAIApiKey' : 
-					'superdesign.configureApiKey';
-				
-				const result = await vscode.window.showWarningMessage(
-					`${selected.label} selected, but API key is not configured. Would you like to configure it now?`,
-					'Configure API Key',
-					'Later'
+	if (input !== undefined) {
+		// Only update if user didn't just keep the masked value
+		if (input !== '••••••••••••••••') {
+			try {
+				await vscode.workspace.getConfiguration('superdesign').update(
+					'openrouterApiKey', 
+					input.trim(), 
+					vscode.ConfigurationTarget.Global
 				);
-				
-				if (result === 'Configure API Key') {
-					await vscode.commands.executeCommand(configureCommand);
-				}
-			} else {
-				vscode.window.showInformationMessage(`✅ AI provider switched to ${selected.label}`);
+				vscode.window.showInformationMessage('✅ OpenRouter API key configured successfully!');
+			} catch (error) {
+				vscode.window.showErrorMessage(`Failed to save API key: ${error}`);
 			}
-		} catch (error) {
-			vscode.window.showErrorMessage(`Failed to update AI provider: ${error}`);
+		} else if (currentKey) {
+			vscode.window.showInformationMessage('API key unchanged (already configured)');
+		} else {
+			vscode.window.showWarningMessage('No API key was set');
 		}
 	}
 }

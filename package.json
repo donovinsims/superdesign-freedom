@@ -59,8 +59,8 @@
         "category": "Superdesign"
       },
       {
-        "command": "superdesign.selectAIProvider",
-        "title": "Select AI Model Provider",
+        "command": "superdesign.configureOpenRouterApiKey",
+        "title": "Configure OpenRouter API Key",
         "category": "Superdesign"
       },
       {
@@ -134,12 +134,12 @@
         },
         "superdesign.openaiApiKey": {
           "type": "string",
-          "description": "OpenAI API key for custom coding agent",
+          "description": "OpenAI API key for custom agent",
           "scope": "application"
         },
         "superdesign.openrouterApiKey": {
           "type": "string",
-          "description": "OpenRouter API key for multi-model access",
+          "description": "OpenRouter API key for custom agent",
           "scope": "application"
         },
         "superdesign.agentProvider": {
@@ -156,10 +156,16 @@
           "type": "string",
           "enum": [
             "openai",
-            "anthropic"
+            "anthropic",
+            "openrouter"
           ],
-          "default": "openai",
-          "description": "AI model provider for custom agent (OpenAI or Anthropic)",
+          "default": "anthropic",
+          "description": "AI model provider for custom agent (OpenAI, Anthropic, or OpenRouter)",
+          "scope": "application"
+        },
+        "superdesign.aiModel": {
+          "type": "string",
+          "description": "Specific AI model to use (e.g., gpt-4o, claude-3-5-sonnet-20241022)",
           "scope": "application"
         }
       }
