@@ -22,12 +22,46 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
     const modalRef = useRef<HTMLDivElement>(null);
 
     const models: ModelOption[] = [
+        // Anthropic
         { id: 'claude-4-opus-20250514', name: 'Claude 4 Opus', provider: 'Anthropic', category: 'Premium' },
         { id: 'claude-4-sonnet-20250514', name: 'Claude 4 Sonnet', provider: 'Anthropic', category: 'Balanced' },
         { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'Anthropic', category: 'Balanced' },
         { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', category: 'Balanced' },
-        { id: 'openai/o3-pro-2025-06-10', name: 'OpenAI O3 Pro', provider: 'OpenAI', category: 'Premium' },
-        { id: 'openai/gpt-4.1-2025-04-14', name: 'GPT-4.1', provider: 'OpenAI', category: 'Balanced' },
+        // OpenAI (OpenRouter)
+        { id: 'openai/o3-pro-2025-06-10', name: 'O3 Pro', provider: 'OpenRouter (OpenAI)', category: 'Premium' },
+        { id: 'openai/gpt-4.1-2025-04-14', name: 'GPT-4.1', provider: 'OpenRouter (OpenAI)', category: 'Balanced' },
+        { id: 'openai/gpt-4o', name: 'GPT-4o', provider: 'OpenRouter (OpenAI)', category: 'Balanced' },
+        { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenRouter (OpenAI)', category: 'Fast' },
+        // Anthropic (OpenRouter)
+        { id: 'anthropic/claude-4-opus-20250522', name: 'Claude 4 Opus', provider: 'OpenRouter (Anthropic)', category: 'Premium' },
+        { id: 'anthropic/claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'OpenRouter (Anthropic)', category: 'Balanced' },
+        // Google (OpenRouter)
+        { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'OpenRouter (Google)', category: 'Balanced' },
+        // Meta (OpenRouter)
+        { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick 17B', provider: 'OpenRouter (Meta)', category: 'Balanced' },
+        // DeepSeek (OpenRouter)
+        { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'OpenRouter (DeepSeek)', category: 'Balanced' },
+        // Mistral (OpenRouter)
+        { id: 'mistralai/mistral-small-3.2-24b-instruct-2506', name: 'Mistral Small 3.2 24B', provider: 'OpenRouter (Mistral)', category: 'Balanced' },
+        // xAI (OpenRouter)
+        { id: 'x-ai/grok-3', name: 'Grok 3', provider: 'OpenRouter (xAI)', category: 'Balanced' },
+        // Qwen (OpenRouter)
+        { id: 'qwen/qwen3-235b-a22b-04-28', name: 'Qwen3 235B', provider: 'OpenRouter (Qwen)', category: 'Balanced' },
+        // Perplexity (OpenRouter)
+        { id: 'perplexity/sonar-reasoning-pro', name: 'Sonar Reasoning Pro', provider: 'OpenRouter (Perplexity)', category: 'Balanced' },
+        // Microsoft (OpenRouter)
+        { id: 'microsoft/phi-4-reasoning-plus-04-30', name: 'Phi-4 Reasoning Plus', provider: 'OpenRouter (Microsoft)', category: 'Balanced' },
+        // NVIDIA (OpenRouter)
+        { id: 'nvidia/llama-3.3-nemotron-super-49b-v1', name: 'Llama 3.3 Nemotron Super 49B', provider: 'OpenRouter (NVIDIA)', category: 'Balanced' },
+        // Cohere (OpenRouter)
+        { id: 'cohere/command-a-03-2025', name: 'Command A', provider: 'OpenRouter (Cohere)', category: 'Balanced' },
+        // Amazon (OpenRouter)
+        { id: 'amazon/nova-pro-v1', name: 'Nova Pro', provider: 'OpenRouter (Amazon)', category: 'Balanced' },
+        // Inflection (OpenRouter)
+        { id: 'inflection/inflection-3-productivity', name: 'Inflection 3 Productivity', provider: 'OpenRouter (Inflection)', category: 'Balanced' },
+        // Reka (OpenRouter)
+        { id: 'rekaai/reka-flash-3', name: 'Reka Flash 3', provider: 'OpenRouter (Reka)', category: 'Balanced' },
+        // Existing OpenAI (direct)
         { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', category: 'Balanced' },
         { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', category: 'Fast' },
     ];
