@@ -67,7 +67,7 @@ Your generated designs are saved locally inside `.superdesign/`.
 ## ❓ FAQ
 
 **Is it free and open source?**  
-Yes! Licensed under MIT — fork it, extend it, remix it.
+Yes! We are open source — fork it, extend it, remix it.
 
 **Can I customize the design agent?**  
 Yes — use your own prompt templates, modify behaviors, or add commands.
@@ -87,8 +87,3 @@ Pull requests are welcome. Star the repo and join us on [Discord](https://discor
 - 💬 Discord: [Join the Community](https://discord.gg/XYZ)
 - 🐦 Twitter / X: [@SuperDesignDev](https://x.com/SuperDesignDev)
 
----
-
-## 🪪 License
-
-MIT — Built with ❤️ by the SuperDesign team
