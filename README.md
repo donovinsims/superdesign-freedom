@@ -18,7 +18,7 @@ Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
 
 ---
 
-## 🎬 Demo Video
+## 🎬 Demo Video (Click to play)
 
 [![SuperDesign Demo](https://img.youtube.com/vi/INv6oZDhhUM/maxresdefault.jpg)](https://youtu.be/INv6oZDhhUM)
 
@@ -55,7 +55,7 @@ Yes, after you initialise superdesign extension, some cursor/claude code rules w
 
 If using Cursor - I will highly suggest copy the prompt in 'design.mdc' and create a custom mode in cursor with that same system prompt; This should give you much better performance
 
-Instructions here: 
+Instructions here (Click to play): 
 [![Instruction video](v0.0.11.png)](https://youtu.be/KChmJMCDOB0?si=pvU0kNRO4GRWjsec&t=122)
 
 ## 📂 Where Are My Designs Stored?
