@@ -1,12 +1,8 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { ClaudeCodeService } from './services/claudeCodeService';
 import { CustomAgentService } from './services/customAgentService';
 import { ChatSidebarProvider } from './providers/chatSidebarProvider';
-import { ChatMessageService } from './services/chatMessageService';
-import { generateWebviewHtml } from './templates/webviewTemplate';
-import { WebviewContext } from './types/context';
 import { Logger, LogLevel } from './services/logger';
 import * as path from 'path';
 

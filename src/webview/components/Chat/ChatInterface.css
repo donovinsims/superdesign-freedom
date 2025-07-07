@@ -376,39 +376,7 @@
     padding-right: 0;
 }
 
-/* Message Actions */
-.message-actions {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    margin-top: 4px;
-    opacity: 1;
-    justify-content: flex-end;
-}
 
-.action-btn {
-    background: transparent;
-    border: none;
-    color: var(--vscode-descriptionForeground);
-    cursor: pointer;
-    padding: 2px;
-    border-radius: 2px;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-}
-
-.action-btn:hover {
-    background: var(--vscode-list-hoverBackground);
-    color: var(--vscode-foreground);
-}
-
-.action-btn svg {
-    width: 12px;
-    height: 12px;
-}
 
 /* Chat placeholder */
 .chat-placeholder {
@@ -2144,23 +2112,23 @@
 
 /* Theme Tool Message Styles - Added for generateTheme tool calls */
 .theme-tool-message {
-    margin-bottom: 6px;
-    padding: 8px 10px;
-    border: 1px solid var(--vscode-input-border);
-    border-radius: 8px;
-    background: var(--vscode-input-background);
+    margin-bottom: 4px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
     transition: all 0.2s ease;
     position: relative;
 }
 
 .theme-tool-message--panel {
-    margin-bottom: 8px;
-    padding: 10px 12px;
+    margin-bottom: 4px;
+    padding: 0;
 }
 
 .theme-tool-message--sidebar {
     margin-bottom: 4px;
-    padding: 6px 8px;
+    padding: 0;
 }
 
 .theme-error-notice {
@@ -2225,6 +2193,51 @@
 
 .chat-message--tool-container .chat-message__content {
     padding: 0 !important;
+}
+
+/* Mixed content messages (text + tool calls) */
+.chat-message--mixed-content {
+    background: transparent;
+    border: none;
+    margin-bottom: 12px;
+    padding: 0;
+}
+
+.chat-message--mixed-content .chat-message__content {
+    margin-bottom: 6px;
+}
+
+.chat-message--mixed-content .chat-message__tools {
+    margin-top: 4px;
+}
+
+.chat-message--mixed-content .chat-message__tools .tool-message {
+    margin-bottom: 4px;
+}
+
+.chat-message--mixed-content .chat-message__tools .theme-tool-message {
+    margin-bottom: 4px;
+}
+
+/* Multiple tool calls container */
+.tool-calls-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tool-calls-container .tool-message {
+    margin-bottom: 0;
+}
+
+.tool-calls-container .theme-tool-message {
+    margin-bottom: 0;
+}
+
+/* Theme copy button styling */
+.theme-copy-btn:hover {
+    background: var(--vscode-list-hoverBackground) !important;
+    color: var(--vscode-foreground) !important;
 }
 
 
