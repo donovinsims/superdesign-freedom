@@ -16,7 +16,7 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
-    const { chatHistory, isLoading, sendMessage, stopResponse, clearHistory } = useChat(vscode);
+    const { chatHistory, isLoading, sendMessage, clearHistory } = useChat(vscode);
     const { isFirstTime, isLoading: isCheckingFirstTime, markAsReturningUser, resetFirstTimeUser } = useFirstTimeUser();
     const [inputMessage, setInputMessage] = useState('');
     const [selectedModel, setSelectedModel] = useState<string>('claude-3-5-sonnet-20241022');
@@ -190,7 +190,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 const newState = { ...prev };
                 const toolIndices = chatHistory
                     .map((msg, index) => ({ msg, index }))
-                    .filter(({ msg }) => msg.type === 'tool' || msg.type === 'tool-result')
+                    .filter(({ msg }) => msg.role === 'tool')
                     .map(({ index }) => index);
                 
                 // Keep only the last tool/tool-result expanded
@@ -592,58 +592,96 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     }, [isLoading, handleImageUpload, showWelcome]);
 
     const renderChatMessage = (msg: ChatMessage, index: number) => {
-        const isLastUserMessage = msg.type === 'user-input' && index === chatHistory.length - 1 && isLoading;
-        const isLastStreamingMessage = (msg.type === 'assistant' || msg.type === 'result') && index === chatHistory.length - 1;
+        // Helper function to extract text content from CoreMessage
+        const getMessageText = (msg: ChatMessage): string => {
+            if (typeof msg.content === 'string') {
+                return msg.content;
+            } else if (Array.isArray(msg.content)) {
+                // Find text parts and concatenate them
+                return msg.content
+                    .filter(part => part.type === 'text')
+                    .map(part => (part as any).text)
+                    .join('\n');
+            }
+            return '';
+        };
+
+        // Check if message has tool calls
+        const hasToolCalls = Array.isArray(msg.content) && 
+            msg.content.some(part => part.type === 'tool-call');
+            
+        // Helper function to find tool result for a tool call
+        const findToolResult = (toolCallId: string) => {
+            // Look for a tool message with matching toolCallId
+            for (let i = index + 1; i < chatHistory.length; i++) {
+                const laterMsg = chatHistory[i];
+                if (laterMsg.role === 'tool' && Array.isArray(laterMsg.content)) {
+                    const toolResultPart = laterMsg.content.find(
+                        part => part.type === 'tool-result' && (part as any).toolCallId === toolCallId
+                    );
+                    if (toolResultPart) {
+                        return toolResultPart as any;
+                    }
+                }
+            }
+            return null;
+        };
+        
+        // Check if message has tool results
+        const hasToolResults = Array.isArray(msg.content) && 
+            msg.content.some(part => part.type === 'tool-result');
+
+        const isLastUserMessage = msg.role === 'user' && index === chatHistory.length - 1 && isLoading;
+        const isLastStreamingMessage = (msg.role === 'assistant' || hasToolResults) && index === chatHistory.length - 1;
         const isStreaming = isLastStreamingMessage && isLoading;
-        const messageText = typeof msg.message === 'string' ? msg.message : JSON.stringify(msg.message);
+        const messageText = getMessageText(msg);
         
-        // Handle tool messages specially
-        if (msg.type === 'tool') {
-            return renderToolMessage(msg, index);
+        // Handle tool call messages specially
+        if (msg.role === 'assistant' && hasToolCalls) {
+                                    return renderToolMessage(msg, index, findToolResult);
         }
         
-        // Handle tool groups specially
-        if (msg.type === 'tool-group') {
-            return renderToolGroup(msg, index);
+        // Handle tool result messages - just show them as system messages
+        if (msg.role === 'tool' && hasToolResults) {
+            return (
+                <div key={index} className={`chat-message chat-message--system chat-message--${layout}`}>
+                    {layout === 'panel' && (
+                        <div className="chat-message__header">
+                            <span className="chat-message__label">Tool Result</span>
+                        </div>
+                    )}
+                    <div className="chat-message__content">
+                        <div style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+                            Tool execution completed
+                        </div>
+                    </div>
+                </div>
+            );
         }
         
-        // Handle error messages with actions specially
-        if (msg.type === 'error') {
-            return renderErrorMessage(msg, index);
-        }
+        // Handle error messages with actions specially  
+        // Note: Error message handling removed for CoreMessage compatibility
         
         // Determine message label and styling
         let messageLabel = '';
         let messageClass = '';
         
-        switch (msg.type) {
-            case 'user-input':
+        switch (msg.role) {
+            case 'user':
                 messageLabel = 'You';
                 messageClass = 'user';
-                break;
-            case 'user':
-                messageLabel = 'Claude (User Message)';
-                messageClass = 'user-sdk';
                 break;
             case 'assistant':
                 messageLabel = 'Claude';
                 messageClass = 'assistant';
                 break;
-            case 'result':
-                if (msg.subtype === 'success') {
-                    messageLabel = 'Result';
-                } else if (msg.subtype === 'error_max_turns') {
-                    messageLabel = 'Error (Max Turns)';
-                } else if (msg.subtype === 'error_during_execution') {
-                    messageLabel = 'Error (Execution)';
-                } else if (msg.subtype === 'stopped') {
-                    messageLabel = 'Stopped';
-                } else if (msg.subtype === 'error') {
-                    messageLabel = 'Error';
-                } else {
-                    messageLabel = 'Result';
-                }
-                messageClass = msg.metadata?.is_error ? 'result-error' : 'result';
+            case 'system':
+                messageLabel = 'System';
+                messageClass = 'system';
+                break;
+            case 'tool':
+                messageLabel = 'Tool Result';
+                messageClass = 'tool-result';
                 break;
         }
         
@@ -651,7 +689,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             <div key={index} className={`chat-message chat-message--${messageClass} chat-message--${layout}`}>
                 {layout === 'panel' && (
                     <div className="chat-message__header">
-                    <span className="chat-message__label">
+                        <span className="chat-message__label">
                             {messageLabel}
                         </span>
                         {msg.metadata && (
@@ -662,15 +700,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 {msg.metadata.total_cost_usd && (
                                     <span className="metadata-item">${msg.metadata.total_cost_usd.toFixed(4)}</span>
                                 )}
-                                {msg.metadata.num_turns && (
-                                    <span className="metadata-item">{msg.metadata.num_turns} turns</span>
-                                )}
-                    </span>
+                            </span>
+                        )}
+                    </div>
                 )}
-            </div>
-                )}
-            <div className="chat-message__content">
-                    {(msg.type === 'assistant' || msg.type === 'result') ? (
+                <div className="chat-message__content">
+                    {(msg.role === 'assistant') ? (
                         <MarkdownRenderer content={messageText} />
                     ) : (
                         (() => {
@@ -710,7 +745,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                     )}
                     {isStreaming && <span className="streaming-cursor">▋</span>}
                 </div>
-                {(msg.type === 'assistant' || msg.type === 'result') && !isStreaming && (
+                {(msg.role === 'assistant') && !isStreaming && (
                     <div className="message-actions">
                         <button 
                             onClick={() => handleLikeMessage(index)}
@@ -745,48 +780,42 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 {isLastUserMessage && (
                     <div className="generating-content">
                         <span className="generating-text">Generating</span>
-                        <button 
-                            onClick={stopResponse}
-                            className="generating-stop-btn"
-                            title="Stop response"
-                        >
-                            Stop
-                        </button>
                     </div>
                 )}
             </div>
         );
     };
 
-    const renderToolMessage = (msg: ChatMessage, index: number) => {
+    const renderToolMessage = (msg: ChatMessage, index: number, findToolResult: (toolCallId: string) => any) => {
         try {
-            const toolName = msg.metadata?.tool_name || 'Unknown Tool';
-            const toolInput = msg.metadata?.tool_input || {};
+            // Extract tool call information from content
+            const toolCallPart = Array.isArray(msg.content) 
+                ? msg.content.find(part => part.type === 'tool-call') as any
+                : null;
+                
+            if (!toolCallPart) {
+                return <div key={index}>Invalid tool message</div>;
+            }
+            
+            const toolName = toolCallPart.toolName || 'Unknown Tool';
+            const toolInput = toolCallPart.args || {};
             
             // Special handling for generateTheme tool calls
             if (toolName === 'generateTheme') {
-                const hasResult = msg.metadata?.result_received || false;
+                const hasResult = !msg.metadata?.is_loading;
                 const isLoading = msg.metadata?.is_loading || false;
-                const resultIsError = msg.metadata?.result_is_error || false;
-                const toolResult = msg.metadata?.tool_result || '';
+                const resultIsError = msg.metadata?.is_error || false;
                 
                 // Extract theme data from tool input
                 const themeName = toolInput.theme_name || 'Untitled Theme';
                 const reasoning = toolInput.reasoning_reference || '';
                 const cssSheet = toolInput.cssSheet || '';
                 
-                // Try to parse tool result to get file path
+                // Try to get CSS file path from metadata
                 let cssFilePath = null;
-                if (hasResult && !resultIsError && toolResult) {
-                    try {
-                        const result = JSON.parse(toolResult);
-                        if (result.success && result.filePath) {
-                            cssFilePath = result.filePath;
-                        }
-                    } catch (e) {
-                        // Fallback to cssSheet if parsing fails
-                        console.warn('Failed to parse theme tool result:', e);
-                    }
+                if (hasResult && !resultIsError) {
+                    // Tool results might be stored differently now
+                    cssFilePath = toolInput.cssFilePath;
                 }
                 
                 return (
@@ -825,11 +854,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             const command = toolInput.command || '';
             const prompt = toolInput.prompt || '';
             
-            // Tool result data
-            const hasResult = msg.metadata?.result_received || false;
+            // Tool result data - find from separate tool message
             const isLoading = msg.metadata?.is_loading || false;
-            const toolResult = msg.metadata?.tool_result || '';
-            const resultIsError = msg.metadata?.result_is_error || false;
+            const toolCallId = toolCallPart.toolCallId;
+            const toolResultPart = findToolResult(toolCallId);
+            const toolResult = toolResultPart ? 
+                (typeof toolResultPart.result === 'string' ? toolResultPart.result : JSON.stringify(toolResultPart.result, null, 2)) : 
+                '';
+            const hasResult = !!toolResultPart && !isLoading;
+            const resultIsError = toolResultPart?.isError || false;
             
             // Tool is complete when it has finished (regardless of errors)
             const toolComplete = hasResult && !isLoading;
@@ -1092,117 +1125,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 <span className="tool-description">{errorMessage}</span>
                             </div>
                         </div>
-            </div>
-        </div>
-    );
-        }
-    };
-
-    const renderToolGroup = (msg: ChatMessage, index: number) => {
-        try {
-            const isExpanded = expandedTools[index] || false;
-            const childTools = msg.metadata?.child_tools || [];
-            const groupName = msg.metadata?.tool_name || 'Tool Group';
-            const hasResults = childTools.some(tool => tool.metadata?.result_received);
-            const hasErrors = childTools.some(tool => tool.metadata?.result_is_error);
-            const isLoading = childTools.some(tool => tool.metadata?.is_loading);
-            
-            // Task is complete when ALL tools have finished (regardless of errors)
-            const allToolsFinished = childTools.length > 0 && childTools.every(tool => tool.metadata?.result_received);
-            const taskComplete = allToolsFinished && !isLoading;
-            
-            // Calculate group progress based on child tools
-            let totalProgress = 0;
-            let totalTime = 0;
-            let remainingTime = 0;
-            if (childTools.length > 0) {
-                childTools.forEach(tool => {
-                    totalProgress += tool.metadata?.progress_percentage || 0;
-                    totalTime += tool.metadata?.estimated_duration || 0;
-                    remainingTime += Math.max(0, (tool.metadata?.estimated_duration || 0) - (tool.metadata?.elapsed_time || 0));
-                });
-                totalProgress = totalProgress / childTools.length;
-                
-                // If all tools are finished, set progress to 100%
-                if (allToolsFinished) {
-                    totalProgress = 100;
-                }
-            }
-            
-            // Format time display
-            const formatTime = (seconds: number): string => {
-                const mins = Math.floor(seconds / 60);
-                const secs = Math.floor(seconds % 60);
-                return `${mins}:${secs.toString().padStart(2, '0')}`;
-            };
-            
-            const toggleExpanded = () => {
-                setExpandedTools(prev => ({
-                    ...prev,
-                    [index]: !prev[index]
-                }));
-            };
-            
-            return (
-                <div key={index} className={`tool-group tool-group--${layout} ${taskComplete ? 'tool-group--complete' : ''} ${isLoading ? 'tool-group--loading' : ''}`}>
-                    <div 
-                        className="tool-group__header"
-                        onClick={toggleExpanded}
-                    >
-                        <div className="tool-group__main">
-                            <span className="tool-group-icon">
-                                {isLoading ? (
-                                    <div className="loading-icon-simple">
-                                        <div className="loading-ring"></div>
-                                    </div>
-                                ) : (
-                                    <GroupIcon />
-                                )}
-                            </span>
-                            <div className="tool-group-info">
-                                <span className="tool-group-name">{groupName}</span>
-                                {isLoading && (
-                                    <span className="tool-time-remaining">
-                                        <ClockIcon /> {formatTime(remainingTime)} remaining
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                        <div className="tool-group-actions">
-                            <span className="tool-group-count">{childTools.length} steps</span>
-                            {taskComplete && (
-                                <span className="tool-status tool-status--complete">
-                                    <CheckIcon />
-                                </span>
-                            )}
-                            <button className={`tool-expand-btn ${isExpanded ? 'expanded' : ''}`}>
-                                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    {isExpanded && (
-                        <div className="tool-group__children">
-                            {childTools.map((childTool, childIndex) => 
-                                renderToolMessage(childTool, `${index}_${childIndex}` as any)
-                            )}
-                        </div>
-                    )}
-                </div>
-            );
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            return (
-                <div key={index} className={`tool-group tool-group--${layout} tool-group--error`}>
-                    <div className="tool-group__header">
-                        <div className="tool-group__main">
-                            <span className="tool-group-icon">⚠️</span>
-                            <div className="tool-group-info">
-                                <span className="tool-group-name">Error rendering tool group</span>
-                                <span className="tool-time-remaining">{errorMessage}</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             );
@@ -1228,11 +1150,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 )}
                 <div className="chat-message__content">
                     <div className="error-message-content">
-                        {msg.message}
+                        {typeof msg.content === 'string' ? msg.content : 'Error occurred'}
                     </div>
-                    {msg.actions && msg.actions.length > 0 && (
+                    {msg.metadata?.actions && msg.metadata.actions.length > 0 && (
                         <div className="error-actions">
-                            {msg.actions.map((action, actionIndex) => (
+                            {msg.metadata.actions.map((action, actionIndex) => (
                                 <button
                                     key={actionIndex}
                                     onClick={() => handleActionClick(action)}
@@ -1301,10 +1223,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         <>
                             {chatHistory
                                 .filter(msg => {
-                                    // Filter out verbose result messages to keep chat clean
-                                    if (msg.type === 'result' && msg.subtype === 'success') {
-                                        return false;
-                                    }
+                                    // All messages are now displayed since we use CoreMessage format
                                     return true;
                                 })
                                 .map(renderChatMessage)
@@ -1435,7 +1354,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 </button>
                                 {isLoading ? (
                                     <button 
-                                        onClick={stopResponse}
+                                        onClick={() => {
+                                            // Stop functionality can be added later
+                                            console.log('Stop requested');
+                                        }}
                                         className="send-btn stop-btn"
                                         title="Stop response"
                                     >

@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import { ClaudeCodeService } from './claudeCodeService';
 import { AgentService } from '../types/agent';
-import { convertChatHistoryToAISDK, debugConversion } from './messageConverter';
-import { ChatMessage } from '../webview/hooks/useChat';
 import { CoreMessage } from 'ai';
 import { Logger } from './logger';
 
@@ -16,10 +14,12 @@ export class ChatMessageService {
 
     async handleChatMessage(message: any, webview: vscode.Webview): Promise<void> {
         try {
-            const chatHistory: ChatMessage[] = message.chatHistory || [];
+            const chatHistory: CoreMessage[] = message.chatHistory || [];
             const latestMessage = message.message || '';
-            const messageContent = message.messageContent || latestMessage; // New structured content field
+            const messageContent = message.messageContent || latestMessage;
             
+            console.log('========chatHistory', chatHistory);
+
             Logger.info(`Chat message received with ${chatHistory.length} history messages`);
             Logger.info(`Latest message: ${latestMessage}`);
             
@@ -45,40 +45,36 @@ export class ChatMessageService {
                 command: 'chatStreamStart'
             });
             
-            // Convert chat history to AI SDK format
-            const convertedMessages = convertChatHistoryToAISDK(chatHistory);
+            // Debug log chat history with VS Code output channel
+            this.outputChannel.appendLine('=== CHAT HISTORY DEBUG ===');
+            this.outputChannel.appendLine(`📥 Input: ${chatHistory.length} CoreMessage messages`);
             
-            // Debug log conversion with VS Code output channel
-            this.outputChannel.appendLine('=== MESSAGE CONVERSION DEBUG ===');
-            this.outputChannel.appendLine(`📥 Input: ${chatHistory.length} frontend messages`);
-            this.outputChannel.appendLine(`📤 Output: ${convertedMessages.length} AI SDK messages`);
-            
-            // Log each original message
-            this.outputChannel.appendLine('📋 Original messages:');
+            // Log each message
+            this.outputChannel.appendLine('📋 Chat history:');
             chatHistory.forEach((msg, index) => {
-                this.outputChannel.appendLine(`  [${index}] ${msg.type}: "${msg.message.substring(0, 100)}..." (timestamp: ${msg.timestamp})`);
-            });
-            
-            // Log each converted message  
-            this.outputChannel.appendLine('🔄 Converted messages:');
-            convertedMessages.forEach((msg, index) => {
-                const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+                const content = typeof msg.content === 'string' ? msg.content : 
+                    Array.isArray(msg.content) ? 
+                        msg.content.map(part => 
+                            part.type === 'text' ? part.text?.substring(0, 50) + '...' :
+                            part.type === 'tool-call' ? `[tool-call: ${part.toolName}]` :
+                            part.type === 'tool-result' ? `[tool-result: ${part.toolName}]` :
+                            `[${part.type}]`
+                        ).join(', ') :
+                        '[complex content]';
+                        
                 this.outputChannel.appendLine(`  [${index}] ${msg.role}: "${content.substring(0, 100)}..."`);
             });
             
-            this.outputChannel.appendLine('=== END CONVERSION DEBUG ===');
+            this.outputChannel.appendLine('=== END CHAT HISTORY DEBUG ===');
             
-            // Keep original debug for console
-            debugConversion(chatHistory, convertedMessages);
-            
-            // Decide whether to use conversation history or single prompt
+            // Use conversation history or single prompt
             let response: any[];
-            if (convertedMessages.length > 0) {
-                // Use conversation history
-                this.outputChannel.appendLine(`Using conversation history with ${convertedMessages.length} messages`);
+            if (chatHistory.length > 0) {
+                // Use conversation history - CoreMessage format is already compatible
+                this.outputChannel.appendLine(`Using conversation history with ${chatHistory.length} messages`);
                 response = await this.agentService.query(
                     undefined, // no prompt 
-                    convertedMessages, // use messages array
+                    chatHistory, // use CoreMessage array directly
                     undefined, 
                     this.currentRequestController,
                     (streamMessage: any) => {
@@ -158,206 +154,118 @@ export class ChatMessageService {
         }
     }
 
-    private handleStreamMessage(message: any, webview: vscode.Webview): void {
-        const subtype = 'subtype' in message ? message.subtype : undefined;
-        // Logger.info(`Processing stream message type: ${message.type}${subtype ? `, subtype: ${subtype}` : ''}`);
-        // Logger.info(`Full message structure: ${JSON.stringify(message, null, 2)}`);
+    private handleStreamMessage(message: CoreMessage, webview: vscode.Webview): void {
+        Logger.debug(`Handling CoreMessage: ${JSON.stringify(message, null, 2)}`);
         
-        // Skip system messages
-        if (message.type === 'system') {
-            Logger.debug('Skipping system message');
-            return;
-        }
-        
-        // Handle user messages (which can contain tool results)
-        if (message.type === 'user' && message.message) {
-            Logger.debug(`User message structure: ${JSON.stringify(message.message, null, 2)}`);
-            
-            if (typeof message.message === 'string') {
-                const content = message.message;
-                Logger.debug(`Extracted user content: "${content}"`);
-                
-                if (content.trim()) {
-                    webview.postMessage({
-                        command: 'chatResponseChunk',
-                        messageType: 'user',
-                        content: content,
-                        subtype: subtype,
-                        metadata: {
-                            session_id: message.session_id,
-                            parent_tool_use_id: message.parent_tool_use_id
-                        }
-                    });
-                }
-            } else if (message.message.content && Array.isArray(message.message.content)) {
-                // Handle tool results within user messages
-                for (const item of message.message.content) {
-                    if (item.type === 'tool_result' && item.tool_use_id) {
-                        // This is a tool result - send it as an update to the corresponding tool
-                        const resultContent = typeof item.content === 'string' ? item.content : JSON.stringify(item.content);
-                        
-                        Logger.debug(`Tool result for ${item.tool_use_id}: "${resultContent.substring(0, 200)}..."`);
-                        
-                        webview.postMessage({
-                            command: 'chatToolResult',
-                            tool_use_id: item.tool_use_id,
-                            content: resultContent,
-                            is_error: item.is_error || false,
-                            metadata: {
-                                session_id: message.session_id,
-                                parent_tool_use_id: message.parent_tool_use_id
-                            }
-                        });
-                    } else if (item.type === 'tool_parameter_update' && item.tool_use_id) {
-                        // This is a tool parameter update - send it to update the tool's parameters
-                        this.outputChannel.appendLine(`Tool parameter update for ${item.tool_use_id}: ${JSON.stringify(item.parameters).substring(0, 200)}...`);
-                        
-                        webview.postMessage({
-                            command: 'chatToolUpdate',
-                            tool_use_id: item.tool_use_id,
-                            tool_input: item.parameters
-                        });
-                    } else if (item.type === 'text' && item.text) {
-                        // Regular text content in user message
-                        webview.postMessage({
-                            command: 'chatResponseChunk',
-                            messageType: 'user',
-                            content: item.text,
-                            subtype: subtype,
-                            metadata: {
-                                session_id: message.session_id,
-                                parent_tool_use_id: message.parent_tool_use_id
-                            }
-                        });
-                    }
-                }
-            } else if (message.message.content && typeof message.message.content === 'string') {
-                const content = message.message.content;
-                Logger.debug(`Extracted user content: "${content}"`);
-                
-                if (content.trim()) {
-                    webview.postMessage({
-                        command: 'chatResponseChunk',
-                        messageType: 'user',
-                        content: content,
-                        subtype: subtype,
-                        metadata: {
-                            session_id: message.session_id,
-                            parent_tool_use_id: message.parent_tool_use_id
-                        }
-                    });
-                }
-            } else if (message.message.text) {
-                const content = message.message.text;
-                Logger.debug(`Extracted user content: "${content}"`);
-                
-                if (content.trim()) {
-                    webview.postMessage({
-                        command: 'chatResponseChunk',
-                        messageType: 'user',
-                        content: content,
-                        subtype: subtype,
-                        metadata: {
-                            session_id: message.session_id,
-                            parent_tool_use_id: message.parent_tool_use_id
-                        }
-                    });
-                }
-            } else {
-                Logger.debug('No content found in user message');
-            }
-        }
+        // Check if this is an update to existing message
+        const isUpdate = (message as any)._isUpdate;
+        const updateToolId = (message as any)._updateToolId;
         
         // Handle assistant messages
-        if (message.type === 'assistant' && message.message) {
-            // Logger.info(`Assistant message structure: ${JSON.stringify(message.message, null, 2)}`);
-            
-            if (typeof message.message === 'string') {
-                const content = message.message;
-                // Logger.info(`Extracted assistant content: "${content}"`);
-                
-                if (content.trim()) {
+        if (message.role === 'assistant') {
+            if (typeof message.content === 'string') {
+                // Simple text content
+                if (message.content.trim()) {
                     webview.postMessage({
                         command: 'chatResponseChunk',
                         messageType: 'assistant',
-                        content: content,
-                        subtype: subtype,
-                        metadata: {
-                            session_id: message.session_id,
-                            parent_tool_use_id: message.parent_tool_use_id
-                        }
+                        content: message.content,
+                        metadata: {}
                     });
                 }
-            } else if (message.message.content && Array.isArray(message.message.content)) {
-                // Handle each content item separately
-                for (const item of message.message.content) {
-                    if (item.type === 'text' && item.text) {
-                        // Send text content as assistant message
+            } else if (Array.isArray(message.content)) {
+                // Handle assistant content array (text parts, tool calls, etc.)
+                for (const part of message.content) {
+                    if (part.type === 'text' && (part as any).text) {
+                        // Send text content
                         webview.postMessage({
                             command: 'chatResponseChunk',
                             messageType: 'assistant',
-                            content: item.text,
-                            subtype: subtype,
-                            metadata: {
-                                session_id: message.session_id,
-                                parent_tool_use_id: message.parent_tool_use_id
-                            }
+                            content: (part as any).text,
+                            metadata: {}
                         });
-                    } else if (item.type === 'tool_use') {
-                        // Send each tool use as a separate tool message
-                        webview.postMessage({
-                            command: 'chatResponseChunk',
-                            messageType: 'tool',
-                            content: '',
-                            subtype: 'tool_use',
-                            metadata: {
-                                session_id: message.session_id,
-                                parent_tool_use_id: message.parent_tool_use_id,
-                                tool_name: item.name || 'Unknown Tool',
-                                tool_id: item.id,
-                                tool_input: item.input || {}
-                            }
-                        });
+                    } else if (part.type === 'tool-call') {
+                        // Send tool call or update
+                        const toolPart = part as any;
+                        const command = isUpdate ? 'chatToolUpdate' : 'chatResponseChunk';
+                        const messageType = isUpdate ? undefined : 'tool-call';
+                        
+                        if (isUpdate) {
+                            // Send tool parameter update
+                            webview.postMessage({
+                                command: 'chatToolUpdate',
+                                tool_use_id: toolPart.toolCallId,
+                                tool_input: toolPart.args
+                            });
+                        } else {
+                            // Send new tool call message
+                            webview.postMessage({
+                                command: 'chatResponseChunk',
+                                messageType: 'tool-call',
+                                content: '',
+                                metadata: {
+                                    tool_name: toolPart.toolName,
+                                    tool_id: toolPart.toolCallId,
+                                    tool_input: toolPart.args
+                                }
+                            });
+                        }
                     }
                 }
-            } else if (message.message.content && typeof message.message.content === 'string') {
-                const content = message.message.content;
-                // Logger.info(`Extracted assistant content: "${content}"`);
-                
-                if (content.trim()) {
-                    webview.postMessage({
-                        command: 'chatResponseChunk',
-                        messageType: 'assistant',
-                        content: content,
-                        subtype: subtype,
-                        metadata: {
-                            session_id: message.session_id,
-                            parent_tool_use_id: message.parent_tool_use_id
-                        }
-                    });
-                }
-            } else if (message.message.text) {
-                const content = message.message.text;
-                // Logger.info(`Extracted assistant content: "${content}"`);
-                
-                if (content.trim()) {
-                    webview.postMessage({
-                        command: 'chatResponseChunk',
-                        messageType: 'assistant',
-                        content: content,
-                        subtype: subtype,
-                        metadata: {
-                            session_id: message.session_id,
-                            parent_tool_use_id: message.parent_tool_use_id
-                        }
-                    });
-                }
-            } else {
-                Logger.debug('No content found in assistant message');
             }
         }
         
-        // Handle result messages (tool results)
+        // Handle tool messages (CoreToolMessage)
+        if (message.role === 'tool' && Array.isArray(message.content)) {
+            for (const toolResultPart of message.content) {
+                if (toolResultPart.type === 'tool-result') {
+                    const part = toolResultPart as any;
+                    const content = typeof part.result === 'string' ? 
+                        part.result : 
+                        JSON.stringify(part.result, null, 2);
+                    
+                    Logger.debug(`Tool result for ${part.toolCallId}: "${content.substring(0, 200)}..."`);
+                    
+                    // Send tool result to frontend
+                    webview.postMessage({
+                        command: 'chatResponseChunk',
+                        messageType: 'tool-result',
+                        content: content,
+                        metadata: {
+                            tool_id: part.toolCallId,
+                            tool_name: part.toolName,
+                            is_error: part.isError || false
+                        }
+                    });
+                    
+                    // Also send completion signal
+                    webview.postMessage({
+                        command: 'chatToolResult',
+                        tool_use_id: part.toolCallId,
+                        content: content,
+                        is_error: part.isError || false
+                    });
+                }
+            }
+        }
+        
+        // Handle user messages
+        if (message.role === 'user') {
+            if (typeof message.content === 'string' && message.content.trim()) {
+                webview.postMessage({
+                    command: 'chatResponseChunk',
+                    messageType: 'user',
+                    content: message.content,
+                    metadata: {}
+                });
+            }
+        }
+        
+        // Skip other message types (system, etc.)
+    }
+
+    // Legacy handler for backward compatibility
+    private handleLegacyResultMessage(message: any, webview: vscode.Webview): void {
         if (message.type === 'result') {
             Logger.debug(`Result message structure: ${JSON.stringify(message, null, 2)}`);
             
@@ -419,7 +327,6 @@ export class ChatMessageService {
                     command: 'chatResponseChunk',
                     messageType: 'tool-result',
                     content: content,
-                    subtype: subtype,
                     metadata: {
                         session_id: message.session_id,
                         parent_tool_use_id: message.parent_tool_use_id,

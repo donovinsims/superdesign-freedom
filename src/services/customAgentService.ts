@@ -660,6 +660,8 @@ When calling tools, you MUST use the actual tool call, do NOT just output text l
                 this.outputChannel.appendLine(`Using single prompt: ${prompt!.substring(0, 100)}...`);
             }
 
+            console.log('========streamTextConfig', streamTextConfig);
+
             const result = streamText(streamTextConfig);
 
             this.outputChannel.appendLine('AI SDK streamText created, starting to process chunks...');
@@ -677,14 +679,12 @@ When calling tools, you MUST use the actual tool call, do NOT just output text l
 
                 switch (chunk.type) {
                     case 'text-delta':
-                        // Handle streaming text (assistant message chunks)
+                        // Handle streaming text (assistant message chunks) - CoreMessage format
                         messageBuffer += chunk.textDelta;
                         
-                        const textMessage = {
-                            type: 'assistant',
-                            message: chunk.textDelta,
-                            session_id: sessionId,
-                            parent_tool_use_id: null
+                        const textMessage: CoreMessage = {
+                            role: 'assistant',
+                            content: chunk.textDelta
                         };
                         
                         onMessage?.(textMessage);
@@ -692,19 +692,14 @@ When calling tools, you MUST use the actual tool call, do NOT just output text l
                         break;
 
                     case 'finish':
-                        // Final result message
+                        // Final result message - CoreMessage format
                         this.outputChannel.appendLine(`===Stream finished with reason: ${chunk.finishReason}`);
                         this.outputChannel.appendLine(`${JSON.stringify(chunk)}`);
                         this.outputChannel.appendLine(`========================================`);
                         
-                        const resultMessage = {
-                            type: 'result',
-                            subtype: 'success',
-                            result: chunk.finishReason === 'stop' ? 'Response completed successfully' : 'Response completed',
-                            session_id: sessionId,
-                            duration_ms: Date.now() - parseInt(sessionId.split('_')[1]),
-                            total_cost_usd: chunk.usage?.totalTokens ? chunk.usage.totalTokens * 0.00001 : 0,
-                            usage: chunk.usage || {}
+                        const resultMessage: CoreMessage = {
+                            role: 'assistant',
+                            content: chunk.finishReason === 'stop' ? 'Response completed successfully' : 'Response completed'
                         };
                         
                         onMessage?.(resultMessage);
@@ -712,16 +707,13 @@ When calling tools, you MUST use the actual tool call, do NOT just output text l
                         break;
 
                     case 'error':
-                        // Error handling
+                        // Error handling - CoreMessage format
                         const errorMsg = (chunk as any).error?.message || 'Unknown error occurred';
                         this.outputChannel.appendLine(`Stream error: ${errorMsg}`);
                         
-                        const errorMessage = {
-                            type: 'result',
-                            subtype: 'error',
-                            result: errorMsg,
-                            session_id: sessionId,
-                            is_error: true
+                        const errorMessage: CoreMessage = {
+                            role: 'assistant',
+                            content: `Error: ${errorMsg}`
                         };
                         
                         onMessage?.(errorMessage);
@@ -729,7 +721,7 @@ When calling tools, you MUST use the actual tool call, do NOT just output text l
                         break;
 
                     case 'tool-call-streaming-start':
-                        // Tool call streaming started
+                        // Tool call streaming started - CoreAssistantMessage format
                         const streamStart = chunk as any;
                         currentToolCall = {
                             toolCallId: streamStart.toolCallId,
@@ -740,19 +732,15 @@ When calling tools, you MUST use the actual tool call, do NOT just output text l
                         
                         this.outputChannel.appendLine(`Tool call streaming started: ${streamStart.toolName} (ID: ${streamStart.toolCallId})`);
                         
-                        // Send initial tool call message to frontend in Claude Code format
-                        const toolCallStartMessage = {
-                            type: 'assistant',
-                            message: {
-                                content: [{
-                                    type: 'tool_use',
-                                    id: streamStart.toolCallId,
-                                    name: streamStart.toolName,
-                                    input: {} // Empty initially, will be updated with deltas
-                                }]
-                            },
-                            session_id: sessionId,
-                            parent_tool_use_id: null
+                        // Send initial tool call message in CoreAssistantMessage format
+                        const toolCallStartMessage: CoreMessage = {
+                            role: 'assistant',
+                            content: [{
+                                type: 'tool-call',
+                                toolCallId: streamStart.toolCallId,
+                                toolName: streamStart.toolName,
+                                args: {} // Empty initially, will be updated with deltas
+                            }]
                         };
                         
                         onMessage?.(toolCallStartMessage);
@@ -760,36 +748,32 @@ When calling tools, you MUST use the actual tool call, do NOT just output text l
                         break;
 
                     case 'tool-call-delta':
-                        // Streaming tool call parameters
+                        // Streaming tool call parameters - update existing message
                         const delta = chunk as any;
                         if (currentToolCall && delta.argsTextDelta) {
                             toolCallBuffer += delta.argsTextDelta;
-                            // this.outputChannel.appendLine(`Tool call delta: +${delta.argsTextDelta.length} chars (total: ${toolCallBuffer.length})`);
                             
-                            // Try to parse current buffer as JSON and send parameter update
+                            // Try to parse current buffer as JSON and send update
                             try {
                                 const parsedArgs = JSON.parse(toolCallBuffer);
                                 
-                                // Send parameter update to frontend via ChatMessageService
-                                const parameterUpdateMessage = {
-                                    type: 'user',
-                                    message: {
-                                        content: [{
-                                            type: 'tool_parameter_update',
-                                            tool_use_id: currentToolCall.toolCallId,
-                                            parameters: parsedArgs
-                                        }]
-                                    },
-                                    session_id: sessionId,
-                                    parent_tool_use_id: null
+                                // Send UPDATE signal (not new message) with special marker
+                                const updateMessage: CoreMessage & { _isUpdate?: boolean, _updateToolId?: string } = {
+                                    role: 'assistant',
+                                    content: [{
+                                        type: 'tool-call',
+                                        toolCallId: currentToolCall.toolCallId,
+                                        toolName: currentToolCall.toolName,
+                                        args: parsedArgs
+                                    }],
+                                    _isUpdate: true,
+                                    _updateToolId: currentToolCall.toolCallId
                                 };
                                 
-                                onMessage?.(parameterUpdateMessage);
+                                onMessage?.(updateMessage);
                                 
-                                // this.outputChannel.appendLine(`Sent parameter update: ${JSON.stringify(parsedArgs).substring(0, 100)}...`);
                             } catch (parseError) {
                                 // JSON not complete yet, continue buffering
-                                // Only log every 100 characters to avoid spam
                                 if (toolCallBuffer.length % 100 === 0) {
                                     this.outputChannel.appendLine(`Tool call progress: ${toolCallBuffer.length} characters received (parsing...)`);
                                 }
@@ -798,7 +782,7 @@ When calling tools, you MUST use the actual tool call, do NOT just output text l
                         break;
 
                     case 'tool-call':
-                        // Handle final complete tool call - transform to Claude Code format
+                        // Handle final complete tool call - CoreAssistantMessage format
                         const toolCall = chunk as any;
                         this.outputChannel.appendLine(`=====Tool call complete: ${JSON.stringify(toolCall)}`);
                         this.outputChannel.appendLine(`========================================`);
@@ -806,18 +790,14 @@ When calling tools, you MUST use the actual tool call, do NOT just output text l
                         // Skip sending duplicate tool call message if we already sent streaming start
                         if (!currentToolCall) {
                             // Only send if we didn't already send a streaming start message
-                            const toolCallMessage = {
-                                type: 'assistant',
-                                message: {
-                                    content: [{
-                                        type: 'tool_use',
-                                        id: toolCall.toolCallId,
-                                        name: toolCall.toolName,
-                                        input: toolCall.args
-                                    }]
-                                },
-                                session_id: sessionId,
-                                parent_tool_use_id: null
+                            const toolCallMessage: CoreMessage = {
+                                role: 'assistant',
+                                content: [{
+                                    type: 'tool-call',
+                                    toolCallId: toolCall.toolCallId,
+                                    toolName: toolCall.toolName,
+                                    args: toolCall.args
+                                }]
                             };
                             
                             onMessage?.(toolCallMessage);
@@ -851,20 +831,18 @@ When calling tools, you MUST use the actual tool call, do NOT just output text l
                         // Handle tool results and other unknown chunk types
                         if ((chunk as any).type === 'tool-result') {
                             const toolResult = chunk as any;
-                            this.outputChannel.appendLine(`Tool result for ID: ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result).substring(0, 200)}...`);
+                            this.outputChannel.appendLine(`Tool result received for ID: ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result).substring(0, 200)}...`);
                             
-                            const toolResultMessage = {
-                                type: 'user',
-                                message: {
-                                    content: [{
-                                        type: 'tool_result',
-                                        tool_use_id: toolResult.toolCallId,
-                                        content: JSON.stringify(toolResult.result, null, 2),
-                                        is_error: false
-                                    }]
-                                },
-                                session_id: sessionId,
-                                parent_tool_use_id: null
+                            // Send tool result in CoreToolMessage format
+                            const toolResultMessage: CoreMessage = {
+                                role: 'tool',
+                                content: [{
+                                    type: 'tool-result',
+                                    toolCallId: toolResult.toolCallId,
+                                    toolName: toolResult.toolName,
+                                    result: toolResult.result,
+                                    isError: toolResult.isError || false
+                                }]
                             };
                             
                             onMessage?.(toolResultMessage);

@@ -18,7 +18,7 @@ export interface WebviewMessage {
 }
 
 export interface ChatCommand extends WebviewMessage {
-    command: 'chatWithClaude';
+    command: 'chatMessage';
     message: string;
 }
 
