@@ -127,16 +127,51 @@ export class ChatMessageService {
             const errorMessage = error instanceof Error ? error.message : String(error);
             Logger.error(`Processing error message: "${errorMessage}"`);
             if (this.agentService.isApiKeyAuthError(errorMessage) || !this.agentService.hasApiKey()) {
-                // Send API key error with action buttons
-                const displayMessage = this.agentService.hasApiKey() ? 
-                    'Invalid AI API key · Fix AI API key' : 
-                    'AI API key required · Configure AI API key';
+                // Determine which provider is currently selected to show specific error
+                const config = vscode.workspace.getConfiguration('superdesign');
+                const specificModel = config.get<string>('aiModel');
+                const provider = config.get<string>('aiModelProvider', 'anthropic');
+                
+                // Determine provider from model name if specific model is set
+                let effectiveProvider = provider;
+                let providerName = 'AI';
+                let configureCommand = 'superdesign.configureApiKey';
+                
+                if (specificModel) {
+                    if (specificModel.includes('/')) {
+                        effectiveProvider = 'openrouter';
+                    } else if (specificModel.startsWith('claude-')) {
+                        effectiveProvider = 'anthropic';
+                    } else {
+                        effectiveProvider = 'openai';
+                    }
+                }
+                
+                switch (effectiveProvider) {
+                    case 'openrouter':
+                        providerName = 'OpenRouter';
+                        configureCommand = 'superdesign.configureOpenRouterApiKey';
+                        break;
+                    case 'anthropic':
+                        providerName = 'Anthropic';
+                        configureCommand = 'superdesign.configureApiKey';
+                        break;
+                    case 'openai':
+                        providerName = 'OpenAI';
+                        configureCommand = 'superdesign.configureOpenAIApiKey';
+                        break;
+                }
+                
+                const hasApiKey = this.agentService.hasApiKey();
+                const displayMessage = hasApiKey ? 
+                    `Invalid ${providerName} API key. Please check your configuration.` : 
+                    `${providerName} API key not configured. Please set up your API key to use this AI model.`;
                     
                 webview.postMessage({
                     command: 'chatErrorWithActions',
                     error: displayMessage,
                     actions: [
-                        { text: 'Configure API Key', command: 'superdesign.configureApiKey' },
+                        { text: `Configure ${providerName} API Key`, command: configureCommand },
                         { text: 'Open Settings', command: 'workbench.action.openSettings', args: '@ext:iganbold.superdesign' }
                     ]
                 });

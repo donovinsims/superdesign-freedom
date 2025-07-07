@@ -2063,7 +2063,10 @@
 
 /* Error message with action buttons */
 .error-message-content {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+    line-height: 1.4;
+    position: relative;
+    padding-right: 24px; /* Add space for close button in sidebar mode */
     color: var(--vscode-errorForeground);
 }
 
@@ -2096,8 +2099,46 @@
 }
 
 .error-action-btn:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+    outline: 2px solid var(--vscode-focusBorder);
     outline-offset: 2px;
+}
+
+.error-close-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    transition: all 0.15s ease;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+
+.error-close-btn:hover {
+    background: var(--vscode-toolbar-hoverBackground);
+    opacity: 1;
+    color: var(--vscode-foreground);
+}
+
+.error-close-btn:active {
+    background: var(--vscode-toolbar-activeBackground);
+}
+
+.error-close-btn--sidebar {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 16px;
+    width: 18px;
+    height: 18px;
 }
 
 /* Panel specific styling */

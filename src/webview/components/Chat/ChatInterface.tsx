@@ -16,7 +16,7 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
-    const { chatHistory, isLoading, sendMessage, clearHistory } = useChat(vscode);
+    const { chatHistory, isLoading, sendMessage, clearHistory, setChatHistory } = useChat(vscode);
     const { isFirstTime, isLoading: isCheckingFirstTime, markAsReturningUser, resetFirstTimeUser } = useFirstTimeUser();
     const [inputMessage, setInputMessage] = useState('');
     const [selectedModel, setSelectedModel] = useState<string>('claude-3-5-sonnet-20241022');
@@ -767,7 +767,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         }
         
         // Handle error messages with actions specially  
-        // Note: Error message handling removed for CoreMessage compatibility
+        if (msg.role === 'assistant' && msg.metadata?.is_error && msg.metadata?.actions) {
+            return renderErrorMessage(msg, index, setChatHistory);
+        }
         
         // Determine message label and styling
         let messageLabel = '';
@@ -1236,7 +1238,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         }
     };
 
-    const renderErrorMessage = (msg: ChatMessage, index: number) => {
+    const renderErrorMessage = (msg: ChatMessage, index: number, setChatHistory: React.Dispatch<React.SetStateAction<ChatMessage[]>>) => {
         const handleActionClick = (action: { text: string; command: string; args?: string }) => {
             console.log('Action clicked:', action);
             vscode.postMessage({
@@ -1246,11 +1248,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             });
         };
 
+        const handleCloseError = () => {
+            // Remove this error message from chat history
+            setChatHistory((prev: ChatMessage[]) => prev.filter((_, i: number) => i !== index));
+        };
+
         return (
             <div key={index} className={`chat-message chat-message--result-error chat-message--${layout}`}>
                 {layout === 'panel' && (
                     <div className="chat-message__header">
                         <span className="chat-message__label">Error</span>
+                        <button 
+                            className="error-close-btn"
+                            onClick={handleCloseError}
+                            title="Dismiss error"
+                        >
+                            ×
+                        </button>
                     </div>
                 )}
                 <div className="chat-message__content">
@@ -1269,6 +1283,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 </button>
                             ))}
                         </div>
+                    )}
+                    {layout === 'sidebar' && (
+                        <button 
+                            className="error-close-btn error-close-btn--sidebar"
+                            onClick={handleCloseError}
+                            title="Dismiss error"
+                        >
+                            ×
+                        </button>
                     )}
                 </div>
             </div>

@@ -2,7 +2,7 @@
   "name": "superdesign",
   "displayName": "superdesign",
   "description": "The 1st Design Agent lives inside your IDE",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "publisher": "iganbold",
   "icon": "icon.png",
   "repository": {
@@ -151,16 +151,6 @@
         "superdesign.openrouterApiKey": {
           "type": "string",
           "description": "OpenRouter API key for custom agent",
-          "scope": "application"
-        },
-        "superdesign.agentProvider": {
-          "type": "string",
-          "enum": [
-            "claude-code",
-            "custom"
-          ],
-          "default": "claude-code",
-          "description": "Choose between Claude Code agent or custom coding agent",
           "scope": "application"
         },
         "superdesign.aiModelProvider": {

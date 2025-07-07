@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CoreMessage } from 'ai';
 
 // Additional metadata for UI state
@@ -38,6 +38,7 @@ export interface ChatHookResult {
     isLoading: boolean;
     sendMessage: (message: string) => void;
     clearHistory: () => void;
+    setChatHistory: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
 }
 
 // Tool time estimation map (in seconds)
@@ -318,6 +319,46 @@ export function useChat(vscode: any): ChatHookResult {
                     setIsLoading(false);
                     break;
                     
+                case 'chatErrorWithActions':
+                    // Handle API key and authentication errors with action buttons
+                    console.log('Chat error with actions:', message.error);
+                    setIsLoading(false);
+                    
+                    const errorMessage: ChatMessage = {
+                        role: 'assistant',
+                        content: `❌ **${message.error}**\n\nPlease configure your API key to use this AI model.`,
+                        metadata: {
+                            timestamp: Date.now(),
+                            is_error: true,
+                            actions: message.actions || []
+                        }
+                    };
+                    
+                    setChatHistory(prev => [...prev, errorMessage]);
+                    break;
+                    
+                case 'chatError':
+                    // Handle general errors
+                    console.log('Chat error:', message.error);
+                    setIsLoading(false);
+                    
+                    const generalErrorMessage: ChatMessage = {
+                        role: 'assistant',
+                        content: `❌ **Error**: ${message.error}`,
+                        metadata: {
+                            timestamp: Date.now(),
+                            is_error: true
+                        }
+                    };
+                    
+                    setChatHistory(prev => [...prev, generalErrorMessage]);
+                    break;
+                    
+                case 'chatStopped':
+                    console.log('Chat was stopped');
+                    setIsLoading(false);
+                    break;
+                    
                 default:
                     break;
             }
@@ -331,6 +372,7 @@ export function useChat(vscode: any): ChatHookResult {
         chatHistory,
         isLoading,
         sendMessage,
-        clearHistory
+        clearHistory,
+        setChatHistory
     };
 } 
