@@ -1,14 +1,29 @@
 import { CoreMessage } from 'ai';
 import { ChatMessage } from '../webview/hooks/useChat';
 
+// Type definitions for tool parts (if not exported from 'ai')
+interface ToolCallPart {
+    type: 'tool-call';
+    toolCallId: string;
+    toolName: string;
+    args: unknown;
+}
+
+interface ToolResultPart {
+    type: 'tool-result';
+    toolCallId: string;
+    toolName: string;
+    result: unknown;
+    isError?: boolean;
+}
+
 /**
  * Convert frontend ChatMessage[] to AI SDK CoreMessage[] format
  * 
  * Conversion Rules:
  * - 'user-input' → user role with text content
  * - 'assistant' → assistant role with text content  
- * - 'tool' → assistant role with tool-call content
- * - 'tool-result' → user role with tool-result content
+ * - 'tool' → assistant role with ToolCallPart + tool role with ToolResultPart (if result exists)
  * - 'result' → SKIP (metadata only)
  * - 'tool-group' → SKIP (UI grouping only)
  */
@@ -17,9 +32,34 @@ export function convertChatHistoryToAISDK(chatHistory: ChatMessage[]): CoreMessa
     
     for (const chatMessage of chatHistory) {
         try {
-            const converted = convertSingleMessage(chatMessage);
-            if (converted) {
-                convertedMessages.push(converted);
+            console.log('=== Converting chat message:', chatMessage);
+            
+            // Special handling for tool messages that contain both call and result
+            if (chatMessage.type === 'tool') {
+                console.log('===> Converting tool message with both call and result');
+                
+                // Always add the tool call
+                const toolCall = convertToolCallMessage(chatMessage);
+                if (toolCall) {
+                    console.log('=== Converted tool call:', toolCall);
+                    convertedMessages.push(toolCall);
+                }
+                
+                // Only add tool result if it exists
+                if (chatMessage.metadata?.tool_result) {
+                    const toolResult = convertToolResultMessage(chatMessage);
+                    if (toolResult) {
+                        console.log('=== Converted tool result:', toolResult);
+                        convertedMessages.push(toolResult);
+                    }
+                }
+            } else {
+                // Handle all other message types normally
+                const converted = convertSingleMessage(chatMessage);
+                console.log('=== Converted message:', converted);
+                if (converted) {
+                    convertedMessages.push(converted);
+                }
             }
         } catch (error) {
             console.warn('Failed to convert chat message:', chatMessage, 'Error:', error);
@@ -35,6 +75,7 @@ export function convertChatHistoryToAISDK(chatHistory: ChatMessage[]): CoreMessa
  * Returns null if message should be skipped
  */
 function convertSingleMessage(chatMessage: ChatMessage): CoreMessage | null {
+    console.log('===> convertting single message', chatMessage);
     switch (chatMessage.type) {
         case 'user-input':
             return convertUserInputMessage(chatMessage);
@@ -43,10 +84,9 @@ function convertSingleMessage(chatMessage: ChatMessage): CoreMessage | null {
             return convertAssistantMessage(chatMessage);
             
         case 'tool':
-            return convertToolMessage(chatMessage);
-            
-        case 'tool-result':
-            return convertToolResultMessage(chatMessage);
+            // This case is now handled in the main loop above
+            console.warn('Tool message should be handled in main loop, not here');
+            return null;
             
         case 'result':
         case 'tool-group':
@@ -117,10 +157,9 @@ function convertAssistantMessage(chatMessage: ChatMessage): CoreMessage {
 }
 
 /**
- * Convert tool type to assistant role with text content describing the tool call
- * Note: AI SDK handles tool calls internally, so we convert to descriptive text
+ * Convert tool type to assistant role with ToolCallPart content
  */
-function convertToolMessage(chatMessage: ChatMessage): CoreMessage | null {
+function convertToolCallMessage(chatMessage: ChatMessage): CoreMessage | null {
     const metadata = chatMessage.metadata;
     
     if (!metadata?.tool_name) {
@@ -128,20 +167,27 @@ function convertToolMessage(chatMessage: ChatMessage): CoreMessage | null {
         return null;
     }
     
-    // Convert tool call to descriptive text
-    const toolDescription = `Called tool: ${metadata.tool_name}${
-        metadata.tool_input ? ` with arguments: ${JSON.stringify(metadata.tool_input)}` : ''
-    }`;
+    if (!metadata?.tool_id) {
+        console.warn('Tool message missing tool_id:', metadata);
+        return null;
+    }
+    
+    // Create proper ToolCallPart structure
+    const toolCallPart: ToolCallPart = {
+        type: 'tool-call',
+        toolCallId: metadata.tool_id,
+        toolName: metadata.tool_name,
+        args: metadata.tool_input || {}
+    };
     
     return {
         role: 'assistant',
-        content: toolDescription
+        content: [toolCallPart]
     };
 }
 
 /**
- * Convert tool-result type to user role with text content containing the result
- * Note: AI SDK handles tool results internally, so we convert to descriptive text
+ * Convert tool-result type to tool role with ToolResultPart content
  */
 function convertToolResultMessage(chatMessage: ChatMessage): CoreMessage | null {
     const metadata = chatMessage.metadata;
@@ -151,19 +197,32 @@ function convertToolResultMessage(chatMessage: ChatMessage): CoreMessage | null 
         return null;
     }
     
-    // Convert tool result to descriptive text
-    const resultText = metadata.tool_result || chatMessage.message;
-    const toolResultDescription = `Tool ${metadata.tool_name} result: ${resultText}`;
+    if (!metadata?.tool_id) {
+        console.warn('Tool result message missing tool_id:', metadata);
+        return null;
+    }
+    
+    // Extract result content
+    const resultContent = metadata.tool_result || chatMessage.message;
+    
+    // Create proper ToolResultPart structure
+    const toolResultPart: ToolResultPart = {
+        type: 'tool-result',
+        toolCallId: metadata.tool_id,
+        toolName: metadata.tool_name,
+        result: resultContent,
+        isError: metadata.result_is_error || false
+    };
     
     return {
-        role: 'user',
-        content: toolResultDescription
+        role: 'tool',
+        content: [toolResultPart]
     };
 }
 
 /**
  * Helper function to validate converted messages
- * Ensures alternating user/assistant pattern where possible
+ * Ensures proper tool call/result structure and reasonable message flow
  */
 export function validateConvertedMessages(messages: CoreMessage[]): {
     isValid: boolean;
@@ -186,17 +245,31 @@ export function validateConvertedMessages(messages: CoreMessage[]): {
         }
     }
     
-    // Check for tool-related content patterns
+    // Check for proper tool call/result structure
     for (let i = 0; i < messages.length; i++) {
         const message = messages[i];
-        const content = typeof message.content === 'string' ? message.content : '';
         
-        if (content.includes('Called tool:') && message.role !== 'assistant') {
-            warnings.push(`Tool call content found in non-assistant message at index ${i}`);
+        if (message.role === 'assistant' && Array.isArray(message.content)) {
+            const toolCalls = message.content.filter((part: any) => part.type === 'tool-call');
+            if (toolCalls.length > 0) {
+                for (const toolCall of toolCalls) {
+                    const tc = toolCall as ToolCallPart;
+                    if (!tc.toolCallId || !tc.toolName) {
+                        warnings.push(`Invalid tool call structure at index ${i}`);
+                    }
+                }
+            }
         }
         
-        if (content.includes('Tool ') && content.includes(' result:') && message.role !== 'user') {
-            warnings.push(`Tool result content found in non-user message at index ${i}`);
+        if (message.role === 'tool' && Array.isArray(message.content)) {
+            for (const toolResult of message.content) {
+                if (toolResult.type === 'tool-result') {
+                    const tr = toolResult as ToolResultPart;
+                    if (!tr.toolCallId || !tr.toolName) {
+                        warnings.push(`Invalid tool result structure at index ${i}`);
+                    }
+                }
+            }
         }
     }
     
@@ -225,7 +298,7 @@ export function debugConversion(
     } else {
         console.log('✅ Conversion validation passed');
     }
-    
+    console.log('📋 Original messages:', originalMessages);
     console.log('📋 Converted messages:', convertedMessages);
     console.groupEnd();
 } 

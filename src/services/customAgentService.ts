@@ -126,7 +126,11 @@ export class CustomAgentService implements AgentService {
                 this.outputChannel.appendLine(`Anthropic API key found: ${anthropicKey.substring(0, 12)}...`);
                 
                 const anthropic = createAnthropic({
-                    apiKey: anthropicKey
+                    apiKey: anthropicKey,
+                    baseURL: "https://anthropic.helicone.ai/v1",
+                    headers: {
+                        "Helicone-Auth": `Bearer sk-helicone-utidjzi-eprey7i-tvjl25y-yl7mosi`,
+                    }
                 });
                 
                 // Use specific model if available, otherwise default to claude-3-5-sonnet
@@ -144,7 +148,11 @@ export class CustomAgentService implements AgentService {
                 this.outputChannel.appendLine(`OpenAI API key found: ${openaiKey.substring(0, 7)}...`);
                 
                 const openai = createOpenAI({
-                    apiKey: openaiKey
+                    apiKey: openaiKey,
+                    baseURL: "https://oai.helicone.ai/v1",
+                    headers: {
+                        "Helicone-Auth": `Bearer sk-helicone-utidjzi-eprey7i-tvjl25y-yl7mosi`,
+                    }
                 });
                 
                 // Use specific model if available, otherwise default to gpt-4o
@@ -261,63 +269,6 @@ Ney-brutalism style that feels like 90s web design
   --radius-xl: calc(var(--radius) + 4px);
 }
 </neo-brutalism-style>
-
-Vintage style that feels a bit of modern & classic
-<vintage-style>
-:root {
-  --background: oklch(0.9582 0.0152 90.2357);
-  --foreground: oklch(0.3760 0.0225 64.3434);
-  --card: oklch(0.9914 0.0098 87.4695);
-  --card-foreground: oklch(0.3760 0.0225 64.3434);
-  --popover: oklch(0.9914 0.0098 87.4695);
-  --popover-foreground: oklch(0.3760 0.0225 64.3434);
-  --primary: oklch(0.6180 0.0778 65.5444);
-  --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.8846 0.0302 85.5655);
-  --secondary-foreground: oklch(0.4313 0.0300 64.9288);
-  --muted: oklch(0.9239 0.0190 83.0636);
-  --muted-foreground: oklch(0.5391 0.0387 71.1655);
-  --accent: oklch(0.8348 0.0426 88.8064);
-  --accent-foreground: oklch(0.3760 0.0225 64.3434);
-  --destructive: oklch(0.5471 0.1438 32.9149);
-  --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.8606 0.0321 84.5881);
-  --input: oklch(0.8606 0.0321 84.5881);
-  --ring: oklch(0.6180 0.0778 65.5444);
-  --chart-1: oklch(0.6180 0.0778 65.5444);
-  --chart-2: oklch(0.5604 0.0624 68.5805);
-  --chart-3: oklch(0.4851 0.0570 72.6827);
-  --chart-4: oklch(0.6777 0.0624 64.7755);
-  --chart-5: oklch(0.7264 0.0581 66.6967);
-  --sidebar: oklch(0.9239 0.0190 83.0636);
-  --sidebar-foreground: oklch(0.3760 0.0225 64.3434);
-  --sidebar-primary: oklch(0.6180 0.0778 65.5444);
-  --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.8348 0.0426 88.8064);
-  --sidebar-accent-foreground: oklch(0.3760 0.0225 64.3434);
-  --sidebar-border: oklch(0.8606 0.0321 84.5881);
-  --sidebar-ring: oklch(0.6180 0.0778 65.5444);
-  --font-sans: Libre Baskerville, serif;
-  --font-serif: Lora, serif;
-  --font-mono: IBM Plex Mono, monospace;
-  --radius: 0.25rem;
-  --shadow-2xs: 2px 3px 5px 0px hsl(28 13% 20% / 0.06);
-  --shadow-xs: 2px 3px 5px 0px hsl(28 13% 20% / 0.06);
-  --shadow-sm: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 1px 2px -1px hsl(28 13% 20% / 0.12);
-  --shadow: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 1px 2px -1px hsl(28 13% 20% / 0.12);
-  --shadow-md: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 2px 4px -1px hsl(28 13% 20% / 0.12);
-  --shadow-lg: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 4px 6px -1px hsl(28 13% 20% / 0.12);
-  --shadow-xl: 2px 3px 5px 0px hsl(28 13% 20% / 0.12), 2px 8px 10px -1px hsl(28 13% 20% / 0.12);
-  --shadow-2xl: 2px 3px 5px 0px hsl(28 13% 20% / 0.30);
-  --tracking-normal: 0em;
-  --spacing: 0.25rem;
-
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
-</vintage-style>
 
 Modern dark mode style like vercel, linear
 <modern-dark-mode-style>
@@ -495,7 +446,7 @@ They looks good
 <assistant>
 Great, next let's design the color & font theme,
 
-generateTheme(theme_name='Vercel dark mode style', reasoning_reference='Reference classic shadcn style that has ...', cssFilePath='design_iterations/theme_1.css', cssSheet=':root {
+generateTheme(theme_name='Vercel techy style', reasoning_reference='Reference classic shadcn style that has ...', cssFilePath='design_iterations/theme_1.css', cssSheet=':root {
   --background: oklch(1.0000 0 0);
   --foreground: oklch(0.1448 0 0);
   --card: oklch(1.0000 0 0);
