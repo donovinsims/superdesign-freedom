@@ -8,6 +8,7 @@ import { ChatMessageService } from './services/chatMessageService';
 import { generateWebviewHtml } from './templates/webviewTemplate';
 import { WebviewContext } from './types/context';
 import { Logger, LogLevel } from './services/logger';
+import * as path from 'path';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -134,14 +135,31 @@ async function getBase64Image(filePath: string, sidebarProvider: ChatSidebarProv
 // Function to read CSS file content for theme preview
 async function getCssFileContent(filePath: string, sidebarProvider: ChatSidebarProvider) {
 	try {
+		// Handle relative paths - resolve them to workspace root
+		let resolvedPath = filePath;
+		
+		if (!path.isAbsolute(filePath)) {
+			const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+			if (!workspaceFolder) {
+				throw new Error('No workspace folder found');
+			}
+			
+			// If path doesn't start with .superdesign, add it
+			if (!filePath.startsWith('.superdesign/') && filePath.startsWith('design_iterations/')) {
+				resolvedPath = `.superdesign/${filePath}`;
+			}
+			
+			resolvedPath = path.join(workspaceFolder.uri.fsPath, resolvedPath);
+		}
+		
 		// Read the CSS file
-		const fileUri = vscode.Uri.file(filePath);
+		const fileUri = vscode.Uri.file(resolvedPath);
 		const fileData = await vscode.workspace.fs.readFile(fileUri);
 		
 		// Convert to string
 		const cssContent = Buffer.from(fileData).toString('utf8');
 		
-		console.log(`Read CSS file: ${filePath} (${(fileData.length / 1024).toFixed(1)} KB)`);
+		console.log(`Read CSS file: ${resolvedPath} (${(fileData.length / 1024).toFixed(1)} KB)`);
 		
 		// Send back the CSS content to webview
 		sidebarProvider.sendMessage({

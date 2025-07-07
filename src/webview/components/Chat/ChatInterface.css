@@ -919,7 +919,7 @@
 
 /* Tool message styles - compact */
 .tool-message {
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     padding: 6px 8px;
     border: 1px solid var(--vscode-input-border);
     border-radius: 6px;
@@ -935,14 +935,14 @@
 }
 
 .tool-message--panel {
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     padding: 8px 10px;
     border-radius: 8px;
     font-size: 12px;
 }
 
 .tool-message--sidebar {
-    margin-bottom: 6px;
+    margin-bottom: 3px;
     padding: 6px 8px;
     border-radius: 6px;
     font-size: 11px;
@@ -2144,22 +2144,23 @@
 
 /* Theme Tool Message Styles - Added for generateTheme tool calls */
 .theme-tool-message {
-    margin-bottom: 16px;
-    background: transparent;
-    border: none;
-    border-radius: 12px;
-    padding: 0;
+    margin-bottom: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 8px;
+    background: var(--vscode-input-background);
+    transition: all 0.2s ease;
     position: relative;
 }
 
 .theme-tool-message--panel {
-    margin-bottom: 20px;
-    border-radius: 16px;
+    margin-bottom: 8px;
+    padding: 10px 12px;
 }
 
 .theme-tool-message--sidebar {
-    margin-bottom: 12px;
-    border-radius: 10px;
+    margin-bottom: 4px;
+    padding: 6px 8px;
 }
 
 .theme-error-notice {
@@ -2209,6 +2210,22 @@
 }
 
 /* Tool result content */
+
+/* Remove double margins when chat-message contains tool messages */
+.chat-message--tool-container {
+    margin-bottom: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+.chat-message--tool-container .chat-message__header {
+    display: none !important;
+}
+
+.chat-message--tool-container .chat-message__content {
+    padding: 0 !important;
+}
 
 
  

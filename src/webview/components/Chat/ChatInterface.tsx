@@ -29,6 +29,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const [uploadingImages, setUploadingImages] = useState<string[]>([]);
     const [pendingImages, setPendingImages] = useState<{fileName: string; originalName: string; fullPath: string}[]>([]);
 
+    // Helper function to check if we have meaningful conversation messages
+    const hasConversationMessages = () => {
+        return chatHistory.some(msg => 
+            msg.role === 'user' || 
+            (msg.role === 'assistant' && typeof msg.content === 'string' && msg.content.trim().length > 0) ||
+            (msg.role === 'assistant' && Array.isArray(msg.content) && msg.content.some(part => part.type === 'text' && (part as any).text?.trim().length > 0))
+        );
+    };
+
     // Request current provider on mount
     useEffect(() => {
         vscode.postMessage({
@@ -177,11 +186,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
     // Handle first-time user welcome display
     useEffect(() => {
-        if (!isCheckingFirstTime && isFirstTime && chatHistory.length === 0) {
+        if (!isCheckingFirstTime && isFirstTime && !hasConversationMessages()) {
             setShowWelcome(true);
             console.log('👋 Showing welcome for first-time user');
         }
-    }, [isCheckingFirstTime, isFirstTime, chatHistory.length]);
+    }, [isCheckingFirstTime, isFirstTime, chatHistory]);
 
     // Auto-collapse tools when new messages arrive
     useEffect(() => {
@@ -638,25 +647,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         
         // Handle tool call messages specially
         if (msg.role === 'assistant' && hasToolCalls) {
-                                    return renderToolMessage(msg, index, findToolResult);
-        }
-        
-        // Handle tool result messages - just show them as system messages
-        if (msg.role === 'tool' && hasToolResults) {
-            return (
-                <div key={index} className={`chat-message chat-message--system chat-message--${layout}`}>
-                    {layout === 'panel' && (
-                        <div className="chat-message__header">
-                            <span className="chat-message__label">Tool Result</span>
-                        </div>
-                    )}
-                    <div className="chat-message__content">
-                        <div style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
-                            Tool execution completed
-                        </div>
-                    </div>
-                </div>
-            );
+            return renderToolMessage(msg, index, findToolResult);
         }
         
         // Handle error messages with actions specially  
@@ -685,8 +676,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 break;
         }
         
+        const hasToolCall = hasToolCalls || hasToolResults;
+        
         return (
-            <div key={index} className={`chat-message chat-message--${messageClass} chat-message--${layout}`}>
+            <div key={index} className={`chat-message chat-message--${messageClass} chat-message--${layout} ${hasToolCall ? 'chat-message--tool-container' : ''}`}>
                 {layout === 'panel' && (
                     <div className="chat-message__header">
                         <span className="chat-message__label">
@@ -1219,7 +1212,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             onGetStarted={handleWelcomeGetStarted}
                             vscode={vscode}
                         />
-                    ) : chatHistory.length === 0 ? renderPlaceholder() : (
+                    ) : hasConversationMessages() ? (
                         <>
                             {chatHistory
                                 .filter(msg => {
@@ -1229,7 +1222,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 .map(renderChatMessage)
                             }
                         </>
-                    )}
+                    ) : renderPlaceholder()}
                 </div>
 
                 {!showWelcome && (

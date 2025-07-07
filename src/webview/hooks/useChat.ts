@@ -83,11 +83,35 @@ function getToolTimeEstimate(toolName: string): number {
 }
 
 export function useChat(vscode: any): ChatHookResult {
-    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+    const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
+        // Initialize with persisted chat history from localStorage
+        try {
+            const saved = localStorage.getItem('superdesign-chat-history');
+            return saved ? JSON.parse(saved) : [];
+        } catch (error) {
+            console.warn('Failed to load chat history from localStorage:', error);
+            return [];
+        }
+    });
     const [isLoading, setIsLoading] = useState(false);
+
+    // Persist chat history to localStorage whenever it changes
+    useEffect(() => {
+        try {
+            localStorage.setItem('superdesign-chat-history', JSON.stringify(chatHistory));
+        } catch (error) {
+            console.warn('Failed to save chat history to localStorage:', error);
+        }
+    }, [chatHistory]);
 
     const clearHistory = useCallback(() => {
         setChatHistory([]);
+        // Also clear from localStorage
+        try {
+            localStorage.removeItem('superdesign-chat-history');
+        } catch (error) {
+            console.warn('Failed to clear chat history from localStorage:', error);
+        }
     }, []);
 
     const sendMessage = useCallback((message: string) => {
