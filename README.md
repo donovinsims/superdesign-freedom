@@ -1,5 +1,7 @@
 # 🧠 SuperDesign — AI Design Agent for Your IDE
 
+![SuperDesign Cover](cover.png)
+
 ### **By:** [AI Jason](https://x.com/jasonzhou1993) & [JackJack](https://x.com/jackjack_eth)
 
 SuperDesign is the first **open-source design agent** that lives right inside your IDE.  
@@ -13,6 +15,12 @@ Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
 [Upvote on Hackernews](https://news.ycombinator.com/item?id=44376003)
 
 [Install guide](https://www.superdesign.dev/)
+
+---
+
+## 🎬 Demo Video
+
+[![SuperDesign Demo](https://img.youtube.com/vi/INv6oZDhhUM/maxresdefault.jpg)](https://youtu.be/INv6oZDhhUM)
 
 ---
 
