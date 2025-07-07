@@ -2,7 +2,7 @@
   "name": "superdesign",
   "displayName": "superdesign",
   "description": "The 1st Design Agent lives inside your IDE",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "publisher": "iganbold",
   "icon": "icon.png",
   "repository": {
@@ -222,6 +222,7 @@
     "highlight.js": "^11.11.1",
     "lucide-react": "^0.522.0",
     "micromatch": "^4.0.8",
+    "mime-types": "^3.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
