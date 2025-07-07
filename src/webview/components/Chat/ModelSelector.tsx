@@ -27,14 +27,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
         { id: 'claude-4-sonnet-20250514', name: 'Claude 4 Sonnet', provider: 'Anthropic', category: 'Balanced' },
         { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'Anthropic', category: 'Balanced' },
         { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', category: 'Balanced' },
-        // OpenAI (OpenRouter)
-        { id: 'openai/o3-pro-2025-06-10', name: 'O3 Pro', provider: 'OpenRouter (OpenAI)', category: 'Premium' },
-        { id: 'openai/gpt-4.1-2025-04-14', name: 'GPT-4.1', provider: 'OpenRouter (OpenAI)', category: 'Balanced' },
-        { id: 'openai/gpt-4o', name: 'GPT-4o', provider: 'OpenRouter (OpenAI)', category: 'Balanced' },
-        { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenRouter (OpenAI)', category: 'Fast' },
-        // Anthropic (OpenRouter)
-        { id: 'anthropic/claude-4-opus-20250522', name: 'Claude 4 Opus', provider: 'OpenRouter (Anthropic)', category: 'Premium' },
-        { id: 'anthropic/claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'OpenRouter (Anthropic)', category: 'Balanced' },
         // Google (OpenRouter)
         { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'OpenRouter (Google)', category: 'Balanced' },
         // Meta (OpenRouter)
@@ -62,8 +54,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
         // Reka (OpenRouter)
         { id: 'rekaai/reka-flash-3', name: 'Reka Flash 3', provider: 'OpenRouter (Reka)', category: 'Balanced' },
         // Existing OpenAI (direct)
-        { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', category: 'Balanced' },
-        { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', category: 'Fast' },
+        { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'OpenAI', category: 'Balanced' },
+        { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', provider: 'OpenAI', category: 'Fast' }
     ];
 
     const filteredModels = models.filter(model =>
