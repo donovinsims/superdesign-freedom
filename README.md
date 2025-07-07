@@ -34,13 +34,7 @@ Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
 
 ---
 
-## 🧠 Works Great With
-
-- [Cursor](https://marketplace.visualstudio.com/items?itemName=iganbold.superdesign)
-- [Windsurf](https://marketplace.visualstudio.com/items?itemName=iganbold.superdesign)
-- [Claude Code](https://marketplace.visualstudio.com/items?itemName=iganbold.superdesign)
-- [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=iganbold.superdesign)
-
+## 🧠 Works Great With Cursor, Windsurf, Claude Code, VS Code
 
 👉 [Install here](https://www.superdesign.dev/)
 
@@ -55,6 +49,11 @@ Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
 5. Fork, tweak, and paste into your project
 
 ---
+
+## Can I use my own Claude Code or Cursor subscription?
+Yes, after you initialise superdesign extension, some cursor/claude code rules will be added, so you can prompt the agent to do design and preview in superdesign canva (cmd + shift + p -> superdesign: open canva)
+
+If using Cursor - I will highly suggest copy the prompt in 'design.mdc' and create a custom mode in cursor with that same system prompt; This should give you much better performance
 
 ## 📂 Where Are My Designs Stored?
 
