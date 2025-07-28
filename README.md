@@ -75,6 +75,9 @@ Yes — use your own prompt templates, modify behaviors, or add commands.
 **Can SuperDesign update existing UI?**  
 Absolutely — select a component, describe the change, and let the agent do the rest.
 
+<img width="886" height="586" alt="image" src="https://github.com/user-attachments/assets/71b7cfcc-6123-40ea-aae5-05ea6cdcea96" />
+
+
 **How can I contribute?**  
 Pull requests are welcome. Star the repo and join us on [Discord](https://discord.gg/XYZ)!
 
