@@ -2,7 +2,7 @@
 
 ![SuperDesign Cover](cover.png)
 
-### **By:** [AI Jason](https://x.com/jasonzhou1993) & [JackJack](https://x.com/jackjack_eth)
+### **By:** [AI Jason](https://x.com/jasonzhou1993)F
 
 SuperDesign is the first **open-source design agent** that lives right inside your IDE.  
 Generate UI mockups, components, and wireframes directly from natural language prompts.  
