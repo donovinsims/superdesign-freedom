@@ -1278,6 +1278,14 @@ export function activate(context: vscode.ExtensionContext) {
     await configureOpenAIUrl();
   });
 
+	const configureGeminiApiKeyDisposable = vscode.commands.registerCommand('superdesign.configureGeminiApiKey', async () => {
+		await configureGeminiApiKey();
+	});
+
+	const configureOllamaSettingsDisposable = vscode.commands.registerCommand('superdesign.configureOllamaSettings', async () => {
+		await configureOllamaSettings();
+	});
+
 	// Create the chat sidebar provider
 	const sidebarProvider = new ChatSidebarProvider(context.extensionUri, customAgent, Logger.getOutputChannel());
 	
@@ -1396,6 +1404,8 @@ export function activate(context: vscode.ExtensionContext) {
 		configureOpenAIApiKeyDisposable,
 		configureOpenRouterApiKeyDisposable,
     configureOpenAIUrlDisposable,
+		configureGeminiApiKeyDisposable,
+		configureOllamaSettingsDisposable,
 		sidebarDisposable,
 		showSidebarDisposable,
 		openCanvasDisposable,
@@ -1579,6 +1589,105 @@ async function configureOpenAIUrl() {
       vscode.window.showWarningMessage('No Url was set');
     }
   }
+}
+
+// Function to configure Gemini API key
+async function configureGeminiApiKey() {
+	const currentKey = vscode.workspace.getConfiguration('superdesign').get<string>('geminiApiKey');
+
+	const input = await vscode.window.showInputBox({
+		title: 'Configure Gemini API Key',
+		prompt: 'Enter your Google Gemini API key (get one free at https://ai.google.dev)',
+		value: currentKey ? '••••••••••••••••' : '',
+		password: true,
+		placeHolder: 'AIza...',
+		validateInput: (value) => {
+			if (!value || value.trim().length === 0) {
+				return 'API key cannot be empty';
+			}
+			if (value === '••••••••••••••••') {
+				return null; // User didn't change the masked value, that's OK
+			}
+			return null;
+		}
+	});
+
+	if (input !== undefined) {
+		// Only update if user didn't just keep the masked value
+		if (input !== '••••••••••••••••') {
+			try {
+				await vscode.workspace.getConfiguration('superdesign').update(
+					'geminiApiKey', 
+					input.trim(), 
+					vscode.ConfigurationTarget.Global
+				);
+				vscode.window.showInformationMessage('✅ Gemini API key configured successfully! Free tier: 1500 requests/day');
+			} catch (error) {
+				vscode.window.showErrorMessage(`Failed to save API key: ${error}`);
+			}
+		} else if (currentKey) {
+			vscode.window.showInformationMessage('API key unchanged (already configured)');
+		} else {
+			vscode.window.showWarningMessage('No API key was set');
+		}
+	}
+}
+
+// Function to configure Ollama settings
+async function configureOllamaSettings() {
+	const config = vscode.workspace.getConfiguration('superdesign');
+	const currentEndpoint = config.get<string>('ollamaEndpoint', 'http://localhost:11434');
+	const currentModel = config.get<string>('ollamaModel', 'llama3.2');
+
+	// First, configure endpoint
+	const endpointInput = await vscode.window.showInputBox({
+		title: 'Configure Ollama Endpoint',
+		prompt: 'Enter your Ollama API endpoint',
+		value: currentEndpoint,
+		placeHolder: 'http://localhost:11434',
+		validateInput: (value) => {
+			if (!value || value.trim().length === 0) {
+				return 'Endpoint cannot be empty';
+			}
+			if (!value.startsWith('http')) {
+				return 'Endpoint should start with "http"';
+			}
+			return null;
+		}
+	});
+
+	if (endpointInput === undefined) {
+		return; // User cancelled
+	}
+
+	// Then, configure model
+	const modelInput = await vscode.window.showInputBox({
+		title: 'Configure Ollama Model',
+		prompt: 'Enter the Ollama model to use (e.g., llama3.2, codellama, mistral, qwen2.5-coder)',
+		value: currentModel,
+		placeHolder: 'llama3.2',
+		validateInput: (value) => {
+			if (!value || value.trim().length === 0) {
+				return 'Model name cannot be empty';
+			}
+			return null;
+		}
+	});
+
+	if (modelInput === undefined) {
+		return; // User cancelled
+	}
+
+	// Save both settings
+	try {
+		await config.update('ollamaEndpoint', endpointInput.trim(), vscode.ConfigurationTarget.Global);
+		await config.update('ollamaModel', modelInput.trim(), vscode.ConfigurationTarget.Global);
+		vscode.window.showInformationMessage(
+			`✅ Ollama configured successfully!\nEndpoint: ${endpointInput.trim()}\nModel: ${modelInput.trim()}\n\nMake sure Ollama is running with: ollama serve`
+		);
+	} catch (error) {
+		vscode.window.showErrorMessage(`Failed to save Ollama settings: ${error}`);
+	}
 }
 
 class SuperdesignCanvasPanel {

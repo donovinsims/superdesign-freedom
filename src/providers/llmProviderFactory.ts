@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { LLMProvider, LLMProviderType } from './llmProvider';
 import { ClaudeApiProvider } from './claudeApiProvider';
 import { ClaudeCodeProvider } from './claudeCodeProvider';
+import { GeminiProvider } from './geminiProvider';
+import { OllamaProvider } from './ollamaProvider';
 import { Logger } from '../services/logger';
 
 export class LLMProviderFactory {
@@ -56,6 +58,12 @@ export class LLMProviderFactory {
             case LLMProviderType.CLAUDE_CODE:
                 return new ClaudeCodeProvider(this.outputChannel);
             
+            case LLMProviderType.GEMINI:
+                return new GeminiProvider(this.outputChannel);
+            
+            case LLMProviderType.OLLAMA:
+                return new OllamaProvider(this.outputChannel);
+            
             default:
                 throw new Error(`Unknown provider type: ${providerType}`);
         }
@@ -69,6 +77,10 @@ export class LLMProviderFactory {
         switch (providerType.toLowerCase()) {
             case 'claude-code':
                 return LLMProviderType.CLAUDE_CODE;
+            case 'gemini':
+                return LLMProviderType.GEMINI;
+            case 'ollama':
+                return LLMProviderType.OLLAMA;
             case 'claude-api':
             default:
                 return LLMProviderType.CLAUDE_API;
@@ -114,6 +126,16 @@ export class LLMProviderFactory {
                 type: LLMProviderType.CLAUDE_CODE,
                 name: 'Claude Code Binary',
                 description: 'Uses local claude-code binary for enhanced code execution capabilities'
+            },
+            {
+                type: LLMProviderType.GEMINI,
+                name: 'Google Gemini',
+                description: 'Uses Google Gemini API with free tier (1500 requests/day)'
+            },
+            {
+                type: LLMProviderType.OLLAMA,
+                name: 'Ollama (Local)',
+                description: 'Uses local Ollama models - completely free and unlimited'
             }
         ];
     }
@@ -137,6 +159,12 @@ export class LLMProviderFactory {
                         break;
                     case LLMProviderType.CLAUDE_CODE:
                         errorMessage = 'Claude Code binary is not available. Please install claude-code CLI tool.';
+                        break;
+                    case LLMProviderType.GEMINI:
+                        errorMessage = 'Gemini API key is required. Get one free at https://ai.google.dev';
+                        break;
+                    case LLMProviderType.OLLAMA:
+                        errorMessage = 'Ollama is not running. Start it with: ollama serve';
                         break;
                 }
                 

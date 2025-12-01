@@ -1,102 +1,67 @@
-# 🧠 SuperDesign — AI Design Agent for Your IDE
+# 🧠 SuperDesign Freedom Edition
 
-**🆕 New:** [SuperDesign Chrome Extension](https://chromewebstore.google.com/detail/obpjaonipoaomjnokbimppohbpjibflm) - Clone any website & UI
+This is a fork of the original [SuperDesign](https://github.com/donovinsims/superdesign) project, modified to give you complete freedom and control over your AI design process. No paywalls, no usage limits, and your choice of AI provider.
 
----
-
-![SuperDesign Cover](cover.png)
-
-### **By:** [AI Jason](https://x.com/jasonzhou1993)
-
-SuperDesign is the first **open-source design agent** that lives right inside your IDE.  
-Generate UI mockups, components, and wireframes directly from natural language prompts.  
-Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
-
-> ✨ "Why design one option when you can explore ten?" — SuperDesign
-
-
-[Join discord](https://discord.gg/FYr49d6cQ9)
-
-[Upvote on Hackernews](https://news.ycombinator.com/item?id=44376003)
-
-[Install guide](https://www.superdesign.dev/ide-extension)
+**By:** [AI Jason](https://x.com/jasonzhou1993) (Original Creator) & Manus AI (Freedom Fork Modifications)
 
 ---
 
-## 🎬 Demo Video (Click to play)
+## 🌟 What is the Freedom Edition?
 
-[![SuperDesign Demo](https://img.youtube.com/vi/INv6oZDhhUM/maxresdefault.jpg)](https://youtu.be/INv6oZDhhUM)
+The Freedom Edition takes the incredible open-source design agent from SuperDesign and removes all restrictions, while adding support for more AI providers. It’s for developers and designers who want to own their tools and data without being locked into a specific API or subscription.
 
----
+### ✨ Key Features
 
-## 🚀 Features
-
-- 🖼️ **Product Mock**: Instantly generate full UI screens from a single prompt
-- 🧩 **UI Components**: Create reusable components you can drop into your code
-- 📝 **Wireframes**: Explore low-fidelity layouts for fast iteration
-- 🔁 **Fork & Iterate**: Duplicate and evolve designs easily
-- 📥 **Prompt-to-IDE**: Copy prompts into your favorite AI IDE (Cursor, Windsurf, Claude Code)
-
----
-
-## 🧠 Works Great With Cursor, Windsurf, Claude Code, VS Code
-
-👉 [Install here](https://www.superdesign.dev/ide-extension)
-
----
-
-## 🛠️ Getting Started
-
-1. **Install the Extension** from the Cursor/VS Code Marketplace
-2. Open the `SuperDesign` sidebar panel
-3. Type a prompt (e.g., _"Design a modern login screen"_)
-4. View generated mockups, components, and wireframes
-5. Fork, tweak, and paste into your project
+-   **Choose Your AI Provider**: 
+    -   **Google Gemini**: Use Google’s powerful models with a generous free tier (1,500 requests/day).
+    -   **Ollama**: Run 100% free, unlimited AI models locally on your own machine.
+    -   **Claude API**: The original provider (requires a paid API key).
+    -   **OpenAI & OpenRouter**: Still supported for maximum flexibility.
+-   **Truly Unlimited**: 
+    -   Generate as many designs as you want.
+    -   Export to HTML, React, and Vue as many times as you need.
+    -   No artificial quotas, limits, or “upgrade to pro” messages.
+-   **All Original Features**: Everything that makes SuperDesign great is still here:
+    -   🖼️ **Product Mock**: Instantly generate full UI screens from a single prompt.
+    -   🧩 **UI Components**: Create reusable components.
+    -   📝 **Wireframes**: Explore low-fidelity layouts.
+    -   🔁 **Fork & Iterate**: Duplicate and evolve designs easily.
 
 ---
 
-## Can I use my own Claude Code or Cursor subscription?
-Yes, after you initialise superdesign extension, some cursor/claude code rules will be added, so you can prompt the agent to do design and preview in superdesign canva (cmd + shift + p -> superdesign: open canva)
+## 🚀 Getting Started
 
-If using Cursor - I will highly suggest copy the prompt in 'design.mdc' and create a custom mode in cursor with that same system prompt; This should give you much better performance
+Ready to get started? It only takes a few minutes.
 
-Instructions here (Click to play): 
-[![Instruction video](v0.0.11.png)](https://youtu.be/KChmJMCDOB0?si=pvU0kNRO4GRWjsec&t=122)
-
-## How to run local OpenAI compatible servers?
-1. Select open ai on Ai Model Provider
-2. Put anything in Openai Api Key input
-3. Add your OpenAi Url on the Openai Url input (example: http://127.0.0.1:1234/v1 for LM Studio)
-
-## 📂 Where Are My Designs Stored?
-
-Your generated designs are saved locally inside `.superdesign/`.
+1.  **Installation**: Follow the step-by-step [**Installation Guide (INSTALL.md)**](./INSTALL.md) to install the extension in VS Code.
+2.  **Configuration**: Choose and configure your preferred AI provider (Gemini or Ollama).
+3.  **Design**: Start generating unlimited UI with natural language!
 
 ---
 
-## ❓ FAQ
+## 📚 Documentation
 
-**Is it free and open source?**  
-Yes! We are open source — fork it, extend it, remix it.
+This project is designed to be easy for non-technical users to install, use, and maintain. All guides are written in plain English with clear steps.
 
-**Can I customize the design agent?**  
-Yes — use your own prompt templates, modify behaviors, or add commands.
+-   [**INSTALL.md**](./INSTALL.md): How to install and configure the extension for the first time.
+-   [**TROUBLESHOOTING.md**](./TROUBLESHOOTING.md): Solutions to common problems.
+-   [**BACKUP-RESTORE.md**](./BACKUP-RESTORE.md): How to back up and restore your designs and settings.
+-   [**UPDATE-GUIDE.md**](./UPDATE-GUIDE.md): How to update the extension to use new AI models.
+-   [**MERGE-GUIDE.md**](./MERGE-GUIDE.md): (Advanced) How to merge new features from the original SuperDesign project.
+-   [**EXTEND-GUIDE.md**](./EXTEND-GUIDE.md): (Advanced) An overview of how to customize prompts and add new features.
 
-**Can SuperDesign update existing UI?**  
-Absolutely — select a component, describe the change, and let the agent do the rest.
+---
 
-<img width="886" height="586" alt="image" src="https://github.com/user-attachments/assets/71b7cfcc-6123-40ea-aae5-05ea6cdcea96" />
+## 🤔 Philosophy
 
-
-**How can I contribute?**  
-Pull requests are welcome. Star the repo and join us on [Discord](https://discord.gg/XYZ)!
+-   **Respect for the Original**: SuperDesign is an amazing open-source project. This fork is not meant to compete, but to provide an alternative for those who value complete freedom.
+-   **User Empowerment**: You should have control over your tools and your data.
+-   **Openness**: No hidden behaviors, no tracking, no paywalls. Just pure, unlimited creative power.
 
 ---
 
 ## 🔗 Links
 
-- 🌐 Website: [https://superdesign.dev/ide-extension](https://superdesign.dev/ide-extension)
-- 📦 GitHub: [https://github.com/superdesigndev/superdesign](https://github.com/superdesigndev/superdesign)
-- 💬 Discord: [Join the Community](https://discord.gg/XYZ)
-- 🐦 Twitter / X: [@SuperDesignDev](https://x.com/SuperDesignDev)
+-   **Original Project**: [https://github.com/superdesigndev/superdesign](https://github.com/superdesigndev/superdesign)
+-   **Original Creator**: [@jasonzhou1993](https://x.com/jasonzhou1993)
 

@@ -1,9 +1,9 @@
 {
-  "name": "superdesign-official",
-  "displayName": "Superdesign Dev",
-  "description": "The 1st Design Agent lives inside your IDE",
-  "version": "0.0.14",
-  "publisher": "SuperdesignDev",
+  "name": "superdesign-freedom",
+  "displayName": "Superdesign Freedom Edition",
+  "description": "The 1st Design Agent lives inside your IDE - Freedom Edition with Gemini & Ollama support",
+  "version": "1.0.0",
+  "publisher": "SuperdesignFreedom",
   "icon": "icon.png",
   "repository": {
     "type": "git",
@@ -66,6 +66,16 @@
       {
         "command": "superdesign.configureOpenRouterApiKey",
         "title": "Configure OpenRouter API Key",
+        "category": "Superdesign"
+      },
+      {
+        "command": "superdesign.configureGeminiApiKey",
+        "title": "Configure Gemini API Key",
+        "category": "Superdesign"
+      },
+      {
+        "command": "superdesign.configureOllamaSettings",
+        "title": "Configure Ollama Settings",
         "category": "Superdesign"
       },
       {
@@ -147,11 +157,15 @@
           "type": "string",
           "enum": [
             "claude-api",
-            "claude-code"
+            "claude-code",
+            "gemini",
+            "ollama"
           ],
           "enumDescriptions": [
             "Use Anthropic API key to communicate with Claude via SDK",
-            "Use local claude binary for enhanced code execution capabilities"
+            "Use local claude binary for enhanced code execution capabilities",
+            "Use Google Gemini API - Free tier: 1500 requests/day",
+            "Use local Ollama models - Completely free and unlimited"
           ],
           "default": "claude-api",
           "description": "Choose the LLM provider to use for AI interactions",
@@ -215,6 +229,34 @@
         "superdesign.aiModel": {
           "type": "string",
           "description": "Specific AI model to use (e.g., gpt-4o, claude-3-5-sonnet-20241022)",
+          "scope": "application"
+        },
+        "superdesign.geminiApiKey": {
+          "type": "string",
+          "description": "Google Gemini API key (get free at https://ai.google.dev) - Required for gemini provider",
+          "scope": "application"
+        },
+        "superdesign.geminiModel": {
+          "type": "string",
+          "enum": [
+            "gemini-2.0-flash-exp",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
+          ],
+          "default": "gemini-2.0-flash-exp",
+          "description": "Gemini model to use",
+          "scope": "application"
+        },
+        "superdesign.ollamaEndpoint": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama API endpoint (default: http://localhost:11434)",
+          "scope": "application"
+        },
+        "superdesign.ollamaModel": {
+          "type": "string",
+          "default": "llama3.2",
+          "description": "Ollama model to use (e.g., llama3.2, codellama, mistral, qwen2.5-coder)",
           "scope": "application"
         }
       }

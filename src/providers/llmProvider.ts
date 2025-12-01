@@ -70,7 +70,9 @@ export abstract class LLMProvider {
 
 export enum LLMProviderType {
     CLAUDE_API = 'claude-api',
-    CLAUDE_CODE = 'claude-code'
+    CLAUDE_CODE = 'claude-code',
+    GEMINI = 'gemini',
+    OLLAMA = 'ollama'
 }
 
 export interface LLMProviderConfig {
@@ -79,4 +81,8 @@ export interface LLMProviderConfig {
     claudeCodePath?: string;
     modelId?: string;
     thinkingBudgetTokens?: number;
+    geminiApiKey?: string;
+    geminiModel?: string;
+    ollamaEndpoint?: string;
+    ollamaModel?: string;
 }
