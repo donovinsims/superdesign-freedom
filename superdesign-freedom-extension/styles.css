@@ -1,0 +1,5 @@
+/* styles.css */
+#superdesign-overlay {
+  transition: all 0.1s ease;
+  border-radius: 4px;
+}

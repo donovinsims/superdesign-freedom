@@ -1,0 +1,7 @@
+{
+  "name": "SuperDesign Freedom",
+  "description": "An infinite creative canvas powered by Gemini. Generate designs, images, and code with freedom.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
